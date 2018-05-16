@@ -19,9 +19,13 @@
 
   * The types of test inputs (i.e., test programs and test data) /must/ be 
     unqualified;
-  * Test programs can only be unary or binary functions;
+  * The system can test unary and binary functions only.
   * Unary/binary functions can only be tested using random inputs if their 
     input types /do not/ contain type variables.
+
+  A subsequent verification stage then determines whether user-specified test 
+  programs satisfy the required type class constraints for data generation
+  (i.e., Arbitrary) and/or benchmarking (i.e., NFData).
 
 -}
 
@@ -32,7 +36,7 @@
    -
 -}
 
-module AutoBench.Types 
+module AutoBench.AbstractSyntax
   (
      -- * Abstract syntax
   
