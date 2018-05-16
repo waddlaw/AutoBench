@@ -26,7 +26,7 @@
   A subsequent verification phase then determines whether user-specified test 
   programs satisfy the required type class constraints for data generation
   (i.e., Arbitrary) and/or benchmarking (i.e., NFData). The checks that are 
-  performed during the subsequent verification phase are not syntactic, however.
+  performed during this subsequent phase are not syntactic, however.
 
 -}
 
