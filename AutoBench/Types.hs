@@ -26,26 +26,131 @@
 
 module AutoBench.Types 
   (
+     -- * Abstract syntax
+     -- | In order to validate user input files, the system uses an abstract 
+     -- representation of Haskell 98.
+      parseTySig          -- Parse a string representation of a type signature to an abstract qualified type representation.
+    , tyFunInps           -- Extract the input types from unary/binary function types.
+    , unQualTyToTy        -- Convert an unqualified 'HsQualType' to a 'HsType'
+     -- ** Syntactic checks
+     -- | A number of syntactic checks are performed on the abstract
+     -- representations of types to assess whether types meet the requirements 
+     -- of the system.
+    , hasTyVars           -- Check whether a 'HsType' contains type variables.
+    , isNullaryTyFun      -- Is a 'HsType' a nullary function type?
+    , isUnaryTyFun        -- Is a 'HsType' a unary function type? 
+    , isBinaryTyFun       -- Is a 'HsType' a binary function type?
+    , isUnQualTy          -- Does a 'HsQualType' meet the syntactic /unqualified/ type requirements of AutoBench?
+    , isABTyFun           -- Does a 'HsType' meet the syntactic type requirements of AutoBench?
+    , isABTestTyFun       -- Does a 'HsType' meet the /testable/ syntactic type requirements of AutoBench?
+    , isABGenTyFun        -- Does a 'HsType' meet the /genable/ syntactic type requirements of AutoBench?
+
 
 
 
   ) where 
 
+-- Abstract syntax 
+--import Language.Haskell.Pretty (prettyPrint)
+import Language.Haskell.Syntax 
+  ( HsDecl(..)
+  , HsModule(..)
+  , HsQualType(..)
+  , HsType(..)
+  )
 
- -- * General Data types
-
--- | The string representation of a type.
-type SType = String 
-
--- | The input type of a unary or binary test program.
-data HsTypeInp = 
-    HsTyInpUn  HsType
-  | HsTyInpBin HsType HsType
-    deriving (Show, Eq)
+-- Parsing 
+import Language.Haskell.Parser (ParseResult(..), parseModule)
 
 
--- | Definitions in user input files.
-data UsrFun = UsrFun Id Type HsType deriving Eq
+
+-- * Abstract syntax 
+
+-- | Parse a string representation of a type signature to an abstract 
+-- qualified type representation if possible.
+--
+-- > prettyPrint <$> parseTypeSig "foo :: Int -> Int" = Just "Int -> Int"
+parseTySig :: String -> Maybe HsQualType
+parseTySig s = case parseModule s of 
+  ParseOk (HsModule _ _ _ _ [HsTypeSig _ _ qTy]) -> Just qTy
+  _ -> Nothing 
+
+-- | Convert an unqualified 'HsQualType' to a 'HsType' by removing its context.
+--
+-- Warning: assumes the context is empty.
+unQualTyToTy :: HsQualType -> HsType
+unQualTyToTy (HsQualType _ ty) = ty 
+
+-- | Extract the input types from a /unary/ or /binary/ function type. Return 
+-- them as a 'HsTyTuple'.
+--
+-- In pseudocode:
+-- 
+-- * Int -> Int               ===> (Int)              -- unary
+-- * Int -> String -> Int     ===> (Int, String)      -- binary
+-- * Int -> Int -> Int -> Int ===> ()                 -- not unary/binary 
+-- * Int                      ===> ()                 -- not unary/binary 
+tyFunInps:: HsType -> HsType
+tyFunInps (HsTyFun t1 (HsTyFun t2 _)) = HsTyTuple [t1, t2] 
+tyFunInps (HsTyFun t _) = HsTyTuple [t]
+tyFunInps _ = HsTyTuple []
+
+-- ** Syntactic checks 
+
+-- | Check whether a 'HsType' contains one or more type variables.
+hasTyVars :: HsType -> Bool 
+hasTyVars HsTyVar{} = True
+hasTyVars HsTyCon{} = False
+hasTyVars (HsTyTuple ts)  = any hasTyVars ts
+hasTyVars (HsTyFun t1 t2) = hasTyVars t1 || hasTyVars t2
+hasTyVars (HsTyApp t1 t2) = hasTyVars t1 || hasTyVars t2
+
+-- | Check whether a 'HsType' ia a nullary function type.
+isNullaryTyFun :: HsType -> Bool
+isNullaryTyFun HsTyFun{} = False
+isNullaryTyFun _         = True
+
+-- | Check whether a 'HsType' ia a unary function type.
+isUnaryTyFun :: HsType -> Bool 
+isUnaryTyFun (HsTyFun _ HsTyFun{}) = False 
+isUnaryTyFun HsTyFun{} = True
+isUnaryTyFun _ = False
+
+-- | Check whether a 'HsType' ia a binary function type.
+isBinaryTyFun :: HsType -> Bool 
+isBinaryTyFun (HsTyFun _ (HsTyFun _ HsTyFun{})) = False
+isBinaryTyFun (HsTyFun _ HsTyFun{}) = True 
+isBinaryTyFun _ = False 
+
+-- | Check whether a 'HsQualType' meets the /unqualified/ syntactic type 
+-- requirements of AutoBench, i.e., has an empty context.
+isUnQualTy :: HsQualType -> Bool 
+isUnQualTy (HsQualType [] _) = True 
+isUnQualTy _ = False
+
+-- | Check whether a 'HsType' meets the syntactic type requirements of 
+-- AutoBench, i.e., is a nullary, unary, or binary function type.
+isABTyFun :: HsType -> Bool 
+isABTyFun ty = isNullaryTyFun ty || isUnaryTyFun ty || isBinaryTyFun ty 
+
+-- | Check whether a 'HsType' meets the /testable/ syntactic type 
+-- requirements of AutoBench, i.e., is a unary, or binary function type.
+isABTestTyFun :: HsType -> Bool 
+isABTestTyFun ty = isUnaryTyFun ty || isBinaryTyFun ty 
+
+-- | Check whether a 'HsType' meets the /genable/ syntactic type 
+-- requirements of AutoBench, i.e., 'isABTestTyFun' and input types do not
+-- contain type variables.
+--
+-- The latter requirement is because QuickCheck cannot generate /sized/ test 
+-- data for polymorphic types because it defaults to (), which clearly doesn't 
+-- have a /sensible/ notion of size. 
+isABGenTyFun :: HsType -> Bool 
+isABGenTyFun ty = isABTestTyFun ty && noTyVars (tyFunInps ty) 
+  where 
+    noTyVars (HsTyTuple [t])      = not (hasTyVars t)
+    noTyVars (HsTyTuple [t1, t2]) = not (hasTyVars t1 || hasTyVars t2)
+    noTyVars _ = False -- shouldn't happen
 
 
 
@@ -844,57 +949,6 @@ parseDataSize  = (do
 
 
 
--- | Parse a type signature and generate a representation in the form of a
--- 'HsType'.
-parseTypeSig :: String -> Maybe HsType
-parseTypeSig s = case parseModule s of 
-  ParseOk (HsModule _ _ _ _ [HsTypeSig _ _ (HsQualType _ ty)]) -> Just ty
-  _ -> Nothing 
-
--- | Check whether a type signature is valid for the purposes of /sized/ data 
--- generation. This means ensuring that the type contains no type variables: 
--- QuickCheck /cannot/ generate /sized/ test data for polymorphic types because 
--- it defaults to () which clearly doesn't have a sensible notion of size. 
---
--- Note: if the given type is a unary or binary function type, then only its
--- input types are checked, i.e., for @a -> c@ only @a@ needs to be free of 
--- type variables, and for @a -> b -> c@, both @a@ and @b@ need to be free of 
--- type variables.
---
--- Warning: types are assumed to be nullary, unary or binary function types.
-isValidGenType :: HsType -> Bool  
-isValidGenType HsTyVar{} = False
-isValidGenType HsTyCon{} = True -- Will this ever occur at the top level?
-isValidGenType (HsTyTuple ts) = all isValidGenType' ts
-isValidGenType (HsTyFun t1 (HsTyFun t2 _)) = isValidGenType' t1 && isValidGenType' t2   -- Binary function type
-isValidGenType (HsTyFun t _) = isValidGenType' t                                        -- Unary function type
-isValidGenType (HsTyApp t1 t2) = isValidGenType' t1 && isValidGenType' t2
-
--- | As above, but all the arguments of a function type are checked.
-isValidGenType' :: HsType -> Bool  
-isValidGenType' HsTyVar{} = False
-isValidGenType' HsTyCon{} = True
-isValidGenType' (HsTyTuple ts)  = all isValidGenType' ts
-isValidGenType' (HsTyFun t1 t2) = isValidGenType' t1 && isValidGenType' t2
-isValidGenType' (HsTyApp t1 t2) = isValidGenType' t1 && isValidGenType' t2
-
--- | Check if a type is a nullary function type.
-isNullaryFunType :: HsType -> Bool
-isNullaryFunType HsTyFun{} = False
-isNullaryFunType _         = True
-
--- | Check if a type is a unary function type.
-isUnaryFunType :: HsType -> Bool 
-isUnaryFunType (HsTyFun _ HsTyFun{}) = False 
-isUnaryFunType HsTyFun{}             = True
-isUnaryFunType _                     = False
-
--- | Check if a type is a is a binary function type.
-isBinaryFunType :: HsType -> Bool 
-isBinaryFunType (HsTyFun _ (HsTyFun _ HsTyFun{})) = False
-isBinaryFunType (HsTyFun _ HsTyFun{})             = True 
-isBinaryFunType _                                 = False 
-
 
 
 -- | Definitions in user input files.
@@ -915,12 +969,7 @@ data HsTypeInp =
   | HsTyInpBin HsType HsType
     deriving (Show, Eq)
  
--- Extract the input type ('HsTypeInp') from a unary or binary function type
--- ('HsTyFun'). Warning: types are assumed to unary or binary function types.
-tyFunToTyInp:: HsType -> HsTypeInp
-tyFunToTyInp (HsTyFun t1 (HsTyFun t2 _)) = HsTyInpBin t1 t2 
-tyFunToTyInp (HsTyFun t _)               = HsTyInpUn t 
-tyFunToTyInp _ = error "shouldn't happen: tyFunToTyInp"
+
 
 
 
@@ -1054,4 +1103,9 @@ initUsrInps  =
    , _testConfigs        = []
    }
 
+
+{-
+
+
+-}
 -}
