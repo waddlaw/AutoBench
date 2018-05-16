@@ -31,7 +31,7 @@ module AutoBench.Types
      -- representation of Haskell 98.
       parseTySig          -- Parse a string representation of a type signature to an abstract qualified type representation.
     , tyFunInps           -- Extract the input types from unary/binary function types.
-    , unQualTyToTy        -- Convert an unqualified 'HsQualType' to a 'HsType'
+    , unqualTyToTy        -- Convert an unqualified 'HsQualType' to a 'HsType'
      -- ** Syntactic checks
      -- | A number of syntactic checks are performed on the abstract
      -- representations of types to assess whether types meet the requirements 
@@ -40,7 +40,7 @@ module AutoBench.Types
     , isNullaryTyFun      -- Is a 'HsType' a nullary function type?
     , isUnaryTyFun        -- Is a 'HsType' a unary function type? 
     , isBinaryTyFun       -- Is a 'HsType' a binary function type?
-    , isUnQualTy          -- Does a 'HsQualType' meet the syntactic /unqualified/ type requirements of AutoBench?
+    , isUnqualQualTy      -- Does a 'HsQualType' meet the /unqualified/ syntactic type requirements of AutoBench?
     , isABTyFun           -- Does a 'HsType' meet the syntactic type requirements of AutoBench?
     , isABTestTyFun       -- Does a 'HsType' meet the /testable/ syntactic type requirements of AutoBench?
     , isABGenTyFun        -- Does a 'HsType' meet the /genable/ syntactic type requirements of AutoBench?
@@ -78,13 +78,13 @@ parseTySig s = case parseModule s of
 -- | Convert an unqualified 'HsQualType' to a 'HsType' by removing its context.
 --
 -- Warning: assumes the context is empty.
-unQualTyToTy :: HsQualType -> HsType
-unQualTyToTy (HsQualType _ ty) = ty 
+unqualTyToTy :: HsQualType -> HsType
+unqualTyToTy (HsQualType _ ty) = ty 
 
 -- | Extract the input types from a /unary/ or /binary/ function type. Return 
 -- them as a 'HsTyTuple'.
 --
--- In pseudocode:
+-- Examples in pseudocode:
 -- 
 -- * Int -> Int               ===> (Int)              -- unary
 -- * Int -> String -> Int     ===> (Int, String)      -- binary
@@ -124,9 +124,9 @@ isBinaryTyFun _ = False
 
 -- | Check whether a 'HsQualType' meets the /unqualified/ syntactic type 
 -- requirements of AutoBench, i.e., has an empty context.
-isUnQualTy :: HsQualType -> Bool 
-isUnQualTy (HsQualType [] _) = True 
-isUnQualTy _ = False
+isUnqualQualTy :: HsQualType -> Bool 
+isUnqualQualTy (HsQualType [] _) = True 
+isUnqualQualTy _ = False
 
 -- | Check whether a 'HsType' meets the syntactic type requirements of 
 -- AutoBench, i.e., is a nullary, unary, or binary function type.
@@ -145,6 +145,12 @@ isABTestTyFun ty = isUnaryTyFun ty || isBinaryTyFun ty
 -- The latter requirement is because QuickCheck cannot generate /sized/ test 
 -- data for polymorphic types because it defaults to (), which clearly doesn't 
 -- have a /sensible/ notion of size. 
+--
+-- Examples in pseudocode:
+--
+-- * Int -> Int      ===> True 
+-- * Int             ===> False     -- not 'isABTestTyFun'
+-- * a -> Int -> Int ===> False     -- containts type variable 'a'
 isABGenTyFun :: HsType -> Bool 
 isABGenTyFun ty = isABTestTyFun ty && noTyVars (tyFunInps ty) 
   where 
