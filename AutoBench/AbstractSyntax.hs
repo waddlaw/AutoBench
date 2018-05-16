@@ -39,32 +39,36 @@
 
 module AutoBench.AbstractSyntax
   (
-     -- * Abstract syntax
-  
-      parseTySig          -- Parse a string representation of a type signature to an abstract qualified type representation.
-    , tyFunInps           -- Extract the input types from unary/binary function types.
-    , unqualTyToTy        -- Convert an unqualified 'HsQualType' to a 'HsType'
-  
-     -- ** Syntactic checks
 
-    , hasTyVars           -- Check whether a 'HsType' contains type variables.
-    , isNullaryTyFun      -- Is a 'HsType' a nullary function type?
-    , isUnaryTyFun        -- Is a 'HsType' a unary function type? 
-    , isBinaryTyFun       -- Is a 'HsType' a binary function type?
-    , isUnqualQualTy      -- Does a 'HsQualType' meet the /unqualified/ syntactic type requirements of AutoBench?
-    , isABTyFun           -- Does a 'HsType' meet the syntactic type requirements of AutoBench?
-    , isABTestTyFun       -- Does a 'HsType' meet the /testable/ syntactic type requirements of AutoBench?
-    , isABGenTyFun        -- Does a 'HsType' meet the /genable/ syntactic type requirements of AutoBench?
-      -- Re-exports
-    , Id
-    , HsQualType(..)
-    , HsType(..)
-    , prettyPrint
+   -- * Abstract syntax
+
+    parseTySig          -- Parse a string representation of a type signature to an abstract qualified type representation.
+  , tyFunInps           -- Extract the input types from unary/binary function types.
+  , unqualTyToTy        -- Convert an unqualified 'HsQualType' to a 'HsType'
+
+   -- * Syntactic checks
+
+  , hasTyVars           -- Check whether a 'HsType' contains type variables.
+  , isNullaryTyFun      -- Is a 'HsType' a nullary function type?
+  , isUnaryTyFun        -- Is a 'HsType' a unary function type? 
+  , isBinaryTyFun       -- Is a 'HsType' a binary function type?
+  , isUnqualQualTy      -- Does a 'HsQualType' meet the /unqualified/ syntactic type requirements of AutoBench?
+  , isABTyFun           -- Does a 'HsType' meet the syntactic type requirements of AutoBench?
+  , isABTestTyFun       -- Does a 'HsType' meet the /testable/ syntactic type requirements of AutoBench?
+  , isABGenTyFun        -- Does a 'HsType' meet the /genable/ syntactic type requirements of AutoBench?
+    
+    -- * Re-exports
+
+  , Id
+  , HsQualType(..)
+  , HsType(..)
+  , prettyPrint
+
   ) where 
 
 -- Abstract syntax 
-import Language.Haskell.Pretty (prettyPrint)
 import Language.Haskell.Interpreter (Id)
+import Language.Haskell.Pretty      (prettyPrint)
 import Language.Haskell.Syntax 
   ( HsDecl(..)
   , HsModule(..)
