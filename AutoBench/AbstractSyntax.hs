@@ -4,8 +4,8 @@
 {-|
 
   Module      : AutoBench.AbstractSyntax
-  Description : Abstract syntax for representing elements in user input files
-                for validation purposes.
+  Description : Abstract syntax used to represent user inputs for /syntactic/ 
+                validation purposes.
   Copyright   : (c) 2018 Martin Handley
   License     : BSD-style
   Maintainer  : martin.handley@nottingham.ac.uk
@@ -17,11 +17,11 @@
   the abstract representations of types to assess whether the types of 
   user-specified test program's meet various requirements of the system: 
 
-  * The types of test inputs (i.e., test programs and test data) /must/ be 
-    unqualified;
-  * The system can test unary and binary functions only.
-  * Unary/binary functions can only be tested on randomly generated inputs if 
-    their input types /do not/ contain type variables.
+  * Unqualified: the types of test inputs (i.e., test programs and test data) 
+    /must/ be unqualified;
+  * Testable: the system can test unary and binary functions only.
+  * Genable: unary/binary functions can only be tested on randomly generated 
+    inputs if their input types /do not/ contain type variables.
 
   A subsequent verification phase then determines whether user-specified test 
   programs satisfy the required type class constraints for data generation
@@ -161,7 +161,7 @@ isABTestTyFun ty = isUnaryTyFun ty || isBinaryTyFun ty
 --
 -- * Int -> Int      ===> True 
 -- * Int             ===> False     -- not 'isABTestTyFun'
--- * a -> Int -> Int ===> False     -- containts type variable 'a'
+-- * a -> Int -> Int ===> False     -- containts tyVar 'a'
 isABGenTyFun :: HsType -> Bool 
 isABGenTyFun ty = isABTestTyFun ty && noTyVars (tyFunInps ty) 
   where 
