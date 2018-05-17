@@ -67,13 +67,14 @@ module AutoBench.AbstractSyntax
   , HsQualType(..)
   , HsType(..)
   , Module(..)
+  , ModuleElem
   , ModuleName
   , prettyPrint
 
   ) where 
 
 -- Abstract syntax 
-import Language.Haskell.Interpreter (Id, ModuleName)
+import Language.Haskell.Interpreter (Id, ModuleName, ModuleElem)
 import Language.Haskell.Pretty      (prettyPrint)
 import Language.Haskell.Syntax 
   ( HsDecl(..)

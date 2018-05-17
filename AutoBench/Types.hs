@@ -41,7 +41,7 @@ import           Data.Default           (Default(..))
 
 
 -- AutoBench
-import AutoBench.AbstractSyntax (HsType, Id)
+import AutoBench.AbstractSyntax (HsType, Id, ModuleElem)
 
 
 -- * General 
@@ -102,8 +102,8 @@ instance Default TestSuite where
           , _dataOpts = def                        -- See 'DataOpts'. 
           , _analOpts = def                        -- See 'AnalOpts'.        
           , _critCfg  = Criterion.defaultConfig    -- See 'Criterion.Main.Options.defaultConfig'
-          , _baseline = False              
-          , _nf       = True
+          , _baseline = False                      -- No baseline measurements.
+          , _nf       = True                       -- Evaluate test cases to normal form.
           , _ghcFlags = []                         -- /No/ optimisation, i.e., -O0. 
           }
   
@@ -235,7 +235,7 @@ minInputs  = 20
 --
 -- After the system has processed all user inputs, users can review this data 
 -- structure to see how the system has classified their inputs, and if any 
--- errors have been generated.
+-- errors have been generated. 
 data UserInputs = 
   UserInputs
    {
@@ -254,10 +254,27 @@ data UserInputs =
    , _testSuites         :: [(Id, TestSuite)]                  -- ^ Valid test suites.
    }
 
-
-
-
-
+-- | Initialise a 'UserInputs' data structure by specifying the '_allElems' 
+-- list. 
+initUserInputs :: [(ModuleElem, TypeString)] -> UserInputs
+initUserInputs xs = 
+  UserInputs
+    {
+      _allElems          = xs
+    , _invalidElems      = []
+    , _validElems        = []
+    , _nullaryFuns       = []
+    , _unaryFuns         = []
+    , _binaryFuns        = []
+    , _arbFuns           = []
+    , _nfFuns            = []
+    , _invalidData       = []
+    , _unaryData         = []
+    , _binaryData        = []
+    , _invalidTestSuites = []
+    , _testSuites        = []
+    }
+    
 -- * Benchmarking
 
 data BenchSuite = BenchSuite{}
