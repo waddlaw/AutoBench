@@ -4,29 +4,34 @@
 {-|
 
   Module      : AutoBench.AbstractSyntax
-  Description : Abstract syntax used to represent user inputs for /syntactic/ 
-                validation purposes.
+  Description : Statically validating and classifying user inputs.
   Copyright   : (c) 2018 Martin Handley
   License     : BSD-style
   Maintainer  : martin.handley@nottingham.ac.uk
   Stability   : Experimental
   Portability : GHC
 
-  In order to validate user input files, the system uses an abstract 
-  representation of Haskell 98. A number of syntactic checks are performed on 
-  the abstract representations of types to assess whether the types of 
-  user-specified test program's meet various requirements of the system: 
+  In order to statically validate and classify user inputs, the system uses 
+  an abstract representation of Haskell 98. This representation allows the
+  system to check syntactic properties of types. In particular, the system 
+  assesses whether the types of user inputs have the following properties:
 
-  * Unqualified: the types of test inputs (i.e., test programs and test data) 
-    /must/ be unqualified;
-  * Testable: the system can test unary and binary functions only.
-  * Genable: unary/binary functions can only be tested on randomly generated 
-    inputs if their input types /do not/ contain type variables.
+  1. Typeable: the types of test inputs adhere to Haskell 98 standards;
+  2. Functions: test inputs are nullary/unary/binary functions;
+  3. Unqualified: the types of test inputs are unqualified;
+  4. Testable: test programs are unary and binary functions;
+  5. Genable: unary/binary functions to be tested on randomly generated 
+     inputs /do not/ contain type variables in their input types.
 
-  A subsequent verification phase then determines whether user-specified test 
-  programs satisfy the required type class constraints for data generation
-  (i.e., Arbitrary) and/or benchmarking (i.e., NFData). The checks that are 
-  performed during this subsequent phase are not syntactic, however.
+  The first three properties are used to validate user inputs, as any input 
+  that does not satisfy all properties is incompatible with the system.
+  The remainder of the properties are used to classify user inputs into the
+  
+  
+
+  Subsequent /dynamic/ validation checks (see 
+  'AutoBench.Hint') are then used to further classify user inputs according to 
+  other properties they satisfy.
 
 -}
 
@@ -39,13 +44,13 @@
 
 module AutoBench.AbstractSyntax
   (
-    
-   -- * Abstract syntax
+
+  -- * Abstract syntax
     parseTySig          -- Parse a string representation of a type signature to an abstract qualified type representation.
   , tyFunInps           -- Extract the input types from unary/binary function types.
   , unqualTyToTy        -- Convert an unqualified 'HsQualType' to a 'HsType'.
   , qualIdt             -- Add a qualifying module name to an identifier.
-   -- * Syntactic checks
+  -- * Syntactic checks
   , hasTyVars           -- Check whether a 'HsType' contains type variables.
   , isNullaryTyFun      -- Is a 'HsType' a nullary function type?
   , isUnaryTyFun        -- Is a 'HsType' a unary function type? 
@@ -54,7 +59,7 @@ module AutoBench.AbstractSyntax
   , isABTyFun           -- Does a 'HsType' meet the syntactic type requirements of AutoBench?
   , isABTestTyFun       -- Does a 'HsType' meet the /testable/ syntactic type requirements of AutoBench?
   , isABGenTyFun        -- Does a 'HsType' meet the /genable/ syntactic type requirements of AutoBench?
-    -- * Re-exports
+  -- * Re-exports
   , Id
   , HsExp(..)
   , HsName(..)

@@ -26,27 +26,27 @@
 
 module AutoBench.Types 
   (
-    
-    -- * General 
+
+  -- * General 
     TypeString             -- The string representation of a type.
-    -- * User inputs
-    -- ** Test suites
+  -- * User inputs
+  -- ** Test suites
   , TestSuite(..)          -- Test suites are AutoBench's principle user input datatype.
-    -- ** Test data options
+  -- ** Test data options
   , UnaryTestData          -- User-specified test data for unary test programs.
   , BinaryTestData         -- User-specified test data for binary test programs.
   , DataOpts(..)           -- Test data options.
   , minInputs              -- Minimum number of distinctly sized test inputs.
-    -- ** Statistical analysis options
+  -- ** Statistical analysis options
   , AnalOpts(..)           -- Statistical analysis options.
-    -- ** Internal representation of user inputs
+  -- ** Internal representation of user inputs
   , UserInputs(..)         -- A data structure maintained by the system to classify user inputs.
   , initUserInputs         -- Initialise a 'UserInputs' data structure.
-    -- * Benchmarking
+  -- * Benchmarking
   , BenchSuite(..)         -- Benchmarking suites are AutoBench's principle benchmarking datatype.
-    -- * Statistical analysis
-    -- * Errors
-    -- ** Input errors
+  -- * Statistical analysis
+  -- * Errors
+  -- ** Input errors
   , InputError(..)         -- User input errors.
 
   ) where
@@ -58,7 +58,6 @@ import           Data.Default           (Default(..))
 
 import AutoBench.AbstractSyntax (HsType, Id, ModuleElem)
 
-
 -- * General 
 
 -- | The string representation of a type.
@@ -69,8 +68,8 @@ type TypeString = String
 -- ** Test suites
 
 -- | Test suites are AutoBench's principle user input datatype, and are used to 
--- structure performance tests into logical units that can be checked, verified, 
--- and executed independently. 
+-- structure performance tests into logical units that can be checked, 
+-- validated, and executed independently. 
 --
 -- An advantage of this approach is that users can group multiple test 
 -- suites in the same file according to some testing context, whether it be 
@@ -87,10 +86,10 @@ type TypeString = String
 --     { _progs    = []                                     -- All programs in the test file will be considered for test purposes.
 --     , _dataOpts = def                                    -- See 'DataOpts'.
 --     , _analOpts = def                                    -- See 'AnalOpts'.
---     , _critCfg  = Criterion.Main.Options.defaultConfig
---     , _baseline = False
---     , _nf       = True
---     , _ghcFlags = []                                     -- /No/ optimisation, i.e., -O0.
+--     , _critCfg  = Criterion.Main.Options.defaultConfig   -- See 'Criterion.Main.Options.defaultConfig'
+--     , _baseline = False                                  -- No baseline measurements.
+--     , _nf       = True                                   -- Evaluate test cases to normal form.
+--     , _ghcFlags = []                                     --/No optimisation, i.e., -O0.
 --     }
 -- @
 --
@@ -119,7 +118,7 @@ instance Default TestSuite where
           , _critCfg  = Criterion.defaultConfig    -- See 'Criterion.Main.Options.defaultConfig'
           , _baseline = False                      -- No baseline measurements.
           , _nf       = True                       -- Evaluate test cases to normal form.
-          , _ghcFlags = []                         -- /No/ optimisation, i.e., -O0. 
+          , _ghcFlags = []                         -- No optimisation, i.e., -O0. 
           }
   
 -- ** Test data options
@@ -262,34 +261,33 @@ instance Default AnalOpts where
    }
    -}
 
-
-
-
 -- ** Internal representation of user inputs
 
 -- | While user inputs are being analysed by the system, a 'UserInputs' data
 -- structure is maintained. The purpose of this data structure is to classify 
 -- user inputs according to the properties they satisfy. For example, when the 
--- system first interprets the user input file, all of its definitions are added 
+-- system first interprets a user input file, all of its definitions are added 
 -- to the '_allElems' list. This list is then processed to determine which 
 -- definitions have function types that are syntactically compatible with the 
 -- requirements of the system (see 'AutoBench.AbstractSyntax'). Definitions that 
 -- are compatible are added to the '_validElems' list, and those that aren't are 
--- added to the '_invalidElems' list. This process continues until all user 
--- inputs are classified according to the list headers below.
+-- added to the '_invalidElems' list. Elements in the '_validElems' list are
+-- then classified according to, for example, whether they are nullary, 
+-- unary, or binary functions. This process continues until all user inputs are 
+-- classified according to the list headers below.
 --
 -- Notice that each /invalid/ definitions has one or more input errors 
 -- associated with it.
 --
 -- After the system has processed all user inputs, users can review this data 
 -- structure to see how the system has classified their inputs, and if any 
--- errors have been generated. 
+-- input errors have been generated. 
 data UserInputs = 
   UserInputs
    {
      _allElems           :: [(ModuleElem, TypeString)]         -- ^ All definitions in a user input file.
-   , _invalidElems       :: [(ModuleElem, TypeString)]         -- ^ All syntactically invalid definitions (see 'AutoBench.AbstractSyntax').
-   , _validElems         :: [(Id, HsType)]                     -- ^ All syntactically valid definitions (see 'AutoBench.AbstractSyntax').
+   , _invalidElems       :: [(ModuleElem, TypeString)]         -- ^ Syntactically invalid definitions (see 'AutoBench.AbstractSyntax').
+   , _validElems         :: [(Id, HsType)]                     -- ^ Syntactically valid definitions (see 'AutoBench.AbstractSyntax').
    , _nullaryFuns        :: [(Id, HsType)]                     -- ^ Nullary function definitions.
    , _unaryFuns          :: [(Id, HsType)]                     -- ^ Unary function definitions.
    , _binaryFuns         :: [(Id, HsType)]                     -- ^ Binary function definitions.
@@ -328,10 +326,6 @@ initUserInputs xs =
 data BenchSuite = BenchSuite{}
 
 -- * Statistical analysis
-
-
-
-
 
 -- * Errors 
 

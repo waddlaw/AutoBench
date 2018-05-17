@@ -26,36 +26,26 @@ module AutoBench.Utils
   (
 
   -- * AutoBench specific
-
     fpToModuleName       -- Convert a filepath to a module name.
   , genIdts              -- Generate identifiers for unnamed test programs.
-
   -- * Lists 
-
   , notNull              -- not . null.
   , allEq                -- Check whether all elements in a list are equal.
   , uniqPairs            -- Unique pairs from a list.
-
   -- * Tuples
-
   , (**>)                -- Convert a list of 2-tuples to a list of 3-tuples by applying a function to the values in each 2-tuple.
   , (==>)                -- Convert a list of 2-tuples to a list of 3-tuples by placing a constant element at the end of each 2-tuple.
   -- * Formatting
-
   , subNum               -- Subscripts for 0-9, then "_n". 
   , superNum             -- Superscripts for 0-9, then "^n".
   , strip                -- Strip surrounding whitespace from a string.
-
   -- * Parsing primitives 
-
   , Parser               -- Basic Megaparsec parsing type.
   , integer              -- Basic 'Int' parser.
   , lexeme               -- Basic lexeme parser.
   , sc                   -- Basic space consumer.
   , symbol               -- Basic symbol parser.
-
   -- * Misc 
-
   , (.*)                 -- Generalised function composition.
 
   ) where 
