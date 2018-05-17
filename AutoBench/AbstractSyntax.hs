@@ -44,7 +44,8 @@ module AutoBench.AbstractSyntax
 
     parseTySig          -- Parse a string representation of a type signature to an abstract qualified type representation.
   , tyFunInps           -- Extract the input types from unary/binary function types.
-  , unqualTyToTy        -- Convert an unqualified 'HsQualType' to a 'HsType'
+  , unqualTyToTy        -- Convert an unqualified 'HsQualType' to a 'HsType'.
+  , qualIdt             -- Add a qualifying module name to an identifier.
 
    -- * Syntactic checks
 
@@ -60,20 +61,29 @@ module AutoBench.AbstractSyntax
     -- * Re-exports
 
   , Id
+  , HsExp(..)
+  , HsName(..)
+  , HsQName(..)
   , HsQualType(..)
   , HsType(..)
+  , Module(..)
+  , ModuleName
   , prettyPrint
 
   ) where 
 
 -- Abstract syntax 
-import Language.Haskell.Interpreter (Id)
+import Language.Haskell.Interpreter (Id, ModuleName)
 import Language.Haskell.Pretty      (prettyPrint)
 import Language.Haskell.Syntax 
   ( HsDecl(..)
+  , HsExp(..)
+  , HsName(..)
   , HsModule(..)
+  , HsQName(..)
   , HsQualType(..)
   , HsType(..)
+  , Module(..)
   )
 
 -- Parsing 
@@ -109,6 +119,10 @@ tyFunInps:: HsType -> HsType
 tyFunInps (HsTyFun t1 (HsTyFun t2 _)) = HsTyTuple [t1, t2] 
 tyFunInps (HsTyFun t _) = HsTyTuple [t]
 tyFunInps _ = HsTyTuple []
+
+-- | Add a qualifying module name to an identifier.
+qualIdt :: ModuleName -> Id -> HsExp
+qualIdt mn idt = HsVar (Qual (Module mn) (HsIdent idt))
 
 -- ** Syntactic checks 
 
