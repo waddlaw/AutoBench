@@ -27,8 +27,6 @@
 module AutoBench.Types 
   (
 
-  -- * General 
-    TypeString             -- The string representation of a type.
   -- * User inputs
   -- ** Test suites
   , TestSuite(..)          -- Test suites are AutoBench's principle user input datatype.
@@ -56,12 +54,7 @@ import qualified Criterion.Types        as Criterion
 import qualified Criterion.Main         as Criterion
 import           Data.Default           (Default(..))
 
-import AutoBench.AbstractSyntax (HsType, Id, ModuleElem)
-
--- * General 
-
--- | The string representation of a type.
-type TypeString = String
+import AutoBench.AbstractSyntax (HsType, Id, ModuleElem, TypeString)
 
 -- * User inputs
 
