@@ -39,16 +39,13 @@
 
 module AutoBench.AbstractSyntax
   (
-
+    
    -- * Abstract syntax
-
     parseTySig          -- Parse a string representation of a type signature to an abstract qualified type representation.
   , tyFunInps           -- Extract the input types from unary/binary function types.
   , unqualTyToTy        -- Convert an unqualified 'HsQualType' to a 'HsType'.
   , qualIdt             -- Add a qualifying module name to an identifier.
-
    -- * Syntactic checks
-
   , hasTyVars           -- Check whether a 'HsType' contains type variables.
   , isNullaryTyFun      -- Is a 'HsType' a nullary function type?
   , isUnaryTyFun        -- Is a 'HsType' a unary function type? 
@@ -57,9 +54,7 @@ module AutoBench.AbstractSyntax
   , isABTyFun           -- Does a 'HsType' meet the syntactic type requirements of AutoBench?
   , isABTestTyFun       -- Does a 'HsType' meet the /testable/ syntactic type requirements of AutoBench?
   , isABGenTyFun        -- Does a 'HsType' meet the /genable/ syntactic type requirements of AutoBench?
-    
     -- * Re-exports
-
   , Id
   , HsExp(..)
   , HsName(..)
@@ -73,8 +68,8 @@ module AutoBench.AbstractSyntax
 
   ) where 
 
--- Abstract syntax 
 import Language.Haskell.Interpreter (Id, ModuleName, ModuleElem)
+import Language.Haskell.Parser      (ParseResult(..), parseModule)
 import Language.Haskell.Pretty      (prettyPrint)
 import Language.Haskell.Syntax 
   ( HsDecl(..)
@@ -86,9 +81,6 @@ import Language.Haskell.Syntax
   , HsType(..)
   , Module(..)
   )
-
--- Parsing 
-import Language.Haskell.Parser (ParseResult(..), parseModule)
 
 -- * Abstract syntax 
 
