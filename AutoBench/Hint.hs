@@ -27,7 +27,7 @@
 module AutoBench.Hint
   (
     loadFileSetTopLevelModule  -- Load a file and set the top level module.
-  , extractDefsAndTypes        -- From a previously loaded file, extract all definitions 
+  , extractElemsAndTypes       -- From a previously loaded file, extract all definitions 
                                -- and their corresponding types if appropriate.
   ) where
 
@@ -62,14 +62,13 @@ loadFileSetTopLevelModule fp = do
   then setTopLevelModules [mn]        
   else throwM (FileErr "Invalid module name (module name must be same as file name).")
 
-
 -- | From a previously loaded file, extract all definitions and their 
 -- corresponding types if appropriate.
-extractDefsAndTypes
+extractElemsAndTypes
   :: MonadInterpreter m 
   => ModuleName 
   -> m [(ModuleElem, Maybe TypeString)] 
-extractDefsAndTypes mn = do
+extractElemsAndTypes mn = do
   defs <- getModuleExports mn
   tys  <- mapM (\case
     Nothing  -> return Nothing 
