@@ -23,8 +23,8 @@
 
   1. NFDataInput: functions satisfying the static properties of /unaryFun/ and
      /binaryFun/ whose input types are members of the 'NFData' type class;       ==> added to '_benchFuns'
-  2. NFDataOutput: functions satisfying the /nFDataInput/ dynamic property
-     whose result types are members of the 'NFData' type class;                  ==> added to '_nfFuns'
+  2. NFDataOutput: functions satisfying the static properties of /unaryFun/ and
+     /binaryFun/ whose result types are members of the 'NFData' type class;      ==> added to '_nfFuns'
   3. Arbitrary: functions satisfying the /genable/ static property whose 
      input types are members of the 'Arbitrary' type class;                      ==> kept in '_arbFuns'
 
@@ -32,7 +32,7 @@
   number of dynamic checks on the definitions themselves: 
 
   4. TestSuites: functions satisfying the /nullaryFun/ static property whose     
-     types are @TestSuite@;                                                      ==> interpreted and added to '_testSuites'
+     types are @TestSuite@;                                                      ==> interpreted, checked, and definition added to '_testSuites'
   5. FullTestSuites: interpreted 'TestSuites' whose record fields are            
      all initialised;                                                            ==> kept in '_testSuites'
   6. ValidUnaryData: functions satisfying the /unaryData/ static property whose  
@@ -44,6 +44,7 @@
   lists, for example '_invalidTestSuites' for failing check 5.
 
   Following dynamic checking, test suites in the '_testSuites' list are subject
-  to further static checks (see AutoBench.StaticChecks).
+  to further static checks to asses their validity (see AutoBench.StaticChecks).
 
 -}
+
