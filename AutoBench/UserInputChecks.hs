@@ -24,7 +24,7 @@
   type of user input (test suite, test program, test data, etc.) appropriately, 
   but it must also classify them. 
 
-  The classification of user inputs is a non-trivial procedure, due to the fact 
+  The classification of user inputs is a non-trivial process, due to the fact 
   that, for example, any program to be tested using the system must satisfy the 
   following properties:
 
@@ -43,14 +43,15 @@
   example, a type signature can be used to determine whether a function is 
   unary, binary, or otherwise. However, to the best of my knowledge, there is no 
   generic way of checking whether a function's input type is a member of the 
-  'NFData' type class aside from a dynamic test. Therefore, user inputs
-  can be classified according the property \'is a unary function\' /statically/,
-  but only /dynamic/ checks can be used to classify functions according to
-  the property \'has input types that are members of the 'NFData' type class\'.
+  'NFData' type class aside from a dynamic test, because it depends on which 
+  type class instances are in scope. Therefore, user inputs can be classified 
+  according the property \'is a unary function\' /statically/, but only 
+  /dynamic/ checks can be used to classify functions according to the property 
+  \'has input types that are members of the 'NFData' type class\'.
   
   As such, the system performs static validation/classification
   ('AutoBench.StaticChecks') and dynamic validation/classification 
-  ('AutoBench.DynamicChecks').
+  ('AutoBench.DynamicChecks') of user inputs.
 
   This module is responsible for coordinating the overall checking process.
 
