@@ -6,7 +6,7 @@
 {-|
 
   Module      : AutoBench.Hint
-  Description : Dynamically interpret user input files.
+  Description : Dynamically interpreting user input files.
   Copyright   : (c) 2018 Martin Handley
   License     : BSD-style
   Maintainer  : martin.handley@nottingham.ac.uk
