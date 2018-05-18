@@ -262,12 +262,14 @@ instance Default AnalOpts where
 -- system first interprets a user input file, all of its definitions are added 
 -- to the '_allElems' list. This list is then processed to determine which 
 -- definitions have function types that are syntactically compatible with the 
--- requirements of the system (see 'AutoBench.AbstractSyntax'). Definitions that 
+-- requirements of the system (see 'AutoBench.StaticChecks'). Definitions that 
 -- are compatible are added to the '_validElems' list, and those that aren't are 
 -- added to the '_invalidElems' list. Elements in the '_validElems' list are
 -- then classified according to, for example, whether they are nullary, 
--- unary, or binary functions. This process continues until all user inputs are 
--- classified according to the list headers below.
+-- unary, or binary functions. This check process continues until all user 
+-- inputs are classified according to the list headers below. Note that
+-- both static ('AutoBench.StaticChecks') and dynamic 
+-- ('AutoBench.DynamicChecks') checks are required to classify user inputs.
 --
 -- Notice that each /invalid/ definitions has one or more input errors 
 -- associated with it.
