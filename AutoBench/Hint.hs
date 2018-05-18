@@ -1,22 +1,20 @@
 
-{-# OPTIONS_GHC -Wall             #-} 
-{-# OPTIONS_GHC -XTemplateHaskell #-} 
+{-# OPTIONS_GHC -Wall   #-} 
+{-# LANGUAGE LambdaCase #-}
+
 
 {-|
 
   Module      : AutoBench.Hint
-  Description : Interpret and process user input files.
+  Description : Dynamically interpret user input files.
   Copyright   : (c) 2018 Martin Handley
   License     : BSD-style
   Maintainer  : martin.handley@nottingham.ac.uk
   Stability   : Experimental
   Portability : GHC
 
-  This module is responsible for dynamically interpreting and processing user 
-  input files. Inputs inside files (i.e., test suites, test programs, 
-  and any user-specified test data) are validated and classified according to
-  dynamic checks (in comparison to static syntactic checks in 
-  'AutoBench.AbstractSyntax')
+  This module is responsible for dynamically interpreting user input files.
+
 -}
 
 {-
@@ -25,6 +23,67 @@
    ----------------------------------------------------------------------------
    - 
 -}
+
+module AutoBench.Hint
+  (
+    loadFileSetTopLevelModule  -- Load a file and set the top level module.
+  , extractDefsAndTypes        -- From a previously loaded file, extract all definitions 
+                               -- and their corresponding types if appropriate.
+  ) where
+
+import Control.Monad.Catch (throwM)
+import Language.Haskell.Interpreter 
+  (
+    MonadInterpreter
+  , getLoadedModules
+  , getModuleExports
+  , loadModules
+  , setTopLevelModules
+  , typeOf
+  )
+
+import AutoBench.AbstractSyntax (Id, ModuleElem(..), ModuleName, TypeString)
+import AutoBench.Types (InputError(..))
+import AutoBench.Utils (fpToModuleName)
+
+-- | Load a file and set the top level module. The module name is calculated
+-- from the file name by simply dropping the \'.hs\' extension. For example, if
+-- the given file is named \'Input.hs\', then module name is assumed to be
+-- \'Input\'.
+-- 
+-- If the file doesn't have a module name that matches the file name, an
+-- 'InputError' is thrown.
+loadFileSetTopLevelModule :: MonadInterpreter m => FilePath -> m ()
+loadFileSetTopLevelModule fp = do
+  let mn = fpToModuleName fp
+  loadModules [fp]
+  mods <- getLoadedModules
+  if mn `elem` mods
+  then setTopLevelModules [mn]        
+  else throwM (FileErr "Invalid module name (module name must be same as file name).")
+
+
+-- | From a previously loaded file, extract all definitions and their 
+-- corresponding types if appropriate.
+extractDefsAndTypes
+  :: MonadInterpreter m 
+  => ModuleName 
+  -> m [(ModuleElem, Maybe TypeString)] 
+extractDefsAndTypes mn = do
+  defs <- getModuleExports mn
+  tys  <- mapM (\case
+    Nothing  -> return Nothing 
+    Just idt -> Just <$> typeOf idt) (fmap funIdt defs)
+  return (zip defs tys)
+  where 
+    -- Extract the identifiers from functions.
+    funIdt :: ModuleElem -> Maybe Id
+    funIdt (Fun idt) = Just idt 
+    funIdt _         = Nothing
+
+
+
+
 
 
 

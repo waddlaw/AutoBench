@@ -29,7 +29,7 @@ module AutoBench.Types
 
   -- * User inputs
   -- ** Test suites
-  , TestSuite(..)          -- Test suites are AutoBench's principle user input datatype.
+    TestSuite(..)          -- Test suites are AutoBench's principle user input datatype.
   -- ** Test data options
   , UnaryTestData          -- User-specified test data for unary test programs.
   , BinaryTestData         -- User-specified test data for binary test programs.
@@ -278,24 +278,24 @@ instance Default AnalOpts where
 data UserInputs = 
   UserInputs
    {
-     _allElems           :: [(ModuleElem, TypeString)]         -- ^ All definitions in a user input file.
-   , _invalidElems       :: [(ModuleElem, TypeString)]         -- ^ Syntactically invalid definitions (see 'AutoBench.AbstractSyntax').
-   , _validElems         :: [(Id, HsType)]                     -- ^ Syntactically valid definitions (see 'AutoBench.AbstractSyntax').
-   , _nullaryFuns        :: [(Id, HsType)]                     -- ^ Nullary function definitions.
-   , _unaryFuns          :: [(Id, HsType)]                     -- ^ Unary function definitions.
-   , _binaryFuns         :: [(Id, HsType)]                     -- ^ Binary function definitions.
-   , _arbFuns            :: [(Id, HsType)]                     -- ^ Unary/binary function definitions whose input types are members of the Arbitrary type class.
-   , _nfFuns             :: [(Id, HsType)]                     -- ^ Unary/binary function definitions whose input types are members of the NFData type class.
-   , _invalidData        :: [(Id, HsType, [InputError])]       -- ^ Invalid user-specified test data. 
-   , _unaryData          :: [(Id, HsType)]                     -- ^ Valid user-specified test data for unary function definitions.
-   , _binaryData         :: [(Id, HsType)]                     -- ^ Valid user-specified test data for binary function definitions.
-   , _invalidTestSuites  :: [(Id, [InputError])]               -- ^ Invalid test suites.
-   , _testSuites         :: [(Id, TestSuite)]                  -- ^ Valid test suites.
+     _allElems           :: [(ModuleElem, Maybe TypeString)]         -- ^ All definitions in a user input file.
+   , _invalidElems       :: [(ModuleElem, Maybe TypeString)]         -- ^ Syntactically invalid definitions (see 'AutoBench.AbstractSyntax').
+   , _validElems         :: [(Id, HsType)]                           -- ^ Syntactically valid definitions (see 'AutoBench.AbstractSyntax').
+   , _nullaryFuns        :: [(Id, HsType)]                           -- ^ Nullary function definitions.
+   , _unaryFuns          :: [(Id, HsType)]                           -- ^ Unary function definitions.
+   , _binaryFuns         :: [(Id, HsType)]                           -- ^ Binary function definitions.
+   , _arbFuns            :: [(Id, HsType)]                           -- ^ Unary/binary function definitions whose input types are members of the Arbitrary type class.
+   , _nfFuns             :: [(Id, HsType)]                           -- ^ Unary/binary function definitions whose input types are members of the NFData type class.
+   , _invalidData        :: [(Id, HsType, [InputError])]             -- ^ Invalid user-specified test data. 
+   , _unaryData          :: [(Id, HsType)]                           -- ^ Valid user-specified test data for unary function definitions.
+   , _binaryData         :: [(Id, HsType)]                           -- ^ Valid user-specified test data for binary function definitions.
+   , _invalidTestSuites  :: [(Id, [InputError])]                     -- ^ Invalid test suites.
+   , _testSuites         :: [(Id, TestSuite)]                        -- ^ Valid test suites.
    }
 
 -- | Initialise a 'UserInputs' data structure by specifying the '_allElems' 
 -- list. 
-initUserInputs :: [(ModuleElem, TypeString)] -> UserInputs
+initUserInputs :: [(ModuleElem, Maybe TypeString)] -> UserInputs
 initUserInputs xs = 
   UserInputs
     {
