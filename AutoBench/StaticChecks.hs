@@ -12,7 +12,7 @@
   Portability : GHC
 
   To statically validate and classify user inputs, the system uses an abstract 
-  representation of Haskell 98 (see 'AutoBench.AbstractSyntax'. This 
+  representation of Haskell 98 (see 'AutoBench.AbstractSyntax'). This 
   representation allows the system to check syntactic properties of types. 
   In particular, the system checks whether the types of user inputs have the 
   following properties:
@@ -27,15 +27,15 @@
   
   Additional checks are then used to classify user inputs as follows:
 
-  4. NullaryFun: a nullary function;                                             => added to '_nullaryFuns'
-  5. UnaryFun: a unary function;                                                 => added to '_unaryFuns'
-  6. BinaryFun: a binary function;                                               => added to '_binaryFuns'
-  7. Genable: unary/binary functions that do not contain type variables in 
-     their input types;                                                          => added to '_arbFuns'
-  8. UnaryData: a nullary function with type @UnaryTestData x@ for some type 
-     @x@;                                                                        => added to '_unaryData'
-  9. BinaryData: a nullary function with type @BinaryTestData x y@ for some 
-     types @x@ and @y@.                                                          => added to '_binaryData'
+  4.  NullaryFun: a nullary function;                                            => added to '_nullaryFuns'
+  5.  UnaryFun: a unary function;                                                => added to '_unaryFuns'
+  6.  BinaryFun: a binary function;                                              => added to '_binaryFuns'
+  7.  Genable: unary/binary functions that do not contain type variables in 
+      their input types;                                                         => added to '_arbFuns'
+  8.  UnaryData: a nullary function with type @UnaryTestData x@ for some type 
+      @x@;                                                                       => added to '_unaryData'
+  9.  BinaryData: a nullary function with type @BinaryTestData x y@ for some 
+      types @x@ and @y@.                                                         => added to '_binaryData'
   
   Subsequent /dynamic/ checks (see 'AutoBench.DynamicChecks') are performed to 
   further (re-)classify user inputs according to additional properties they 

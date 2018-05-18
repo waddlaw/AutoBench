@@ -283,14 +283,15 @@ data UserInputs =
      _allElems           :: [(ModuleElem, Maybe TypeString)]         -- ^ All definitions in a user input file.
    , _invalidElems       :: [(ModuleElem, Maybe TypeString)]         -- ^ Syntactically invalid definitions (see 'AutoBench.AbstractSyntax').
    , _validElems         :: [(Id, HsType)]                           -- ^ Syntactically valid definitions (see 'AutoBench.AbstractSyntax').
-   , _nullaryFuns        :: [(Id, HsType)]                           -- ^ Nullary function definitions.
-   , _unaryFuns          :: [(Id, HsType)]                           -- ^ Unary function definitions.
-   , _binaryFuns         :: [(Id, HsType)]                           -- ^ Binary function definitions.
-   , _arbFuns            :: [(Id, HsType)]                           -- ^ Unary/binary function definitions whose input types are members of the Arbitrary type class.
-   , _nfFuns             :: [(Id, HsType)]                           -- ^ Unary/binary function definitions whose input types are members of the NFData type class.
+   , _nullaryFuns        :: [(Id, HsType)]                           -- ^ Nullary functions.
+   , _unaryFuns          :: [(Id, HsType)]                           -- ^ Unary functions.
+   , _binaryFuns         :: [(Id, HsType)]                           -- ^ Binary functions.
+   , _arbFuns            :: [(Id, HsType)]                           -- ^ Unary/binary functions whose input types are members of the Arbitrary type class.
+   , _benchFuns          :: [(Id, HsType)]                           -- ^ Unary/binary functions whose input types are members of the NFData type class.
+   , _nfFuns             :: [(Id, HsType)]                           -- ^ Unary/binary functions whose result types are members of the NFData type class.
    , _invalidData        :: [(Id, HsType, [InputError])]             -- ^ Invalid user-specified test data. 
-   , _unaryData          :: [(Id, HsType)]                           -- ^ Valid user-specified test data for unary function definitions.
-   , _binaryData         :: [(Id, HsType)]                           -- ^ Valid user-specified test data for binary function definitions.
+   , _unaryData          :: [(Id, HsType)]                           -- ^ Valid user-specified test data for unary functions.
+   , _binaryData         :: [(Id, HsType)]                           -- ^ Valid user-specified test data for binary functions.
    , _invalidTestSuites  :: [(Id, [InputError])]                     -- ^ Invalid test suites.
    , _testSuites         :: [(Id, TestSuite)]                        -- ^ Valid test suites.
    }
@@ -308,6 +309,7 @@ initUserInputs xs =
     , _unaryFuns         = []
     , _binaryFuns        = []
     , _arbFuns           = []
+    , _benchFuns         = []
     , _nfFuns            = []
     , _invalidData       = []
     , _unaryData         = []
