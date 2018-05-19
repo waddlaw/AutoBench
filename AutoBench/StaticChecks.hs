@@ -156,5 +156,4 @@ isBinaryTestData _ = False
 
 -- | Check whether a 'HsType' corresponds to @TestSuite@.
 isTestSuite :: HsType -> Bool 
-isTestSuite (HsTyApp tyCon _) = tyCon == testSuiteTyCon
-isTestSuite _ = False 
+isTestSuite ty = ty == testSuiteTyCon

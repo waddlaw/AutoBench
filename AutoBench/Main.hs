@@ -57,5 +57,3 @@ instance Show UserInputs where
 
 indent :: Int -> [String] -> [String]
 indent n = zipWith (++) (repeat $ replicate n ' ')
-
-

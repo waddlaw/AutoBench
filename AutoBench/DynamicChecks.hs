@@ -1,5 +1,6 @@
 
-{-# OPTIONS_GHC -Wall #-}
+{-# OPTIONS_GHC -Wall     #-}
+{-# LANGUAGE BangPatterns #-}
 
 {-|
 
@@ -50,13 +51,13 @@
 
 module AutoBench.DynamicChecks where 
 
-import Control.Monad                (filterM, void)
-import Control.Monad.Catch          (catch)
-import Language.Haskell.Interpreter (MonadInterpreter, InterpreterError, eval)
+import Control.Monad                (filterM, foldM, void)
+import Control.Monad.Catch          (catch, catchAll)
+import Language.Haskell.Interpreter (MonadInterpreter, InterpreterError, as, interpret, eval)
 
 import AutoBench.AbstractSyntax (HsType, Id, ModuleName, prettyPrint, qualIdt)
-import AutoBench.StaticChecks   (isUnaryTyFun, isBinaryTyFun)
-import AutoBench.Types          (UserInputs(..))
+import AutoBench.StaticChecks   (isUnaryTyFun, isBinaryTyFun, isTestSuite)
+import AutoBench.Types          (InputError(..), TestSuite, UserInputs(..), minInputs)
 
 -- Each check assumes the necessary files are already loaded
 -- Instance checks are in AutoBench.DynamicInstanceChecks
@@ -124,6 +125,81 @@ catArbitrary mn inps = do
     -- Functions to perform checks, qualified with module name.
     qualCheckFunUn  = "AutoBench.DynamicInstanceChecks.checkArbitraryUn"
     qualCheckFunBin = "AutoBench.DynamicInstanceChecks.checkArbitraryBin"
+
+
+interpTestSuites :: MonadInterpreter m => ModuleName -> UserInputs -> m UserInputs 
+interpTestSuites mn inps = do 
+  (valids, invalids) <- foldM loadTestSuites ([], []) (_nullaryFuns inps)
+  return inps { _invalidTestSuites = invalids, _testSuites = valids } 
+  where 
+    loadTestSuites 
+      :: MonadInterpreter m 
+      => ([(Id, TestSuite)], [(Id, [InputError])])
+      -> (Id, HsType)
+      -> m ([(Id, TestSuite)], [(Id, [InputError])])
+    loadTestSuites (vs, ivs) (idt, ty) 
+      | isTestSuite ty = catchIE
+          (do ts <- interpret (prettyPrint $ qualIdt mn idt) (as :: TestSuite)
+              return ((idt, ts) : vs, ivs)
+          ) (const $ return (vs, (idt, [interpErr idt]) : ivs))
+      | otherwise = return (vs, ivs)
+    
+    interpErr idt = TestSuiteErr $ "could not interpret " ++ idt ++ " as a TestSuite."
+
+
+checkFullTestSuites :: MonadInterpreter m => ModuleName -> UserInputs -> m UserInputs 
+checkFullTestSuites mn inps = do 
+  (valids, invalids) <- foldM check ([], []) (_testSuites inps)
+  return inps { _invalidTestSuites = _invalidTestSuites inps ++ invalids
+              , _testSuites = valids
+              }
+  where 
+    check 
+      :: MonadInterpreter m 
+      => ([(Id, TestSuite)], [(Id, [InputError])])
+      -> (Id, TestSuite)
+      -> m ([(Id, TestSuite)], [(Id, [InputError])])
+    check (vs, ivs) (idt, ts) = catchAll 
+      (do !_ <- interpret (qualCheckFun ++ " " ++ (prettyPrint $ qualIdt mn idt)) (as :: ())
+          return ((idt, ts) : vs, ivs)
+      ) (const $ return (vs, (idt, [inputErr]) : ivs))
+    
+    qualCheckFun = "AutoBench.DynamicInstanceChecks.checkInitialisedTestSuite"
+    inputErr = TestSuiteErr "One or more record fields are uninitialised."
+
+
+checkValidTestData :: MonadInterpreter m => ModuleName -> UserInputs -> m UserInputs 
+checkValidTestData mn inps = do 
+  (validsUn,  invalidsUn)  <- foldM (check qualCheckFunUn)  ([], []) (_unaryData  inps)
+  (validsBin, invalidsBin) <- foldM (check qualCheckFunBin) ([], []) (_binaryData inps)
+  return inps { _invalidData = invalidsUn ++ invalidsBin
+              , _unaryData   = validsUn
+              , _binaryData  = validsBin
+              }
+  where 
+    check 
+      :: MonadInterpreter m 
+      => String
+      -> ([(Id, HsType)], [(Id, HsType, [InputError])])
+      -> (Id, HsType)
+      -> m ([(Id, HsType)], [(Id, HsType, [InputError])])
+    check qualCheckFun (vs, ivs) (idt, ty) = catchIE 
+      (do size <- interpret (qualCheckFun ++ " " ++ (prettyPrint $ qualIdt mn idt)) (as :: Int)
+          if size >= minInputs
+          then return ((idt, ty) : vs, ivs)
+          else return (vs, (idt, ty, [sizeErr]) : ivs)
+      ) (\e -> return (vs, (idt, ty, [DataOptsErr $ show e]) : ivs))
+    
+    qualCheckFunUn  = "AutoBench.DynamicInstanceChecks.checkSizeUnaryTestData"
+    qualCheckFunBin = "AutoBench.DynamicInstanceChecks.checkSizeBinaryTestData"
+
+    sizeErr = DataOptsErr $ "A minimum of " ++ show minInputs ++ " distinctly sized test inputs are required."
+
+
+
+
+
+
 
 -- * Helpers 
 

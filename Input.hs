@@ -2,6 +2,7 @@
 module Input where 
 
 import AutoBench.Types 
+import Data.Default 
 
 import Prelude hiding (id)
 
@@ -114,3 +115,6 @@ tSuite2 :: TestSuiteOpts
 tSuite2 = TestSuiteOpts {}-}
 
 data Test = Test
+
+ts :: TestSuite 
+ts = def

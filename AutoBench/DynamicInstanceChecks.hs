@@ -24,8 +24,12 @@
 
 module AutoBench.DynamicInstanceChecks where          -- note: we load arbitrary instances just by checking but its a catch-22.
 
-import Control.DeepSeq (NFData)
-import Test.QuickCheck (Arbitrary)
+import           Control.DeepSeq (NFData)
+import qualified Criterion.Types as CR
+import           Data.List       (nub)
+import           Test.QuickCheck (Arbitrary)
+
+import AutoBench.Types (TestSuite(..), UnaryTestData, BinaryTestData)
 
 checkNFDataInputUn :: NFData a => (a -> b) -> () 
 checkNFDataInputUn _ = ()
@@ -44,6 +48,44 @@ checkArbitraryUn _ = ()
 
 checkArbitraryBin :: (Arbitrary a, Arbitrary b) => (a -> b -> c) -> ()
 checkArbitraryBin _ = ()
+
+checkSizeUnaryTestData :: UnaryTestData a -> Int
+checkSizeUnaryTestData  = length . nub . fmap fst 
+
+checkSizeBinaryTestData :: BinaryTestData a b -> Int
+checkSizeBinaryTestData  = length . nub . fmap (\(s1, s2, _, _) -> (s1, s2))
+ 
+checkInitialisedTestSuite :: TestSuite -> ()
+checkInitialisedTestSuite ts = 
+        _progs                 ts
+  `seq` _dataOpts              ts
+  `seq` seqAnalOpts (_analOpts ts)
+  `seq` seqCritCfg  (_critCfg  ts)
+  `seq` _baseline              ts 
+  `seq` _nf                    ts 
+  `seq` _ghcFlags              ts
+  `seq` ()
+  where 
+    seqAnalOpts aOpts = ()  -- <TO-DO>
+    seqCritCfg cfg =  
+            CR.confInterval cfg
+      `seq` CR.timeLimit    cfg
+      `seq` CR.resamples    cfg
+      `seq` CR.regressions  cfg
+      `seq` CR.rawDataFile  cfg
+      `seq` CR.reportFile   cfg
+      `seq` CR.csvFile      cfg
+      `seq` CR.jsonFile     cfg
+      `seq` CR.junitFile    cfg
+      `seq` CR.verbosity    cfg
+      `seq` CR.template     cfg
+      `seq` ()
+
+
+ 
+
+
+
 
 {-
 

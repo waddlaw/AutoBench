@@ -1,6 +1,5 @@
 
-{-# OPTIONS_GHC -Wall             #-}
-{-# OPTIONS_GHC -XTemplateHaskell #-} 
+{-# OPTIONS_GHC -Wall #-}
 
 {-|
 
@@ -66,6 +65,7 @@
 
 module AutoBench.UserInputChecks (check) where 
 
+import Control.Category             ((>>>))
 import Control.Monad                ((>=>))
 import Language.Haskell.Interpreter (MonadInterpreter)
 
@@ -80,6 +80,9 @@ import AutoBench.DynamicChecks
   ( catArbitrary
   , catNFDataInput
   , catNFDataResult
+  , checkFullTestSuites
+  , checkValidTestData
+  , interpTestSuites
   )
 import AutoBench.StaticChecks 
   ( isABGenTyFun
@@ -116,22 +119,32 @@ check fp  = do
   loadFileSetTopLevelModuleWithHelpers fp ["AutoBench.DynamicInstanceChecks"]
   -- First dynamic checks/categorising.
   fstDynInps <- firstDynamic mn fstStInps
+  -- Second static checks.
+  let sndStInps = secondStatic fstDynInps
   
 
-  return fstDynInps
+  return sndStInps
   where 
-    -- First round of static checking.
-    firstStatic = catTestData
-                   . catGenableFuns 
-                   . catArityFuns 
-                   . catValidInvalidElems
+    -- First phase of static checking.
+    firstStatic = catValidInvalidElems                  -- 1. /Typeable/, 2. /Unqualified/, 3. /Function/.
+                    >>> catArityFuns                    -- 4. /NullaryFun/, 5. /UnaryFun/, 6. /BinaryFun/.
+                    >>> catGenableFuns                  -- 7. /Genable/.
+                    >>> catTestData                     -- 8. /UnaryData/, 9. /BinaryData/.
 
-    -- First round of dynamic checking.
-    firstDynamic mn = catNFDataInput mn 
-                       >=> catNFDataResult mn
-                       >=> catArbitrary    mn
+    -- Second phase of static checking.
+    secondStatic = checkValidTestSuites
+                   
+    -- First phase of dynamic checking.
+    firstDynamic mn = catNFDataInput            mn      -- 1. /NFDataInput/.
+                        >=> catNFDataResult     mn      -- 2. /NFDataResult/.
+                        >=> catArbitrary        mn      -- 3. /Arbitrary/.
+                        >=> interpTestSuites    mn      -- 4. /TestSuites/.
+                        >=> checkFullTestSuites mn      -- 5. /FullTestSuites/.
+                        >=> checkValidTestData  mn      -- 6. /ValidUnaryData/, 7. /ValidBinaryData/.
 
 -- * Static checking
+
+-- ** First phase 
 
 -- | Categorise elements in the 'UserInputs' '_allElems' list according to 
 -- whether they have types that are 1. /Typeable/, 2. /Unqualified/, and 3.
@@ -206,6 +219,13 @@ catTestData inps = inps { _unaryData = uns, _binaryData = bins }
       | isUnaryTestData  ty = (x : us, bs)
       | isBinaryTestData ty = (us, x : bs)
       | otherwise           = (us, bs)
+
+
+-- ** Second phase
+
+checkValidTestSuites :: UserInputs -> UserInputs
+checkValidTestSuites inps = inps
+
 
 -- * Dynamic checking
 
