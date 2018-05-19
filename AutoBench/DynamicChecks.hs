@@ -23,7 +23,7 @@
 
   1. NFDataInput: functions satisfying the static properties of /unaryFun/ and
      /binaryFun/ whose input types are members of the 'NFData' type class;       ==> added to '_benchFuns'
-  2. NFDataOutput: functions satisfying the static properties of /unaryFun/ and
+  2. NFDataResult: functions satisfying the static properties of /unaryFun/ and
      /binaryFun/ whose result types are members of the 'NFData' type class;      ==> added to '_nfFuns'
   3. Arbitrary: functions satisfying the /genable/ static property whose 
      input types are members of the 'Arbitrary' type class;                      ==> kept in '_arbFuns'
@@ -48,3 +48,85 @@
 
 -}
 
+module AutoBench.DynamicChecks where 
+
+import Control.Monad                (filterM, void)
+import Control.Monad.Catch          (catch)
+import Language.Haskell.Interpreter (MonadInterpreter, InterpreterError, eval)
+
+import AutoBench.AbstractSyntax (HsType, Id, ModuleName, prettyPrint, qualIdt)
+import AutoBench.StaticChecks   (isUnaryTyFun, isBinaryTyFun)
+import AutoBench.Types          (UserInputs(..))
+
+-- Each check assumes the necessary files are already loaded
+-- Instance checks are in AutoBench.DynamicInstanceChecks
+
+
+
+catNFDataInput :: MonadInterpreter m => ModuleName -> UserInputs -> m UserInputs 
+catNFDataInput mn inps = do
+  benchFunsUn  <- filterM checkUn  (_unaryFuns  inps)
+  benchFunsBin <- filterM checkBin (_binaryFuns inps)
+  return inps { _benchFuns = benchFunsUn ++ benchFunsBin }
+  where 
+    checkUn :: MonadInterpreter m => (Id, HsType) -> m Bool
+    checkUn  (idt ,_) = catchIE 
+      ((void . eval $ qualCheckFunUn ++ " " ++ (prettyPrint $ qualIdt mn idt)) >> return True)
+      (const $ return False)
+
+    checkBin :: MonadInterpreter m => (Id, HsType) -> m Bool
+    checkBin (idt, _) = catchIE 
+      ((void . eval $ qualCheckFunBin ++ " " ++ (prettyPrint $ qualIdt mn idt)) >> return True)
+      (const $ return False)
+
+    -- Functions to perform checks, qualified with module name.
+    qualCheckFunUn  = "AutoBench.DynamicInstanceChecks.checkNFDataInputUn"
+    qualCheckFunBin = "AutoBench.DynamicInstanceChecks.checkNFDataInputBin"
+
+
+
+catNFDataResult :: MonadInterpreter m => ModuleName -> UserInputs -> m UserInputs 
+catNFDataResult mn inps = do
+  nfFunsUn  <- filterM checkUn  (_unaryFuns  inps)
+  nfFunsBin <- filterM checkBin (_binaryFuns inps)
+  return inps { _nfFuns = nfFunsUn ++ nfFunsBin }
+  where 
+    checkUn :: MonadInterpreter m => (Id, HsType) -> m Bool
+    checkUn  (idt ,_) = catchIE 
+      ((void . eval $ qualCheckFunUn ++ " " ++ (prettyPrint $ qualIdt mn idt)) >> return True)
+      (const $ return False)
+
+    checkBin :: MonadInterpreter m => (Id, HsType) -> m Bool
+    checkBin (idt, _) = catchIE 
+      ((void . eval $ qualCheckFunBin ++ " " ++ (prettyPrint $ qualIdt mn idt)) >> return True)
+      (const $ return False)
+
+    -- Functions to perform checks, qualified with module name.
+    qualCheckFunUn  = "AutoBench.DynamicInstanceChecks.checkNFDataResultUn"
+    qualCheckFunBin = "AutoBench.DynamicInstanceChecks.checkNFDataResultBin"
+
+
+catArbitrary :: MonadInterpreter m => ModuleName -> UserInputs -> m UserInputs 
+catArbitrary mn inps = do
+  arbFuns <- filterM check (_arbFuns inps)
+  return inps { _arbFuns = arbFuns }
+  where 
+    check :: MonadInterpreter m => (Id, HsType) -> m Bool
+    check (idt , ty) 
+      | isUnaryTyFun ty = catchIE 
+            ((void . eval $ qualCheckFunUn ++ " " ++ (prettyPrint $ qualIdt mn idt)) >> return True)
+            (const $ return False)
+      | isBinaryTyFun ty = catchIE 
+            ((void . eval $ qualCheckFunBin ++ " " ++ (prettyPrint $ qualIdt mn idt)) >> return True)
+            (const $ return False)
+      | otherwise = return False                                                                           -- <TO-DO>: should probably error report here?
+
+    -- Functions to perform checks, qualified with module name.
+    qualCheckFunUn  = "AutoBench.DynamicInstanceChecks.checkArbitraryUn"
+    qualCheckFunBin = "AutoBench.DynamicInstanceChecks.checkArbitraryBin"
+
+-- * Helpers 
+
+-- | Compiler needs the error's type information.
+catchIE :: MonadInterpreter m => m a -> (InterpreterError -> m a) -> m a
+catchIE  = catch

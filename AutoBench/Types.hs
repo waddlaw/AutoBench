@@ -44,6 +44,8 @@ module AutoBench.Types
   , BenchSuite(..)         -- Benchmarking suites are AutoBench's principle benchmarking datatype.
   -- * Statistical analysis
   -- * Errors
+  -- ** System errors
+  , SystemError(..)        -- System errors.
   -- ** Input errors
   , InputError(..)         -- User input errors.
 
@@ -325,6 +327,14 @@ data BenchSuite = BenchSuite{}
 -- * Statistical analysis
 
 -- * Errors 
+
+-- | Errors due to implementation failures.
+data SystemError = InternalErr String
+
+instance Show SystemError where 
+  show (InternalErr s) = "Internal error: " ++ s ++ "\nplease report on GitHub."
+
+instance Exception SystemError
 
 -- ** Input errors
 

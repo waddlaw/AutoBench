@@ -26,7 +26,7 @@ module AutoBench.Utils
   (
 
   -- * AutoBench specific
-    fpToModuleName       -- Convert a filepath to a module name.
+    filepathToModuleName -- Convert a filepath to a module name.
   , genIdts              -- Generate identifiers for unnamed test programs.
   -- * Lists 
   , notNull              -- not . null.
@@ -65,9 +65,9 @@ import qualified Text.Megaparsec.Char.Lexer   as L
 
 -- | Convert a filepath to a module name.
 --
--- > fpToModuleName "some/filepath/Input.hs" = "Input"
-fpToModuleName :: FilePath -> ModuleName
-fpToModuleName fp = let (c : cs) = takeBaseName fp in toUpper c : cs
+-- > fpTfilePathToModuleNameoModuleName "some/filepath/Input.hs" = "Input"
+filepathToModuleName :: FilePath -> ModuleName
+filepathToModuleName fp = let (c : cs) = takeBaseName fp in toUpper c : cs
 
 -- | Generate identifier for unnamed test programs.
 --

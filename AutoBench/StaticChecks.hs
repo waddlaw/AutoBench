@@ -151,7 +151,7 @@ isUnaryTestData _ = False
 -- | Check whether a 'HsType' corresponds to @BinaryTestData x y@ for some types
 -- @x@ and @y@.
 isBinaryTestData :: HsType -> Bool 
-isBinaryTestData (HsTyApp tyCon _) = tyCon == binaryTestDataTyCon 
+isBinaryTestData (HsTyApp (HsTyApp tyCon _) _) = tyCon == binaryTestDataTyCon 
 isBinaryTestData _ = False
 
 -- | Check whether a 'HsType' corresponds to @TestSuite@.
