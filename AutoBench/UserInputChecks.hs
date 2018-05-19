@@ -126,21 +126,23 @@ check fp  = do
   return sndStInps
   where 
     -- First phase of static checking.
-    firstStatic = catValidInvalidElems                  -- 1. /Typeable/, 2. /Unqualified/, 3. /Function/.
-                    >>> catArityFuns                    -- 4. /NullaryFun/, 5. /UnaryFun/, 6. /BinaryFun/.
-                    >>> catGenableFuns                  -- 7. /Genable/.
-                    >>> catTestData                     -- 8. /UnaryData/, 9. /BinaryData/.
+    firstStatic = 
+      catValidInvalidElems                                                       -- 1. /Typeable/, 2. /Unqualified/, 3. /Function/.
+        >>> catArityFuns                                                         -- 4. /NullaryFun/, 5. /UnaryFun/, 6. /BinaryFun/.
+        >>> catGenableFuns                                                       -- 7. /Genable/.
+        >>> catTestData                                                          -- 8. /UnaryData/, 9. /BinaryData/.
 
     -- Second phase of static checking.
     secondStatic = checkValidTestSuites
                    
     -- First phase of dynamic checking.
-    firstDynamic mn = catNFDataInput            mn      -- 1. /NFDataInput/.
-                        >=> catNFDataResult     mn      -- 2. /NFDataResult/.
-                        >=> catArbitrary        mn      -- 3. /Arbitrary/.
-                        >=> interpTestSuites    mn      -- 4. /TestSuites/.
-                        >=> checkFullTestSuites mn      -- 5. /FullTestSuites/.
-                        >=> checkValidTestData  mn      -- 6. /ValidUnaryData/, 7. /ValidBinaryData/.
+    firstDynamic mn = 
+      catNFDataInput            mn                                               -- 1. /NFDataInput/.
+        >=> catNFDataResult     mn                                               -- 2. /NFDataResult/.
+        >=> catArbitrary        mn                                               -- 3. /Arbitrary/.
+        >=> interpTestSuites    mn                                               -- 4. /TestSuites/.
+        >=> checkFullTestSuites mn                                               -- 5. /FullTestSuites/.
+        >=> checkValidTestData  mn                                               -- 6. /ValidUnaryData/, 7. /ValidBinaryData/.
 
 -- * Static checking
 

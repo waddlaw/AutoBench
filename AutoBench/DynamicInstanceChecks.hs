@@ -49,11 +49,11 @@ checkArbitraryUn _ = ()
 checkArbitraryBin :: (Arbitrary a, Arbitrary b) => (a -> b -> c) -> ()
 checkArbitraryBin _ = ()
 
-checkSizeUnaryTestData :: UnaryTestData a -> Int
-checkSizeUnaryTestData  = length . nub . fmap fst 
+sizeUnaryTestData :: UnaryTestData a -> Int
+sizeUnaryTestData  = length . nub . fmap fst 
 
-checkSizeBinaryTestData :: BinaryTestData a b -> Int
-checkSizeBinaryTestData  = length . nub . fmap (\(s1, s2, _, _) -> (s1, s2))
+sizeBinaryTestData :: BinaryTestData a b -> Int
+sizeBinaryTestData  = length . nub . fmap (\(s1, s2, _, _) -> (s1, s2))
  
 checkInitialisedTestSuite :: TestSuite -> ()
 checkInitialisedTestSuite ts = 

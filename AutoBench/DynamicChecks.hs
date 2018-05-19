@@ -66,18 +66,13 @@ import AutoBench.Types          (InputError(..), TestSuite, UserInputs(..), minI
 
 catNFDataInput :: MonadInterpreter m => ModuleName -> UserInputs -> m UserInputs 
 catNFDataInput mn inps = do
-  benchFunsUn  <- filterM checkUn  (_unaryFuns  inps)
-  benchFunsBin <- filterM checkBin (_binaryFuns inps)
+  benchFunsUn  <- filterM (check qualCheckFunUn)  (_unaryFuns  inps)
+  benchFunsBin <- filterM (check qualCheckFunBin) (_binaryFuns inps)
   return inps { _benchFuns = benchFunsUn ++ benchFunsBin }
   where 
-    checkUn :: MonadInterpreter m => (Id, HsType) -> m Bool
-    checkUn  (idt ,_) = catchIE 
-      ((void . eval $ qualCheckFunUn ++ " " ++ (prettyPrint $ qualIdt mn idt)) >> return True)
-      (const $ return False)
-
-    checkBin :: MonadInterpreter m => (Id, HsType) -> m Bool
-    checkBin (idt, _) = catchIE 
-      ((void . eval $ qualCheckFunBin ++ " " ++ (prettyPrint $ qualIdt mn idt)) >> return True)
+    check :: MonadInterpreter m => String -> (Id, HsType) -> m Bool
+    check qualCheckFun (idt ,_) = catchIE 
+      ((void . eval $ qualCheckFun ++ " " ++ (prettyPrint $ qualIdt mn idt)) >> return True)
       (const $ return False)
 
     -- Functions to perform checks, qualified with module name.
@@ -88,18 +83,13 @@ catNFDataInput mn inps = do
 
 catNFDataResult :: MonadInterpreter m => ModuleName -> UserInputs -> m UserInputs 
 catNFDataResult mn inps = do
-  nfFunsUn  <- filterM checkUn  (_unaryFuns  inps)
-  nfFunsBin <- filterM checkBin (_binaryFuns inps)
+  nfFunsUn  <- filterM (check qualCheckFunUn)  (_unaryFuns  inps)
+  nfFunsBin <- filterM (check qualCheckFunBin) (_binaryFuns inps)
   return inps { _nfFuns = nfFunsUn ++ nfFunsBin }
   where 
-    checkUn :: MonadInterpreter m => (Id, HsType) -> m Bool
-    checkUn  (idt ,_) = catchIE 
-      ((void . eval $ qualCheckFunUn ++ " " ++ (prettyPrint $ qualIdt mn idt)) >> return True)
-      (const $ return False)
-
-    checkBin :: MonadInterpreter m => (Id, HsType) -> m Bool
-    checkBin (idt, _) = catchIE 
-      ((void . eval $ qualCheckFunBin ++ " " ++ (prettyPrint $ qualIdt mn idt)) >> return True)
+    check:: MonadInterpreter m => String -> (Id, HsType) -> m Bool
+    check qualCheckFun  (idt ,_) = catchIE 
+      ((void . eval $ qualCheckFun ++ " " ++ (prettyPrint $ qualIdt mn idt)) >> return True)
       (const $ return False)
 
     -- Functions to perform checks, qualified with module name.
@@ -115,11 +105,11 @@ catArbitrary mn inps = do
     check :: MonadInterpreter m => (Id, HsType) -> m Bool
     check (idt , ty) 
       | isUnaryTyFun ty = catchIE 
-            ((void . eval $ qualCheckFunUn ++ " " ++ (prettyPrint $ qualIdt mn idt)) >> return True)
-            (const $ return False)
+          ((void . eval $ qualCheckFunUn ++ " " ++ (prettyPrint $ qualIdt mn idt)) >> return True)
+          (const $ return False)
       | isBinaryTyFun ty = catchIE 
-            ((void . eval $ qualCheckFunBin ++ " " ++ (prettyPrint $ qualIdt mn idt)) >> return True)
-            (const $ return False)
+          ((void . eval $ qualCheckFunBin ++ " " ++ (prettyPrint $ qualIdt mn idt)) >> return True)
+          (const $ return False)
       | otherwise = return False                                                                           -- <TO-DO>: should probably error report here?
 
     -- Functions to perform checks, qualified with module name.
@@ -190,8 +180,8 @@ checkValidTestData mn inps = do
           else return (vs, (idt, ty, [sizeErr]) : ivs)
       ) (\e -> return (vs, (idt, ty, [DataOptsErr $ show e]) : ivs))
     
-    qualCheckFunUn  = "AutoBench.DynamicInstanceChecks.checkSizeUnaryTestData"
-    qualCheckFunBin = "AutoBench.DynamicInstanceChecks.checkSizeBinaryTestData"
+    qualCheckFunUn  = "AutoBench.DynamicInstanceChecks.sizeUnaryTestData"
+    qualCheckFunBin = "AutoBench.DynamicInstanceChecks.sizeBinaryTestData"
 
     sizeErr = DataOptsErr $ "A minimum of " ++ show minInputs ++ " distinctly sized test inputs are required."
 
