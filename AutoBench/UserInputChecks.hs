@@ -152,22 +152,22 @@ userInputCheck fp  = do
   where 
     -- First phase of static checking.
     firstStatic = 
-      catValidInvalidElems                                                       -- 1. /Typeable/, 2. /Unqualified/, 3. /Function/.
-        >>> catArityFuns                                                         -- 4. /NullaryFun/, 5. /UnaryFun/, 6. /BinaryFun/.
-        >>> catGenableFuns                                                       -- 7. /Genable/.
-        >>> catTestData                                                          -- 8. /UnaryData/, 9. /BinaryData/.
+      catValidInvalidElems     -- 1. /Typeable/, 2. /Unqualified/, 3. /Function/.
+        >>> catArityFuns       -- 4. /NullaryFun/, 5. /UnaryFun/, 6. /BinaryFun/.
+        >>> catGenableFuns     -- 7. /Genable/.
+        >>> catTestData        -- 8. /UnaryData/, 9. /BinaryData/.
 
     -- Second phase of static checking.
     secondStatic = checkValidTestSuites
                    
     -- First phase of dynamic checking.
     firstDynamic mn = 
-      catNFDataInput            mn                                               -- 1. /NFDataInput/.
-        >=> catNFDataResult     mn                                               -- 2. /NFDataResult/.
-        >=> catArbitrary        mn                                               -- 3. /Arbitrary/.
-        >=> interpTestSuites    mn                                               -- 4. /TestSuites/.
-        >=> checkFullTestSuites mn                                               -- 5. /FullTestSuites/.
-        >=> checkValidTestData  mn                                               -- 6. /ValidUnaryData/, 7. /ValidBinaryData/.
+      catNFDataInput            mn    -- 1. /NFDataInput/.
+        >=> catNFDataResult     mn    -- 2. /NFDataResult/.
+        >=> catArbitrary        mn    -- 3. /Arbitrary/.
+        >=> interpTestSuites    mn    -- 4. /TestSuites/.
+        >=> checkFullTestSuites mn    -- 5. /FullTestSuites/.
+        >=> checkValidTestData  mn    -- 6. /ValidUnaryData/, 7. /ValidBinaryData/.
 
 -- * Static checking
 
@@ -247,9 +247,30 @@ catTestData inps = inps { _unaryData = uns, _binaryData = bins }
       | isBinaryTestData ty = (us, x : bs)
       | otherwise           = (us, bs)
 
-
 -- ** Second phase
 
+-- | Validate test suites in the '_testSuites' list according to
+-- 8. /ValidTestSuites/. The following checks are performed:
+--
+-- * No programs missing from the '_progs' list;
+-- * No duplicates in the '_progs' list;
+-- * Programs in the '_progs' list have the same type;
+-- * Programs in the '_progs' list can be benchmarked;
+-- * If '_nf' then programs in the '_progs' list have result types that can be 
+--   evaluated to normal form (member of the 'NFData' type class);
+-- * If 'Gen' then programs in the '_progs' list have input types that are 
+--   members of the 'Arbitrary' type class;
+-- * Validate 'DataOpts': for 'Manual' data, check that it is present and has 
+--   the correct type; for 'Gen', check the size range is valid and gives the 
+--   correct number of test inputs (>= 'minInputs');
+-- * Validate 'AnalOpts': ensure linear models have <= maxParameters,
+--   check values of cross-validation parameters are in correct range;
+-- * Check Criterion's configuration;
+-- * Check GHC flags are valid.
+--
+-- The '_testSuites' list is updated accordingly and test suites that are 
+-- invalid are added to the '_invalidTestSuites' list with one or more 
+-- 'InputError's.
 checkValidTestSuites :: UserInputs -> UserInputs
 checkValidTestSuites inps = 
   inps { _invalidTestSuites = _invalidTestSuites inps ++ invalids 
@@ -277,28 +298,32 @@ checkValidTestSuites inps =
                  | _nf ts    = fmap (tyFunInps . snd) (benchFuns `intersect` nfFuns)
                  | otherwise = fmap (tyFunInps . snd) benchFuns
 
-      in progsMiss ps'
-           ++ progsDupes ps   -- Dupes may exist.
-           ++ progsTypes ps'
-           ++ progsBench ps'
-           ++ (if _nf ts then progsNf  ps' else [])
-           ++ (if gen    then progsArb ps' else [])
-           ++ checkValidDataOpts tyInps (_dataOpts ts)
-           ++ checkValidAnalOpts (_analOpts ts)
-           ++ checkCritCfg (_critCfg ts)
-           ++ checkGhcFlags (_ghcFlags ts)
+      in progsMiss ps'                                      -- Missing programs in '_progs' list?
+           ++ progsDupes ps                                 -- Duplicate programs in '_progs' list?                
+           ++ progsTypes ps'                                -- Same types in '_progs' list?
+           ++ progsBench ps'                                -- Benchmarkable?
+           ++ (if _nf ts then progsNf  ps' else [])         -- NF-able?
+           ++ (if gen    then progsArb ps' else [])         -- Gen-able?
+           ++ checkValidDataOpts tyInps (_dataOpts ts)      -- Valid 'DataOpts'
+           ++ checkValidAnalOpts (_analOpts ts)             -- Valid 'AnalOpts'
+           ++ checkCritCfg (_critCfg ts)                    -- Valid Criterion configuration?? <TO-DO>
+           ++ checkGhcFlags (_ghcFlags ts)                  -- Valid GHC flags?? <TO-DO>
       where
 
+        -- Ensure all programs specified in the '_progs' list are defined
+        -- in the input file.
         progsMiss []  = []
         progsMiss idts = let diff = idts \\ fmap fst (unaryFuns ++ binaryFuns) in
           if null diff
           then []
           else [progsMissErr diff]
 
+        -- Ensure the '_progs' list contains no duplicates.
         progsDupes idts 
           | length (nub idts) == length idts = []
           | otherwise = [progsDupesErr]
 
+        -- Ensure programs in the '_progs' list have the same type.
         progsTypes [] = []
         progsTypes idts = 
           let tys = filter (\(idt, _) -> idt `elem` idts) (unaryFuns ++ binaryFuns) 
@@ -306,6 +331,7 @@ checkValidTestSuites inps =
              then []
              else [progsTypesErr]
 
+        -- Ensure all programs in the '_progs' list can be benchmarked.
         progsBench []
           | null benchFuns = [progsAllBenchErr]
           | otherwise = []
@@ -314,6 +340,9 @@ checkValidTestSuites inps =
           then []
           else [progsBenchErr diff]
 
+        -- If the 'nf' option is selected, ensure all programs in the '_progs'
+        -- list have result types that can be evaluated to normal form.
+        -- I.e., result type is a member of the NFData type class.
         progsNf []
           | null (benchFuns `intersect` nfFuns) = [progsAllNfErr]
           | otherwise = []
@@ -322,6 +351,9 @@ checkValidTestSuites inps =
           then []
           else [progsNfErr diff]
 
+        -- If the 'DataOpts' 'Gen' setting is selected, ensure all programs in 
+        -- the '_progs' list have input types that are members of the 
+        -- 'Arbitrary' type class.
         progsArb []
           | null (benchFuns `intersect` arbFuns) = [progsAllArbErr]
           | otherwise = []
@@ -330,6 +362,11 @@ checkValidTestSuites inps =
           then []
           else [progsArbErr diff]
 
+        -- Validate 'DataOpts':
+        -- If the 'Manual' option is selected, ensure the test data is present, 
+        -- and has the correct type w.r.t.  the input types of test programs.
+        -- If the 'Gen' option is selected, make sure the size range is
+        -- valid and specifies a sufficient number of test inputs.
         checkValidDataOpts :: [HsType] -> DataOpts -> [InputError]
         checkValidDataOpts tyInps (Manual idt) =
           case lookup idt (unaryData ++ binaryData) of 
@@ -342,6 +379,10 @@ checkValidTestSuites inps =
           | (u - l) `div` s + 1 < minInputs = [dOptsSizeErr]
           | otherwise = []
         
+        -- Valid 'AnalOpts':
+        -- Ensure the linear models have leq the maximum number of allowed 
+        -- predictors. Check the '_cvIters' and '_cvTrain' values are 
+        -- in the correct range.
         checkValidAnalOpts :: AnalOpts -> [InputError]
         checkValidAnalOpts aOpts = 
           checkModels (_linearModels aOpts) 
@@ -361,14 +402,16 @@ checkValidTestSuites inps =
               | xs >= minCVTrain && xs <= maxCVTrain = []
               | otherwise = [aOptsCVTrainErr]
 
+        -- Check Criterion's configuration??
         checkCritCfg :: Criterion.Config -> [InputError]                                             -- <TO-DO>
         checkCritCfg  = const []  
 
+        -- Check the GHC compiler flags??
         checkGhcFlags :: [String] -> [InputError]                                                    -- <TO-DO>
-        checkGhcFlags = const []
+        checkGhcFlags  = const []
 
 
-    -- Projections:
+    -- Projections from the 'UserInputs' data structure:
 
     unaryFuns  = _unaryFuns inps 
     binaryFuns = _binaryFuns inps
@@ -381,22 +424,22 @@ checkValidTestSuites inps =
 
     -- Errors:
     
+    -- '_progs' list:
     progsMissErr diff   = TestSuiteErr $ "Cannot locate programs specified in the '_progs' list: " ++ show diff ++ "."
     progsDupesErr       = TestSuiteErr "One or more duplicate programs specified in the '_progs' list."
     progsTypesErr       = TestSuiteErr "Programs specified in the '_progs' list have different types."
-
     progsAllBenchErr    = TestSuiteErr "None of the programs in the input file can be benchmarked."
     progsBenchErr diff  = TestSuiteErr $ "One or more programs specified in the '_progs' list cannot be benchmarked: " ++ show diff ++ "."
     progsAllNfErr       = TestSuiteErr "The results of all benchmarkable programs specified in the input file cannot be evaluated to normal form."
     progsNfErr diff     = TestSuiteErr $ "The results of one or more benchmarkable programs specified in the '_progs' list cannot be evaluated to normal form:" ++ show diff ++ "."
     progsAllArbErr      = TestSuiteErr "Test data cannot be generated for any benchmarkable programs specified in the input file."
     progsArbErr diff    = TestSuiteErr $ "Test data cannot be generated for one or more benchmarkable programs specified in the '_progs' list: " ++ show diff ++ "."
-
+    -- 'DataOpts':
     dOptsMissErr idt    = DataOptsErr $ "Specified test data is invalid or missing: '" ++ idt ++ "'."
     dOptsWrongTyErr     = DataOptsErr "The type of the specified test data is incompatible with the types of testable programs."
     dOptsParErr         = DataOptsErr "All parameters to 'Gen' must be strictly positive." 
     dOptsSizeErr        = DataOptsErr $ "A minimum of " ++ show minInputs ++ " distinctly sized test inputs are required."
-  
+    -- 'AnalOpts':
     aOptsModelErr       = AnalOptsErr $ "Linear regression models can have a maximum of " ++ show maxPredictors ++ " predictors."
     aOptsCVItersErr     = AnalOptsErr $ "The number of cross-validation iterators must be " ++ show minCVIters ++ " <= x <= " ++ show maxCVIters 
     aOptsCVTrainErr     = AnalOptsErr $ "The percentage of cross-validation training data must be " ++ show minCVTrain ++ " <= x <= " ++ show maxCVTrain

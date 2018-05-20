@@ -39,6 +39,11 @@ module AutoBench.Types
   , minInputs              -- Minimum number of distinctly sized test inputs.
   -- ** Statistical analysis options
   , AnalOpts(..)           -- Statistical analysis options.
+  , maxPredictors          -- Maximum number of predictors for models to be used for regression analysis.         
+  , minCVTrain             -- Minimum percentage of data set to use for cross-validation.
+  , maxCVTrain             -- Maximum percentage of data set to use for cross-validation.
+  , minCVIters             -- Minimum number of cross-validation iterations.
+  , maxCVIters             -- Maximum number of cross-validation iterations.
   -- ** Internal representation of user inputs
   , UserInputs(..)         -- A data structure maintained by the system to classify user inputs.
   , initUserInputs         -- Initialise a 'UserInputs' data structure.
@@ -46,13 +51,8 @@ module AutoBench.Types
   , BenchSuite(..)         -- Benchmarking suites are AutoBench's principle benchmarking datatype.
   -- * Statistical analysis
   , LinearType(..)
-  , Stats(..)                                                                                        -- <TO-DO>
-  , maxPredictors                                                                                    -- <TO-DO>
-  , numPredictors                                                                                    -- <TO-DO>
-  , minCVTrain
-  , maxCVTrain
-  , minCVIters
-  , maxCVIters
+  , Stats(..)                                                                                           -- <TO-DO>
+  , numPredictors          --  Number of predictors for each type of model.
 
   -- * Errors
   -- ** System errors
@@ -290,6 +290,36 @@ instance Default AnalOpts where
           , _coordsFP      = Nothing
           }
 
+-- | Maximum number of predictors for models to be used for regression analysis.
+--
+-- > maxPredictors = 10
+maxPredictors :: Int 
+maxPredictors  = 10
+
+-- | Minimum percentage of data set to use for cross-validation.
+--
+-- > minCVTrain = 0.5
+minCVTrain :: Double 
+minCVTrain  = 0.5
+
+-- | Maximum percentage of data set to use for cross-validation.
+--
+-- > maxCVTrain = 0.8
+maxCVTrain :: Double 
+maxCVTrain  = 0.8
+
+-- | Minimum number of cross-validation iterations.
+--
+-- > minCVIters = 100
+minCVIters :: Int 
+minCVIters  = 100
+
+-- | Maximum number of cross-validation iterations.
+--
+-- > maxCVIters = 500
+maxCVIters :: Int 
+maxCVIters  = 500
+
 -- ** Internal representation of user inputs
 
 -- | While user inputs are being analysed by the system, a 'UserInputs' data
@@ -407,24 +437,6 @@ instance Show LinearType where
   show (Exp       n) = show n ++ "\x207F"
 
 data Stats = Stats {} 
-
--- | Maximum number of predictors for models to be used for regression analysis.
---
--- > maxPredictors = 10
-maxPredictors :: Int 
-maxPredictors  = 10
-
-minCVTrain :: Double 
-minCVTrain  = 0.5
-
-maxCVTrain :: Double 
-maxCVTrain  = 0.8
-
-minCVIters :: Int 
-minCVIters  = 100
-
-maxCVIters :: Int 
-maxCVIters  = 500
 
 -- | Number of predictors for each type of model.
 numPredictors :: LinearType -> Int 
