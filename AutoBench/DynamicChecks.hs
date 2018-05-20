@@ -59,7 +59,8 @@
    ----------------------------------------------------------------------------
    <TO-DO>:
    ----------------------------------------------------------------------------
-   -
+   - Principled method for 'checkInitialisedTestSuite';
+   - 
 -}
 
 module AutoBench.DynamicChecks
@@ -86,7 +87,6 @@ import AutoBench.Types
   , TestSuite(..)
   , UnaryTestData
   )
-
 
 -- | Dynamic check for 1. /NFDataInput/ for unary functions.
 checkNFDataInputUn :: NFData a => (a -> b) -> () 
