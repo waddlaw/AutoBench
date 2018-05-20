@@ -89,6 +89,7 @@ import AutoBench.AbstractSyntax
   , TypeString
   , prettyPrint
   , qualIdt
+  , tyFunInps
   , unqualTyToTy
   )
 import AutoBench.StaticChecks 
@@ -273,8 +274,8 @@ checkValidTestSuites inps =
                     Gen{}    -> True
                     Manual{} -> False 
           tyInps | gen = []
-                 | _nf ts    = fmap snd (benchFuns `intersect` nfFuns)
-                 | otherwise = fmap snd benchFuns
+                 | _nf ts    = fmap (tyFunInps . snd) (benchFuns `intersect` nfFuns)
+                 | otherwise = fmap (tyFunInps . snd) benchFuns
 
       in progsMiss ps'
            ++ progsDupes ps   -- Dupes may exist.
@@ -330,7 +331,7 @@ checkValidTestSuites inps =
           else [progsArbErr diff]
 
         checkValidDataOpts :: [HsType] -> DataOpts -> [InputError]
-        checkValidDataOpts tyInps (Manual idt) = 
+        checkValidDataOpts tyInps (Manual idt) =
           case lookup idt (unaryData ++ binaryData) of 
             Nothing -> [dOptsMissErr idt]
             Just ty -> if notNull tyInps && testDataTyFunInps ty `notElem` tyInps 
@@ -391,7 +392,7 @@ checkValidTestSuites inps =
     progsAllArbErr      = TestSuiteErr "Test data cannot be generated for any benchmarkable programs specified in the input file."
     progsArbErr diff    = TestSuiteErr $ "Test data cannot be generated for one or more benchmarkable programs specified in the '_progs' list: " ++ show diff ++ "."
 
-    dOptsMissErr idt    = DataOptsErr $ "Cannot locate the specified test data '" ++ idt ++ "'."
+    dOptsMissErr idt    = DataOptsErr $ "Specified test data is invalid or missing: '" ++ idt ++ "'."
     dOptsWrongTyErr     = DataOptsErr "The type of the specified test data is incompatible with the types of testable programs."
     dOptsParErr         = DataOptsErr "All parameters to 'Gen' must be strictly positive." 
     dOptsSizeErr        = DataOptsErr $ "A minimum of " ++ show minInputs ++ " distinctly sized test inputs are required."
