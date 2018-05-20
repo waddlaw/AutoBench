@@ -7,7 +7,7 @@ import Data.Default
 import Prelude hiding (id)
 
 tDat :: UnaryTestData Int
-tDat  = []
+tDat  = take 20 $ zip [1..] (fmap return [1..])
 
 tDat2 :: BinaryTestData Int Int
 tDat2  = []

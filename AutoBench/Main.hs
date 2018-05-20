@@ -16,7 +16,7 @@ runAndHandle  = (either throwIO return =<<) . runInterpreter
 
 main :: IO () 
 main = do 
-  inps <- runAndHandle $ check "./Input.hs"
+  inps <- runAndHandle $ userInputCheck "./Input.hs"
   error $ show inps
 
 
@@ -30,25 +30,25 @@ instance Show UserInputs where
     , "invalidElems ="
     , unlines $ indent 2 $ fmap show $ _invalidElems usrInps
     , "validElems ="
-    , unlines $ indent 2 $ fmap (\(idt, ty) -> idt ++ " :: " ++ show (prettyPrint ty)) $ _validElems usrInps 
+    , unlines $ indent 2 $ fmap (\(idt, ty) -> idt ++ " :: " ++ (prettyPrint ty)) $ _validElems usrInps 
     , "nullaryFuns =" 
-    , unlines $ indent 2 $ fmap (\(idt, ty) -> idt ++ " :: " ++ show (prettyPrint ty)) $ _nullaryFuns usrInps
+    , unlines $ indent 2 $ fmap (\(idt, ty) -> idt ++ " :: " ++ (prettyPrint ty)) $ _nullaryFuns usrInps
     , "unaryFuns =" 
-    , unlines $ indent 2 $ fmap (\(idt, ty) -> idt ++ " :: " ++ show (prettyPrint ty)) $ _unaryFuns usrInps
+    , unlines $ indent 2 $ fmap (\(idt, ty) -> idt ++ " :: " ++ (prettyPrint ty)) $ _unaryFuns usrInps
     , "binaryFuns =" 
-    , unlines $ indent 2 $ fmap (\(idt, ty) -> idt ++ " :: " ++ show (prettyPrint ty)) $ _binaryFuns usrInps
+    , unlines $ indent 2 $ fmap (\(idt, ty) -> idt ++ " :: " ++ (prettyPrint ty)) $ _binaryFuns usrInps
     , "benchFuns =" 
-    , unlines $ indent 2 $ fmap (\(idt, ty) -> idt ++ " :: " ++ show (prettyPrint ty)) $ _benchFuns usrInps
+    , unlines $ indent 2 $ fmap (\(idt, ty) -> idt ++ " :: " ++ (prettyPrint ty)) $ _benchFuns usrInps
     , "arbFuns =" 
-    , unlines $ indent 2 $ fmap (\(idt, ty) -> idt ++ " :: " ++ show (prettyPrint ty)) $ _arbFuns usrInps
+    , unlines $ indent 2 $ fmap (\(idt, ty) -> idt ++ " :: " ++ (prettyPrint ty)) $ _arbFuns usrInps
     , "nfFuns =" 
-    , unlines $ indent 2 $ fmap (\(idt, ty) -> idt ++ " :: " ++ show (prettyPrint ty)) $ _nfFuns usrInps
+    , unlines $ indent 2 $ fmap (\(idt, ty) -> idt ++ " :: " ++ (prettyPrint ty)) $ _nfFuns usrInps
     , "invalidData ="
-    , unlines $ indent 2 $ fmap (\(idt, ty, errs) -> idt ++ " :: " ++ show (prettyPrint ty) ++ "\n" ++ (unlines $ indent 4 $ fmap show errs)) $ _invalidData usrInps
+    , unlines $ indent 2 $ fmap (\(idt, ty, errs) -> idt ++ " :: " ++ (prettyPrint ty) ++ "\n" ++ (unlines $ indent 4 $ fmap show errs)) $ _invalidData usrInps
     , "unaryData =" 
-    , unlines $ indent 2 $ fmap (\(idt, ty) -> idt ++ " :: " ++ show (prettyPrint ty)) $ _unaryData usrInps
+    , unlines $ indent 2 $ fmap (\(idt, ty) -> idt ++ " :: " ++ (prettyPrint ty)) $ _unaryData usrInps
     , "binaryData =" 
-    , unlines $ indent 2 $ fmap (\(idt, ty) -> idt ++ " :: " ++ show (prettyPrint ty)) $ _binaryData usrInps
+    , unlines $ indent 2 $ fmap (\(idt, ty) -> idt ++ " :: " ++ (prettyPrint ty)) $ _binaryData usrInps
     , "invalidTestSuites ="
     , unlines $ indent 2 $ fmap (\(idt, errs) -> idt ++ "\n" ++ (unlines $ indent 4 $ fmap show errs)) $ _invalidTestSuites usrInps
     , "testSuites ="
