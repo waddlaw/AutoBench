@@ -67,6 +67,9 @@ module AutoBench.StaticChecks
   , isBinaryTestData    -- Does a 'HsType' correspond to @BinaryTestData x y@ for some types @x@ and @y@?
   , isTestSuite         -- Does a 'HsType' correspond to @TestSuite@?
 
+  -- * Helpers
+  , testDataTyFunInps   -- Extract the input types from the abstract representations of /UnaryTestData/ and /BinaryTestData/.
+
   ) where 
 
 import Language.Haskell.Parser (ParseResult(..), parseModule)
@@ -158,3 +161,14 @@ isBinaryTestData _ = False
 -- | Check whether a 'HsType' corresponds to @TestSuite@.
 isTestSuite :: HsType -> Bool 
 isTestSuite ty = ty == testSuiteTyCon
+
+-- * Helpers 
+
+-- | Extract the input types from the abstract representations of 
+-- /UnaryTestData/ and /BinaryTestData/.
+testDataTyFunInps :: HsType -> HsType
+testDataTyFunInps (HsTyApp (HsTyApp tyCon t1) t2) 
+  | tyCon == binaryTestDataTyCon = HsTyTuple [t1, t2]
+testDataTyFunInps (HsTyApp tyCon t) 
+  | tyCon == unaryTestDataTyCon = HsTyTuple [t]
+testDataTyFunInps _ = HsTyTuple []

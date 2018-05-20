@@ -1,6 +1,7 @@
 
 {-# OPTIONS_GHC -Wall     #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE MultiWayIf   #-}
 
 {-|
 
@@ -66,9 +67,13 @@
 
 module AutoBench.UserInputChecks (userInputCheck) where 
 
-import Control.Category             ((>>>))
-import Control.Monad                ((>=>), filterM, foldM, void)
-import Control.Monad.Catch          (catch, catchAll)
+import           Control.Category       ((>>>))
+import           Data.List              ((\\), intersect, nub)
+import           Control.Monad          ((>=>), filterM, foldM, void)
+import           Control.Monad.Catch    (catch, catchAll)
+import qualified Criterion.Types        as Criterion
+import qualified Criterion.Main         as Criterion
+
 import Language.Haskell.Interpreter 
   (InterpreterError
   , MonadInterpreter
@@ -98,6 +103,7 @@ import AutoBench.StaticChecks
   , isUnaryTyFun
   , isUnqualQualTy
   , parseTySig
+  , testDataTyFunInps
   )
 import AutoBench.Hint  
   ( extractElemsAndTypes
@@ -105,13 +111,17 @@ import AutoBench.Hint
   , loadFileSetTopLevelModuleWithHelpers
   )
 import AutoBench.Types 
-  ( InputError(..)
+  ( AnalOpts(..)
+  , DataOpts(..)
+  , InputError(..)
   , TestSuite
   , UserInputs(..)
   , initUserInputs
+  , maxPredictors
   , minInputs
+  , numPredictors
   )
-import AutoBench.Utils (filepathToModuleName)
+import AutoBench.Utils (allEq, filepathToModuleName, notNull)
 
 -- makeLenses ''UserInputs
 
@@ -238,6 +248,120 @@ catTestData inps = inps { _unaryData = uns, _binaryData = bins }
 checkValidTestSuites :: UserInputs -> UserInputs
 checkValidTestSuites inps = inps
 
+  where 
+
+   
+
+    checkValidTestSuite :: TestSuite -> [InputError]
+    checkValidTestSuite ts = undefined
+      where
+
+        progsMiss []  = []
+        progsMiss idts = let diff = idts \\ fmap fst (unaryFuns ++ binaryFuns) in
+          if null diff
+          then []
+          else [progsMissErr diff]
+
+        progsDupes idts 
+          | length (nub idts) == length idts = []
+          | otherwise = [progsDupesErr]
+
+        progsTypes [] = []
+        progsTypes idts = 
+          let tys = filter (\(idt, _) -> idt `elem` idts) (unaryFuns ++ binaryFuns) 
+          in if allEq (fmap snd tys) 
+             then []
+             else [progsTypesErr]
+
+        progsBench []
+          | null benchFuns = [progsAllBenchErr]
+          | otherwise = []
+        progsBench idts = let diff = idts \\ fmap fst benchFuns in
+          if null diff
+          then []
+          else [progsBenchErr diff]
+
+        progsNf []
+          | null (benchFuns `intersect` nfFuns) = [progsAllNfErr]
+          | otherwise = []
+        progsNf idts = let diff = idts \\ fmap fst (benchFuns `intersect` nfFuns) in
+          if null diff 
+          then []
+          else [progsNfErr diff]
+
+        progsArb []
+          | null (benchFuns `intersect` arbFuns) = [progsAllArbErr]
+          | otherwise = []
+        progsArb ids = let diff = idts \\ fmap fst (benchFuns `intersect` arbFuns) in
+          if null diff 
+          then []
+          else [progsArbErr diff]
+
+        checkValidDataOpts :: [HsType] -> DataOpts -> [InputError]
+        checkValidDataOpts tyInps (Manual idt) = 
+          case lookup idt (unaryData ++ binaryData) of 
+            Nothing -> [dOptsMissErr idt]
+            Just ty -> if notNull tyInps && testDataTyFunInps ty `notElem` tyInps 
+                       then [dOptsWrongTyErr]
+                       else []
+        checkValidDataOpts _ (Gen l s u) 
+          | l <= 0 || s <= 0 || u <= 0      = [dOptsParErr]
+          | (u - l) `div` s + 1 < minInputs = [dOptsSizeErr]
+          | otherwise = []
+        
+        checkValidAnalOpts :: AnalOpts -> [InputError]
+        checkValidAnalOpts aOpts = 
+          where 
+            checkModels :: [LinearType] -> [InputError]
+            checkModels ls 
+              | maxPredictors >= maximum (fmap numPredictors $ ls) = []
+              | otherwise = [aOptsModelErr]
+
+        checkCritCfg :: Criterion.Config -> [InputError]                               -- <TO-DO>
+        checkCritCfg  = const []  
+
+
+    -- Projections:
+
+    unaryFuns  = _unaryFuns inps 
+    binaryFuns = _binaryFuns inps
+    benchFuns  = _benchFuns inps
+    nfFuns     = _nfFuns inps
+    arbFuns    = _arbFuns inps
+
+    unaryData  = _unaryData inps 
+    binaryData = _binaryData inps
+
+
+
+
+
+
+    -- Errors:
+    
+    progsMissErr diff   = TestSuiteErr $ "Cannot locate programs specified in the '_progs' list: " ++ show diff ++ "."
+    progsDupesErr       = TestSuiteErr "One or more duplicate programs specified in the '_progs' list."
+    progsTypesErr       = TestSuiteErr "Programs specified in the '_progs' list have different types."
+
+    progsAllBenchErr    = TestSuiteErr "None of the programs in the input file can be benchmarked."
+    progsBenchErr diff  = TestSuiteErr $ "One or more programs specified in the '_progs' list cannot be benchmarked: " ++ show diff ++ "."
+    progsAllNfErr       = TestSuiteErr "The results of all benchmarkable programs specified in the input file cannot be evaluated to normal form."
+    progsNfErr diff     = TestSuiteErr $ "The results of one or more benchmarkable programs specified in the '_progs' list cannot be evaluated to normal form:" ++ show diff ++ "."
+    progsAllArbErr      = TestSuiteErr "Test data cannot be generated for any benchmarkable programs specified in the input file."
+    progsArbErr diff    = TestSuiteErr $ "Test data cannot be generated for one or more benchmarkable programs specified in the '_progs' list: " ++ show diff ++ "."
+
+    dOptsMissErr idt    = DataOptsErr $ "Cannot locate the specified test data '" ++ idt ++ "'."
+    dOptsWrongTyErr     = DataOptsErr "The type of the specified test data is incompatible with the types of valid test programs."
+    dOptsParErr         = DataOptsErr "All parameters to 'Gen' must be strictly positive." 
+    dOptsSizeErr        = DataOptsErr $ "A minimum of " ++ show minInputs ++ " distinctly sized test inputs are required."
+  
+    aOptsModelErr       = AnalOptsErr $ "Linear regression models can have a maximum of " ++ show maxPredictors ++ " predictors.""
+
+
+
+
+
+
 
 
 
@@ -347,7 +471,7 @@ checkFullTestSuites mn inps = do
       ) (const $ return (vs, (idt, [inputErr]) : ivs))
     
     qualCheckFun = "AutoBench.DynamicChecks.checkInitialisedTestSuite"
-    inputErr = TestSuiteErr "One or more record fields are uninitialised."
+    inputErr = TestSuiteErr "One or more record fields are uninitialised/undefined."
 
 -- | Validate test data in the '_unaryData' and '_binaryData' lists according
 -- to 6. /ValidUnaryData/ and 7. /ValidBinaryData/, respectively, i.e.,:

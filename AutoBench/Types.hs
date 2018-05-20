@@ -1,5 +1,6 @@
 
-{-# OPTIONS_GHC -Wall #-}
+{-# OPTIONS_GHC -Wall      #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 {-|
 
@@ -44,7 +45,9 @@ module AutoBench.Types
   -- * Benchmarking
   , BenchSuite(..)         -- Benchmarking suites are AutoBench's principle benchmarking datatype.
   -- * Statistical analysis
-  , Stats(..)                                                                                            -- <TO-DO>
+  , Stats(..)                                                                                        -- <TO-DO>
+  , maxPredictors                                                                                    -- <TO-DO>
+  , numPredictors                                                                                    -- <TO-DO>
   -- * Errors
   -- ** System errors
   , SystemError(..)        -- System errors.
@@ -53,13 +56,19 @@ module AutoBench.Types
 
   ) where
 
+import           Control.DeepSeq        (NFData)
 import           Control.Exception.Base (Exception)
 import qualified Criterion.Types        as Criterion
 import qualified Criterion.Main         as Criterion
 import           Data.Default           (Default(..))
+import           GHC.Generics           (Generic)
 
 import AutoBench.AbstractSyntax (HsType, Id, ModuleElem, TypeString)
-import AutoBench.Utils (subNum, superNum)
+import AutoBench.Utils          (subNum, superNum)
+
+-- To be able to DeepSeq CR.Config add NFData instances:
+instance NFData Criterion.Verbosity
+instance NFData Criterion.Config
 
 -- * User inputs
 
@@ -106,7 +115,7 @@ data TestSuite =
     , _baseline :: Bool              -- ^ Whether the graphs of runtime results should include baseline measurements.
     , _nf       :: Bool              -- ^ Whether test cases should be evaluated to nf (@True@) or whnf (@False@).
     , _ghcFlags :: [String]          -- ^ GHC compiler flags used when compiling 'BenchSuite's.
-    }
+    } deriving (Generic)
 
 instance Default TestSuite where 
   def = TestSuite
@@ -119,6 +128,8 @@ instance Default TestSuite where
           , _ghcFlags = []                         -- No optimisation, i.e., -O0. 
           }
   
+instance NFData TestSuite 
+
 -- ** Test data options
 
 -- | @type UnaryTestData a = [(Int, IO a)]@.
@@ -218,7 +229,9 @@ data DataOpts =
   | Gen Int Int Int     -- ^ The system should generate random test data in the given size range.
  -- | Discover          -- ^ <TO-DO>: The system should discover compatible user-specified 
                         -- data, or accept a suitable 'Gen' setting at a later time.
-    deriving Eq
+    deriving (Eq, Generic)
+
+instance NFData DataOpts 
 
 instance Default DataOpts where 
   def = Gen 5 5 100
@@ -252,7 +265,9 @@ data AnalOpts =
     , graphFP       :: Maybe FilePath                                  -- ^ Graph of runtime results.
     , reportFP      :: Maybe FilePath                                  -- ^ Report of results.
     , coordsFP      :: Maybe FilePath                                  -- ^ CSV of (input size(s), runtime) coordinates.
-    }
+    } deriving (Generic)
+
+instance NFData AnalOpts 
 
 instance Default AnalOpts where
   def = AnalOpts
@@ -365,7 +380,9 @@ data LinearType =
   | Log     Int Int    -- ^ Logarithmic functions.
   | PolyLog Int Int    -- ^ Polylogarithmic functions.     
   | Exp     Int        -- ^ Exponential function.
-    deriving Eq
+    deriving (Eq, Generic)
+
+instance NFData LinearType
 
 instance Show LinearType where 
   show (Poly      0) = "constant"
@@ -384,6 +401,22 @@ instance Show LinearType where
   show (Exp       n) = show n ++ "\x207F"
 
 data Stats = Stats {} 
+
+-- | Maximum number of predictors for models to be used for regression analysis.
+--
+-- > maxPredictors = 10
+maxPredictors :: Int 
+maxPredictors  = 10
+
+-- | Number of predictors for each type of model.
+numPredictors :: LinearType -> Int 
+numPredictors (Poly      k) = k + 1 
+numPredictors (Log     _ k) = k + 1 
+numPredictors (PolyLog _ k) = k + 1 
+numPredictors Exp{}         = 2
+
+
+
 
 
 -- * Errors 

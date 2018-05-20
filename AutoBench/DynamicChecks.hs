@@ -76,14 +76,12 @@ module AutoBench.DynamicChecks
   , sizeBinaryTestData              -- Dynamic check for 7. /ValidBinaryData/.
   ) where 
 
-import           Control.DeepSeq (NFData)
-import qualified Criterion.Types as CR
-import           Data.List       (nub)
-import           Test.QuickCheck (Arbitrary)
+import Control.DeepSeq (NFData, rnf)
+import Data.List       (nub)
+import Test.QuickCheck (Arbitrary)
 
 import AutoBench.Types 
-  ( AnalOpts(..)
-  , BinaryTestData
+  ( BinaryTestData
   , TestSuite(..)
   , UnaryTestData
   )
@@ -112,42 +110,9 @@ checkArbitraryUn _ = ()
 checkArbitraryBin :: (Arbitrary a, Arbitrary b) => (a -> b -> c) -> ()
 checkArbitraryBin _ = ()
  
- -- | Dynamic check for 5. /FullTestSuites/.
+-- | Dynamic check for 5. /FullTestSuites/.
 checkInitialisedTestSuite :: TestSuite -> ()
-checkInitialisedTestSuite ts = 
-        _progs                 ts
-  `seq` _dataOpts              ts
-  `seq` seqAnalOpts (_analOpts ts)
-  `seq` seqCritCfg  (_critCfg  ts)
-  `seq` _baseline              ts 
-  `seq` _nf                    ts 
-  `seq` _ghcFlags              ts
-  `seq` ()
-  where 
-    seqAnalOpts aOpts = 
-            linearModels aOpts 
-      `seq` cvIters      aOpts 
-      `seq` cvTrain      aOpts 
-      `seq` statsFilt    aOpts
-      `seq` statsSort    aOpts 
-      `seq` runtimeComp  aOpts 
-      `seq` runtimeOrd   aOpts 
-      `seq` graphFP      aOpts 
-      `seq` reportFP     aOpts 
-      `seq` coordsFP     aOpts
-    seqCritCfg cfg =  
-            CR.confInterval cfg
-      `seq` CR.timeLimit    cfg
-      `seq` CR.resamples    cfg
-      `seq` CR.regressions  cfg
-      `seq` CR.rawDataFile  cfg
-      `seq` CR.reportFile   cfg
-      `seq` CR.csvFile      cfg
-      `seq` CR.jsonFile     cfg
-      `seq` CR.junitFile    cfg
-      `seq` CR.verbosity    cfg
-      `seq` CR.template     cfg
-      `seq` ()
+checkInitialisedTestSuite  = rnf
 
 -- | Dynamic check for 6. /ValidUnaryData/.
 sizeUnaryTestData :: UnaryTestData a -> Int

@@ -117,4 +117,4 @@ tSuite2 = TestSuiteOpts {}-}
 data Test = Test
 
 ts :: TestSuite 
-ts = def
+ts  = def { _analOpts = def { runtimeComp = undefined} }
