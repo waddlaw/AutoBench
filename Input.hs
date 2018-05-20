@@ -13,10 +13,10 @@ tDat  = take 20 $ zip4 [1..] [1..] (fmap return $ repeat [1]) (fmap return $ rep
 tDat2 :: BinaryTestData Int Int
 tDat2  = []
 
-const_ :: Int -> Int -> Int 
+const_ :: a -> b -> a 
 const_ x y = x
 
-id :: Int -> Int
+id :: a -> a
 id x = x 
 
 {-
@@ -42,7 +42,7 @@ tData  = fmap (\i -> (i, return i)) [2,4..48]
 testOpts :: TestOpts 
 testOpts  = defaultTestOpts { dat = Manual }  -}
 
-
+{-
 slowRev :: [Int] -> [Int]
 slowRev []       = []
 slowRev (x : xs) = slowRev xs ++ [x]
@@ -52,7 +52,7 @@ fastRev xs = go xs []
   where 
     go [] ys       = ys 
     go (x : xs) ys = go xs (x : ys)
-
+-}
 
 {-
 {-
@@ -118,7 +118,7 @@ tSuite2 = TestSuiteOpts {}-}
 data Test = Test
 
 ts :: TestSuite 
-ts  = def { _progs = ["fastRev", "slowRev"] }
+ts  = def
 
 ts2 :: TestSuite 
 ts2  = def { _progs = ["slowRev"] }
