@@ -288,7 +288,7 @@ checkValidTestSuites inps =
       []   -> ((idt, ts) : vs, ivs)
       errs -> (vs, (idt, errs) : ivs)
 
-    -- Perform all checks.
+    -- Check a single test suite.
     checkValidTestSuite :: TestSuite -> [InputError]
     checkValidTestSuite ts = 
       let ps     = _progs ts             -- Programs in the '_progs' list.
@@ -302,18 +302,22 @@ checkValidTestSuites inps =
           tyInps | gen = []            
                  | _nf ts    = fmap (tyFunInps . snd) (benchFuns `intersect` nfFuns)
                  | otherwise = fmap (tyFunInps . snd) benchFuns
-      in progsMiss ps'                                       -- Missing programs in '_progs' list?
-           ++ progsDupes ps                                  -- Duplicate programs in '_progs' list?                
-           ++ progsTypes ps'                                 -- Same types in '_progs' list?
-           ++ progsBench ps''                                -- Benchmarkable in '_progs' list?
-           ++ (if _nf ts  then progsNf  ps'' else [])        -- NF-able is '_progs' list?
-           ++ (if gen     then progsArb ps'' else [])        -- Gen-able is '_progs' list?
-           
+      in      
+           -- '_progs' list is not empty:
+           (if notNull ps 
+           then progsMiss ps'                                      -- Missing programs in '_progs' list?
+                  ++ progsDupes ps                                  -- Duplicate programs in '_progs' list?                
+                  ++ progsTypes ps'                                 -- Same types in '_progs' list?
+                  ++ progsBench ps''                                -- Benchmarkable in '_progs' list?
+                  ++ (if _nf ts  then progsNf  ps'' else [])        -- NF-able is '_progs' list?
+                  ++ (if gen     then progsArb ps'' else [])        -- Gen-able is '_progs' list?
+           else [])
+           -- '_prog' list is empty:
            ++ (if null ps                                    -- Check all functions in input file if '_progs' list is empty:
-              then checkAllFuns (_nf ts) gen  -- checkAllFuns nf? gen?
-                     (fmap fst nfFuns)        -- NF-able.
-                     (fmap fst arbFuns)       -- Gen-able.
-                     (fmap fst benchFuns)     -- Benchmarkable.
+              then checkAllFuns (_nf ts) gen                 -- checkAllFuns nf? gen?
+                     (fmap fst nfFuns)                       -- NF-able.
+                     (fmap fst arbFuns)                      -- Gen-able.
+                     (fmap fst benchFuns)                    -- Benchmarkable.
               else [])           
            ++ checkValidDataOpts tyInps (_dataOpts ts)       -- Valid 'DataOpts'
            ++ checkValidAnalOpts (_analOpts ts)              -- Valid 'AnalOpts'
@@ -322,7 +326,6 @@ checkValidTestSuites inps =
       where
         -- Ensure all programs specified in the '_progs' list are defined
         -- in the input file.
-        progsMiss []  = []
         progsMiss idts = let diff = idts \\ fmap fst (unaryFuns ++ binaryFuns) in
           if null diff
           then []
@@ -334,7 +337,6 @@ checkValidTestSuites inps =
           | otherwise = [progsDupesErr]
 
         -- Ensure programs in the '_progs' list have the same type.
-        progsTypes [] = []
         progsTypes idts = 
           let tys = filter (\(idt, _) -> idt `elem` idts) (unaryFuns ++ binaryFuns) 
           in if allEq (fmap snd tys) 
@@ -343,7 +345,6 @@ checkValidTestSuites inps =
 
         -- Ensure all programs in the '_progs' list that are defined in the 
         -- input file can be benchmarked.
-        progsBench [] = []
         progsBench idts = let diff = idts \\ fmap fst benchFuns in
           if null diff
           then []
@@ -353,7 +354,6 @@ checkValidTestSuites inps =
         -- '_progs' list that are defined in the input file have result types 
         -- that can be evaluated to normal form. I.e., result type is a member 
         -- of the NFData type class.
-        progsNf [] = []
         progsNf idts = let diff = idts \\ fmap fst nfFuns in
           if null diff 
           then []
@@ -372,17 +372,17 @@ checkValidTestSuites inps =
         -- the input file satisfies all test suite settings:
         -- checkAll nf? gen? ..
         checkAllFuns :: Bool -> Bool -> [Id] -> [Id] -> [Id] -> [InputError]
-        checkAllFuns True True nfIdts arbIdts benchIdts
+        checkAllFuns True True nfIdts arbIdts benchIdts                          -- Need to be NF-able, Gen-able, and Benchmarkable.
           | null nfArbIdts = [checkAllNFArbErr]
           | otherwise = []
           where nfArbIdts = nfIdts `intersect` arbIdts `intersect` benchIdts
-        checkAllFuns True False nfIdts _ benchIdts
+        checkAllFuns True False nfIdts _ benchIdts                               -- Need to be NF-able and Benchmarkable.
           | null (nfIdts `intersect` benchIdts) = [checkAllNfErr]
           | otherwise = []
-        checkAllFuns False True _ arbIdts benchIdts
+        checkAllFuns False True _ arbIdts benchIdts                              -- Need to be Gen-able and Benchmarkable.
           | null (arbIdts `intersect` benchIdts) = [checkAllArbErr]
           | otherwise = []
-        checkAllFuns False False _ _ benchIdts 
+        checkAllFuns False False _ _ benchIdts                                   -- Need to be Benchmarkable
           | null benchIdts = [checkAllBenchErr]
           | otherwise = []
 
@@ -403,12 +403,12 @@ checkValidTestSuites inps =
                        then [dOptsWrongTyErr]
                        else []
         checkValidDataOpts _ (Gen l s u) 
-          | l <= 0 || s <= 0 || u <= 0      = [dOptsParErr]     -- Parameters strictly positive.
-          | (u - l) `div` s + 1 < minInputs = [dOptsSizeErr]    -- Size range >= 'minInputs'.
+          | l <= 0 || s <= 0 || u <= 0      = [dOptsParErr]     -- l, s, u > 0.
+          | (u - l) `div` s + 1 < minInputs = [dOptsSizeErr]    -- Size range >= 20.
           | otherwise = []
         
         -- Valid 'AnalOpts':
-        -- Ensure the linear models have leq the maximum number of allowed 
+        -- Ensure the linear models have <= maximum number of allowed 
         -- predictors. Check the '_cvIters' and '_cvTrain' values are 
         -- in the correct range.
         checkValidAnalOpts :: AnalOpts -> [InputError]
@@ -417,15 +417,18 @@ checkValidTestSuites inps =
             ++ checkCVIters (_cvIters aOpts) 
             ++ checkCVTrain (_cvTrain aOpts)
           where 
+            -- Maximum number of predictors for linear models.
             checkModels :: [LinearType] -> [InputError]
             checkModels ls 
               | maxPredictors >= maximum (fmap numPredictors ls) = []
               | otherwise = [aOptsModelErr]
-
+            
+            -- 100 <= '_cvIters' 500.
             checkCVIters xs 
               | xs >= minCVIters && xs <= maxCVIters = []
               | otherwise = [aOptsCVItersErr]
-
+            
+            -- 0.5 <= '_cvTrain' 0.8
             checkCVTrain xs 
               | xs >= minCVTrain && xs <= maxCVTrain = []
               | otherwise = [aOptsCVTrainErr]
@@ -438,20 +441,16 @@ checkValidTestSuites inps =
         checkGhcFlags :: [String] -> [InputError]                                                    -- <TO-DO>
         checkGhcFlags  = const []
 
-
-    -- Projections from the 'UserInputs' data structure:
-
+    -- Cross-referencing fields in the 'UserInputs' data structure:
     unaryFuns  = _unaryFuns inps 
     binaryFuns = _binaryFuns inps
     benchFuns  = _benchFuns inps
     nfFuns     = _nfFuns inps
     arbFuns    = _arbFuns inps
-
     unaryData  = _unaryData inps 
     binaryData = _binaryData inps
 
     -- Errors:
-    
     -- '_progs' list:
     progsMissErr diff   = TestSuiteErr $ "Cannot locate programs specified in the '_progs' list: " ++ show diff ++ "."
     progsDupesErr       = TestSuiteErr "One or more duplicate programs specified in the '_progs' list."
