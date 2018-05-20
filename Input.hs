@@ -15,7 +15,7 @@ tDat2  = []
 const_ :: Int -> Int -> Int 
 const_ x y = x
 
-id :: a -> a 
+id :: Int -> Int
 id x = x 
 
 {-
@@ -117,4 +117,7 @@ tSuite2 = TestSuiteOpts {}-}
 data Test = Test
 
 ts :: TestSuite 
-ts  = def { _analOpts = def { runtimeComp = undefined} }
+ts  = def { _progs = ["fastRev", "slowRev"] }
+
+ts2 :: TestSuite 
+ts2  = def { _progs = ["slowRev"] }

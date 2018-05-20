@@ -72,7 +72,6 @@ import           Data.List              ((\\), intersect, nub)
 import           Control.Monad          ((>=>), filterM, foldM, void)
 import           Control.Monad.Catch    (catch, catchAll)
 import qualified Criterion.Types        as Criterion
-import qualified Criterion.Main         as Criterion
 
 import Language.Haskell.Interpreter 
   (InterpreterError
@@ -114,10 +113,15 @@ import AutoBench.Types
   ( AnalOpts(..)
   , DataOpts(..)
   , InputError(..)
-  , TestSuite
+  , LinearType
+  , TestSuite(..)
   , UserInputs(..)
   , initUserInputs
+  , maxCVIters
+  , maxCVTrain
   , maxPredictors
+  , minCVIters
+  , minCVTrain
   , minInputs
   , numPredictors
   )
@@ -246,14 +250,42 @@ catTestData inps = inps { _unaryData = uns, _binaryData = bins }
 -- ** Second phase
 
 checkValidTestSuites :: UserInputs -> UserInputs
-checkValidTestSuites inps = inps
+checkValidTestSuites inps = 
+  inps { _invalidTestSuites = _invalidTestSuites inps ++ invalids 
+       , _testSuites = valids 
+       }
+  where
+    (valids, invalids) = foldr check ([], []) (_testSuites inps)
 
-  where 
-
-   
+    check 
+      :: (Id, TestSuite)
+      -> ([(Id, TestSuite)], [(Id, [InputError])])
+      -> ([(Id, TestSuite)], [(Id, [InputError])])
+    check (idt, ts) (vs, ivs) = case checkValidTestSuite ts of 
+      []   -> ((idt, ts) : vs, ivs)
+      errs -> (vs, (idt, errs) : ivs)
 
     checkValidTestSuite :: TestSuite -> [InputError]
-    checkValidTestSuite ts = undefined
+    checkValidTestSuite ts = 
+      let ps     = _progs ts
+          ps'    = nub ps
+          gen    = case _dataOpts ts of
+                    Gen{}    -> True
+                    Manual{} -> False 
+          tyInps | gen = []
+                 | _nf ts    = fmap snd (benchFuns `intersect` nfFuns)
+                 | otherwise = fmap snd benchFuns
+
+      in progsMiss ps'
+           ++ progsDupes ps   -- Dupes may exist.
+           ++ progsTypes ps'
+           ++ progsBench ps'
+           ++ (if _nf ts then progsNf  ps' else [])
+           ++ (if gen    then progsArb ps' else [])
+           ++ checkValidDataOpts tyInps (_dataOpts ts)
+           ++ checkValidAnalOpts (_analOpts ts)
+           ++ checkCritCfg (_critCfg ts)
+           ++ checkGhcFlags (_ghcFlags ts)
       where
 
         progsMiss []  = []
@@ -292,7 +324,7 @@ checkValidTestSuites inps = inps
         progsArb []
           | null (benchFuns `intersect` arbFuns) = [progsAllArbErr]
           | otherwise = []
-        progsArb ids = let diff = idts \\ fmap fst (benchFuns `intersect` arbFuns) in
+        progsArb idts = let diff = idts \\ fmap fst (benchFuns `intersect` arbFuns) in
           if null diff 
           then []
           else [progsArbErr diff]
@@ -311,14 +343,28 @@ checkValidTestSuites inps = inps
         
         checkValidAnalOpts :: AnalOpts -> [InputError]
         checkValidAnalOpts aOpts = 
+          checkModels (_linearModels aOpts) 
+            ++ checkCVIters (_cvIters aOpts) 
+            ++ checkCVTrain (_cvTrain aOpts)
           where 
             checkModels :: [LinearType] -> [InputError]
             checkModels ls 
-              | maxPredictors >= maximum (fmap numPredictors $ ls) = []
+              | maxPredictors >= maximum (fmap numPredictors ls) = []
               | otherwise = [aOptsModelErr]
 
-        checkCritCfg :: Criterion.Config -> [InputError]                               -- <TO-DO>
+            checkCVIters xs 
+              | xs >= minCVIters && xs <= maxCVIters = []
+              | otherwise = [aOptsCVItersErr]
+
+            checkCVTrain xs 
+              | xs >= minCVTrain && xs <= maxCVTrain = []
+              | otherwise = [aOptsCVTrainErr]
+
+        checkCritCfg :: Criterion.Config -> [InputError]                                             -- <TO-DO>
         checkCritCfg  = const []  
+
+        checkGhcFlags :: [String] -> [InputError]                                                    -- <TO-DO>
+        checkGhcFlags = const []
 
 
     -- Projections:
@@ -331,11 +377,6 @@ checkValidTestSuites inps = inps
 
     unaryData  = _unaryData inps 
     binaryData = _binaryData inps
-
-
-
-
-
 
     -- Errors:
     
@@ -351,14 +392,13 @@ checkValidTestSuites inps = inps
     progsArbErr diff    = TestSuiteErr $ "Test data cannot be generated for one or more benchmarkable programs specified in the '_progs' list: " ++ show diff ++ "."
 
     dOptsMissErr idt    = DataOptsErr $ "Cannot locate the specified test data '" ++ idt ++ "'."
-    dOptsWrongTyErr     = DataOptsErr "The type of the specified test data is incompatible with the types of valid test programs."
+    dOptsWrongTyErr     = DataOptsErr "The type of the specified test data is incompatible with the types of testable programs."
     dOptsParErr         = DataOptsErr "All parameters to 'Gen' must be strictly positive." 
     dOptsSizeErr        = DataOptsErr $ "A minimum of " ++ show minInputs ++ " distinctly sized test inputs are required."
   
-    aOptsModelErr       = AnalOptsErr $ "Linear regression models can have a maximum of " ++ show maxPredictors ++ " predictors.""
-
-
-
+    aOptsModelErr       = AnalOptsErr $ "Linear regression models can have a maximum of " ++ show maxPredictors ++ " predictors."
+    aOptsCVItersErr     = AnalOptsErr $ "The number of cross-validation iterators must be " ++ show minCVIters ++ " <= x <= " ++ show maxCVIters 
+    aOptsCVTrainErr     = AnalOptsErr $ "The percentage of cross-validation training data must be " ++ show minCVTrain ++ " <= x <= " ++ show maxCVTrain
 
 
 
