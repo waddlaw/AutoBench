@@ -10,13 +10,13 @@ import Prelude hiding (id)
 tDat :: BinaryTestData [Int] [Int]
 tDat  = take 20 $ zip4 [1..] [1..] (fmap return $ repeat [1]) (fmap return $ repeat [1])
 
-tDat2 :: BinaryTestData Int Int
-tDat2  = []
+tDat2 :: UnaryTestData [Int] 
+tDat2  = take 20 $ zip [1..] (fmap return $ repeat [1])
 
 const_ :: a -> b -> a 
 const_ x y = x
 
-id :: a -> a
+id :: Int -> Int
 id x = x 
 
 {-
@@ -42,7 +42,7 @@ tData  = fmap (\i -> (i, return i)) [2,4..48]
 testOpts :: TestOpts 
 testOpts  = defaultTestOpts { dat = Manual }  -}
 
-{-
+
 slowRev :: [Int] -> [Int]
 slowRev []       = []
 slowRev (x : xs) = slowRev xs ++ [x]
@@ -52,7 +52,6 @@ fastRev xs = go xs []
   where 
     go [] ys       = ys 
     go (x : xs) ys = go xs (x : ys)
--}
 
 {-
 {-
@@ -121,4 +120,4 @@ ts :: TestSuite
 ts  = def
 
 ts2 :: TestSuite 
-ts2  = def { _progs = ["slowRev"] }
+ts2  = def { _progs = ["id"], _dataOpts = Manual "tDat2" }

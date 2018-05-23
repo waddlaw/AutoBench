@@ -308,16 +308,16 @@ checkValidTestSuites inps =
           ps'' = ps \\ (ps \\ fmap fst (unaryFuns ++ binaryFuns))
           -- All programs in user input file that satisfy 'TestSuite' settings.
           tyInps 
-            -- Empty '_progs' list => consider all functions in file.
+            -- Empty '_progs' list => consider input types of all functions in file.
             | null ps && _nf ts = fmap (tyFunInps . snd) (benchFuns `intersect` nfFuns) 
             | null ps           = fmap (tyFunInps . snd) benchFuns
-            -- Non-empty '_progs' list => consider only functions in '_progs' list.
+            -- Non-empty '_progs' list => consider input types of only functions in '_progs' list.
             | _nf ts    = fmap (tyFunInps . snd) $ filter (\(idt, _) -> idt `elem` ps) $ benchFuns `intersect` nfFuns
             | otherwise = fmap (tyFunInps . snd) $ filter (\(idt, _) -> idt `elem` ps) $ benchFuns
       in      
            -- '_progs' list is not empty:
            (if notNull ps 
-           then progsMiss ps'                                      -- Missing programs in '_progs' list?
+           then progsMiss ps'                                       -- Missing programs in '_progs' list?
                   ++ progsDupes ps                                  -- Duplicate programs in '_progs' list?                
                   ++ progsTypes ps'                                 -- Same types in '_progs' list?
                   ++ progsBench ps''                                -- Benchmarkable in '_progs' list?
