@@ -252,19 +252,27 @@ catTestData inps = inps { _unaryData = uns, _binaryData = bins }
 -- | Validate test suites in the '_testSuites' list according to
 -- 8. /ValidTestSuites/. The following checks are performed:
 --
--- * No programs missing from the '_progs' list;
--- * No duplicates in the '_progs' list;
--- * Programs in the '_progs' list have the same type;
--- * Programs in the '_progs' list can be benchmarked;
--- * If '_nf' then programs in the '_progs' list have result types that can be 
---   evaluated to normal form (member of the 'NFData' type class);
--- * If 'Gen' then programs in the '_progs' list have input types that are 
---   members of the 'Arbitrary' type class;
+-- If '_progs' list is populated:
+--   * No programs missing from the '_progs' list;
+--   * No duplicates in the '_progs' list;
+--   * Programs in the '_progs' list have the same type;
+--   * Programs in the '_progs' list can be benchmarked;
+--   * If '_nf' then programs in the '_progs' list have result types that can be 
+--     evaluated to normal form (member of the 'NFData' type class);
+--    * If 'Gen' then programs in the '_progs' list have input types that are 
+--      members of the 'Arbitrary' type class;
+-- If '_progs' list is empty:
+--   * Depending on settings, check that at least one program is: 
+--     NF-able\/Gen-able and Benchmarkable: see 'checkAllFuns'.
+--
+-- Remaining checks for both cases: 
+--
 -- * Validate 'DataOpts': for 'Manual' data, check that it is present and has 
 --   the correct type; for 'Gen', check the size range is valid and gives the 
 --   correct number of test inputs (>= 'minInputs');
 -- * Validate 'AnalOpts': ensure linear models have <= maxParameters,
---   check values of cross-validation parameters are in correct range;
+--   check values of cross-validation parameters are in correct range,
+--   check number of top models is strictly positive;
 -- * Check Criterion's configuration;
 -- * Check GHC flags are valid.
 --
@@ -292,16 +300,20 @@ checkValidTestSuites inps =
     checkValidTestSuite :: TestSuite -> [InputError]
     checkValidTestSuite ts = 
       let ps     = _progs ts             -- Programs in the '_progs' list.
-          ps'    = nub ps      
+          ps'    = nub ps                -- Programs in the '_progs' list: no duplicates.
           gen    = case _dataOpts ts of  -- Is test data to be generated? 
                     Gen{}    -> True
                     Manual{} -> False
           -- Program specified the '_progs' list that are defined in the input file.
           ps'' = ps \\ (ps \\ fmap fst (unaryFuns ++ binaryFuns))
-          -- All programs in user input file that satisfy 'TestSuite' settings. 
-          tyInps | gen = []            
-                 | _nf ts    = fmap (tyFunInps . snd) (benchFuns `intersect` nfFuns)
-                 | otherwise = fmap (tyFunInps . snd) benchFuns
+          -- All programs in user input file that satisfy 'TestSuite' settings.
+          tyInps 
+            -- Empty '_progs' list => consider all functions in file.
+            | null ps && _nf ts = fmap (tyFunInps . snd) (benchFuns `intersect` nfFuns) 
+            | null ps           = fmap (tyFunInps . snd) benchFuns
+            -- Non-empty '_progs' list => consider only functions in '_progs' list.
+            | _nf ts    = fmap (tyFunInps . snd) $ filter (\(idt, _) -> idt `elem` ps) $ benchFuns `intersect` nfFuns
+            | otherwise = fmap (tyFunInps . snd) $ filter (\(idt, _) -> idt `elem` ps) $ benchFuns
       in      
            -- '_progs' list is not empty:
            (if notNull ps 
