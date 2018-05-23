@@ -19,7 +19,7 @@ runAndHandle  = (either throwIO return =<<) . runInterpreter
 
 main :: IO () 
 main = do
-  args <- OPTS.customExecParser (OPTS.prefs OPTS.showHelpOnError) $ clArgsParser
+  --args <- OPTS.customExecParser (OPTS.prefs OPTS.showHelpOnError) $ clArgsParser
   inps <- runAndHandle $ userInputCheck "./Input.hs"
   error $ show inps
 
