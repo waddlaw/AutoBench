@@ -62,7 +62,7 @@
    ----------------------------------------------------------------------------
    <TO-DO>:
    ----------------------------------------------------------------------------
-   - 
+   -
 -}
 
 module AutoBench.UserInputChecks (userInputCheck) where 
@@ -414,8 +414,9 @@ checkValidTestSuites inps =
         checkValidAnalOpts :: AnalOpts -> [InputError]
         checkValidAnalOpts aOpts = 
           checkModels (_linearModels aOpts) 
-            ++ checkCVIters (_cvIters aOpts) 
-            ++ checkCVTrain (_cvTrain aOpts)
+            ++ checkCVIters   (_cvIters   aOpts) 
+            ++ checkCVTrain   (_cvTrain   aOpts)
+            ++ checkTopModels (_topModels aOpts)
           where 
             -- Maximum number of predictors for linear models.
             checkModels :: [LinearType] -> [InputError]
@@ -424,14 +425,19 @@ checkValidTestSuites inps =
               | otherwise = [aOptsModelErr]
             
             -- 100 <= '_cvIters' 500.
-            checkCVIters xs 
-              | xs >= minCVIters && xs <= maxCVIters = []
+            checkCVIters n 
+              | n >= minCVIters && n <= maxCVIters = []
               | otherwise = [aOptsCVItersErr]
             
             -- 0.5 <= '_cvTrain' 0.8
-            checkCVTrain xs 
-              | xs >= minCVTrain && xs <= maxCVTrain = []
+            checkCVTrain n 
+              | n >= minCVTrain && n <= maxCVTrain = []
               | otherwise = [aOptsCVTrainErr]
+
+            -- 'topModels' strictly positive
+            checkTopModels n 
+              | n > 0 = []
+              | otherwise = [aOptsTopModelsErr]
 
         -- Check Criterion's configuration??
         checkCritCfg :: Criterion.Config -> [InputError]                                             -- <TO-DO>
@@ -452,27 +458,27 @@ checkValidTestSuites inps =
 
     -- Errors:
     -- '_progs' list:
-    progsMissErr diff   = TestSuiteErr $ "Cannot locate programs specified in the '_progs' list: " ++ show diff ++ "."
-    progsDupesErr       = TestSuiteErr "One or more duplicate programs specified in the '_progs' list."
-    progsTypesErr       = TestSuiteErr "Programs specified in the '_progs' list have different types."
-    progsBenchErr diff  = TestSuiteErr $ "One or more programs specified in the '_progs' list cannot be benchmarked: " ++ show diff ++ "."
-    progsNfErr diff     = TestSuiteErr $ "The results of one or more benchmarkable programs specified in the '_progs' list cannot be evaluated to normal form:" ++ show diff ++ "."
-    progsArbErr diff    = TestSuiteErr $ "Test data cannot be generated for one or more benchmarkable programs specified in the '_progs' list: " ++ show diff ++ "."
+    progsMissErr diff    = TestSuiteErr $ "Cannot locate programs specified in the '_progs' list: " ++ show diff ++ "."
+    progsDupesErr        = TestSuiteErr "One or more duplicate programs specified in the '_progs' list."
+    progsTypesErr        = TestSuiteErr "Programs specified in the '_progs' list have different types."
+    progsBenchErr diff   = TestSuiteErr $ "One or more programs specified in the '_progs' list cannot be benchmarked: " ++ show diff ++ "."
+    progsNfErr diff      = TestSuiteErr $ "The results of one or more benchmarkable programs specified in the '_progs' list cannot be evaluated to normal form:" ++ show diff ++ "."
+    progsArbErr diff     = TestSuiteErr $ "Test data cannot be generated for one or more benchmarkable programs specified in the '_progs' list: " ++ show diff ++ "."
     -- Check all:
-    checkAllNFArbErr    = TestSuiteErr "There are no benchmarkable programs specified in the input file whereby their results can be evaluated to normal and for which test data can be generated." 
-    checkAllNfErr       = TestSuiteErr "The results of all benchmarkable programs specified in the input file cannot be evaluated to normal form."
-    checkAllArbErr      = TestSuiteErr "Test data cannot be generated for any benchmarkable programs specified in the input file."
-    checkAllBenchErr    = TestSuiteErr "None of the programs in the input file can be benchmarked."
+    checkAllNFArbErr     = TestSuiteErr "There are no benchmarkable programs specified in the input file whereby their results can be evaluated to normal and for which test data can be generated." 
+    checkAllNfErr        = TestSuiteErr "The results of all benchmarkable programs specified in the input file cannot be evaluated to normal form."
+    checkAllArbErr       = TestSuiteErr "Test data cannot be generated for any benchmarkable programs specified in the input file."
+    checkAllBenchErr     = TestSuiteErr "None of the programs in the input file can be benchmarked."
     -- 'DataOpts':
-    dOptsMissErr idt    = DataOptsErr $ "Specified test data is invalid or missing: '" ++ idt ++ "'."
-    dOptsWrongTyErr     = DataOptsErr "The type of the specified test data is incompatible with the types of testable programs."
-    dOptsParErr         = DataOptsErr "All parameters to 'Gen' must be strictly positive." 
-    dOptsSizeErr        = DataOptsErr $ "A minimum of " ++ show minInputs ++ " distinctly sized test inputs are required."
+    dOptsMissErr idt     = DataOptsErr $ "Specified test data is invalid or missing: '" ++ idt ++ "'."
+    dOptsWrongTyErr      = DataOptsErr "The type of the specified test data is incompatible with the types of testable programs."
+    dOptsParErr          = DataOptsErr "All parameters to 'Gen' must be strictly positive." 
+    dOptsSizeErr         = DataOptsErr $ "A minimum of " ++ show minInputs ++ " distinctly sized test inputs are required."
     -- 'AnalOpts':
-    aOptsModelErr       = AnalOptsErr $ "Linear regression models can have a maximum of " ++ show maxPredictors ++ " predictors."
-    aOptsCVItersErr     = AnalOptsErr $ "The number of cross-validation iterators must be " ++ show minCVIters ++ " <= x <= " ++ show maxCVIters 
-    aOptsCVTrainErr     = AnalOptsErr $ "The percentage of cross-validation training data must be " ++ show minCVTrain ++ " <= x <= " ++ show maxCVTrain
-
+    aOptsModelErr        = AnalOptsErr $ "Linear regression models can have a maximum of " ++ show maxPredictors ++ " predictors."
+    aOptsCVItersErr      = AnalOptsErr $ "The number of cross-validation iterators must be " ++ show minCVIters ++ " <= x <= " ++ show maxCVIters 
+    aOptsCVTrainErr      = AnalOptsErr $ "The percentage of cross-validation training data must be " ++ show minCVTrain ++ " <= x <= " ++ show maxCVTrain
+    aOptsTopModelsErr    = AnalOptsErr $ "The number of models to review must be strictly positive."
 
 
 

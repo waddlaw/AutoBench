@@ -262,6 +262,7 @@ data AnalOpts =
     , _cvTrain       :: Double                                          -- ^ Percentage of data set to use for cross-validation 
                                                                         --   training; the rest is used for validation.
     -- Model comparison:
+    , _topModels     :: Int                                             -- ^ The top n models to review.
     , _statsFilt     :: Stats -> Bool                                   -- ^ Function to discard models that \"do not\" fit a given data set.
     , _statsSort     :: Stats -> Stats -> Ordering                      -- ^ Function to select a model that \"best fits\" a given data set.
     -- Calculating efficiency results:
@@ -279,8 +280,9 @@ instance Default AnalOpts where
   def = AnalOpts
           {
             _linearModels  = fmap Poly [0..4] ++ [Log 2 1, Log 2 2, PolyLog 2 1, Exp 2]
-          , _cvIters       = 200
-          , _cvTrain       = 0.8
+          , _cvIters       = 100
+          , _cvTrain       = 0.7
+          , _topModels     = 1
           , _statsFilt     = const True                                                                           --  <TO-DO>
           , _statsSort     = (\_ _ -> EQ)                                                                         --  <TO-DO>
           , _runtimeComp   = (\_ _ -> EQ)                                                                         --  <TO-DO>
