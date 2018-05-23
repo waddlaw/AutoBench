@@ -61,7 +61,7 @@ import           Data.Monoid                  ((<>))
 import           Data.Void                    (Void)
 import           Language.Haskell.Interpreter (ModuleName)
 import qualified Options.Applicative          as OPTS
-import           System.FilePath.Posix        (isValid, takeBaseName) 
+import           System.FilePath.Posix        (isValid, makeValid, takeBaseName) 
 import qualified Text.Megaparsec              as MP
 import qualified Text.Megaparsec.Char         as MP 
 import qualified Text.Megaparsec.Char.Lexer   as L 
@@ -188,12 +188,13 @@ clArgsParser  = CLArgs <$> OPTS.info
   where 
     userInputFile :: OPTS.Parser FilePath
     userInputFile  = OPTS.argument (OPTS.str >>= readFilepath) 
-
       (OPTS.metavar "FILEPATH" <> OPTS.help "User input file")
+
     readFilepath :: String -> OPTS.ReadM FilePath
     readFilepath s 
-      | isValid s = return s
+      | isValid s' = return s'
       | otherwise = OPTS.readerError ("Invalid filepath: " ++ show s)
+      where s' = makeValid s
 
 -- * Misc.
 
