@@ -45,6 +45,10 @@ module AutoBench.Utils
   , lexeme               -- Basic lexeme parser.
   , sc                   -- Basic space consumer.
   , symbol               -- Basic symbol parser.
+  -- ** Command line parsing
+  , CLArgs(..)           -- Command line arguments.
+  , clArgsParser         -- Options parser for command line arguments.
+
   -- * Misc 
   , (.*)                 -- Generalised function composition.
 
@@ -53,12 +57,15 @@ module AutoBench.Utils
 import           Control.Applicative          ((<*>))
 import           Data.Char                    (isSpace, toUpper)
 import           Data.List                    (dropWhileEnd, tails)
+import           Data.Monoid                  ((<>))
 import           Data.Void                    (Void)
 import           Language.Haskell.Interpreter (ModuleName)
-import           System.FilePath.Posix        (takeBaseName) 
+import qualified Options.Applicative          as OPTS
+import           System.FilePath.Posix        (isValid, takeBaseName) 
 import qualified Text.Megaparsec              as MP
 import qualified Text.Megaparsec.Char         as MP 
 import qualified Text.Megaparsec.Char.Lexer   as L 
+
 
 
 -- * AutoBench specific
@@ -163,6 +170,30 @@ lexeme  = L.lexeme sc
 -- | Basic 'Int' parser.
 integer :: Parser Int
 integer  = lexeme L.decimal
+
+-- * Command line parsing
+
+-- | AutoBench's command line arguments.
+data CLArgs = 
+  CLArgs
+    {
+      _userInputFile :: FilePath  -- ^ User input file.
+    }
+
+-- | Options parser for AutoBench's command line arguments.
+clArgsParser :: OPTS.ParserInfo CLArgs
+clArgsParser  = CLArgs <$> OPTS.info 
+  userInputFile
+  (OPTS.header "AutoBench (Version 0.1)") 
+  where 
+    userInputFile :: OPTS.Parser FilePath
+    userInputFile  = OPTS.argument (OPTS.str >>= readFilepath) 
+
+      (OPTS.metavar "FILEPATH" <> OPTS.help "User input file")
+    readFilepath :: String -> OPTS.ReadM FilePath
+    readFilepath s 
+      | isValid s = return s
+      | otherwise = OPTS.readerError ("Invalid filepath: " ++ show s)
 
 -- * Misc.
 
