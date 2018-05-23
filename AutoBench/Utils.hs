@@ -195,7 +195,7 @@ clArgsParser  = CLArgs <$> OPTS.info
     readFilepath :: String -> OPTS.ReadM FilePath
     readFilepath s 
       | isValid s' = return s'
-      | otherwise = OPTS.readerError ("Invalid filepath: " ++ show s)
+      | otherwise  = OPTS.readerError ("Invalid filepath: " ++ show s)
       where s' = makeValid s
 
 -- * Misc.
