@@ -186,10 +186,12 @@ clArgsParser  = CLArgs <$> OPTS.info
   userInputFile
   (OPTS.header "AutoBench (Version 0.1)") 
   where 
+    -- Only argument so far is the user input file.
     userInputFile :: OPTS.Parser FilePath
     userInputFile  = OPTS.argument (OPTS.str >>= readFilepath) 
       (OPTS.metavar "FILEPATH" <> OPTS.help "User input file")
 
+    -- Do some basic checking upfront.
     readFilepath :: String -> OPTS.ReadM FilePath
     readFilepath s 
       | isValid s' = return s'
