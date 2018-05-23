@@ -306,12 +306,13 @@ checkValidTestSuites inps =
                     Manual{} -> False
           -- Program specified the '_progs' list that are defined in the input file.
           ps'' = ps \\ (ps \\ fmap fst (unaryFuns ++ binaryFuns))
-          -- All programs in user input file that satisfy 'TestSuite' settings.
+          -- All input types of programs in user input file that satisfy the 'TestSuite's settings:
           tyInps 
-            -- Empty '_progs' list => consider input types of all functions in file.
+            -- Empty '_progs' list => consider input types of all programs in file.
             | null ps && _nf ts = fmap (tyFunInps . snd) (benchFuns `intersect` nfFuns) 
             | null ps           = fmap (tyFunInps . snd) benchFuns
-            -- Non-empty '_progs' list => consider input types of only functions in '_progs' list.
+            -- Non-empty '_progs' list => consider input types of only programs in '_progs' list.
+            -- Note: if programs in '_progs' list have different types, an error will be raised elsewhere.
             | _nf ts    = fmap (tyFunInps . snd) $ filter (\(idt, _) -> idt `elem` ps) $ benchFuns `intersect` nfFuns
             | otherwise = fmap (tyFunInps . snd) $ filter (\(idt, _) -> idt `elem` ps) $ benchFuns
       in      
@@ -321,8 +322,8 @@ checkValidTestSuites inps =
                   ++ progsDupes ps                                  -- Duplicate programs in '_progs' list?                
                   ++ progsTypes ps'                                 -- Same types in '_progs' list?
                   ++ progsBench ps''                                -- Benchmarkable in '_progs' list?
-                  ++ (if _nf ts  then progsNf  ps'' else [])        -- NF-able is '_progs' list?
-                  ++ (if gen     then progsArb ps'' else [])        -- Gen-able is '_progs' list?
+                  ++ (if _nf ts then progsNf  ps'' else [])        -- NF-able is '_progs' list?
+                  ++ (if gen    then progsArb ps'' else [])        -- Gen-able is '_progs' list?
            else [])
            -- '_prog' list is empty:
            ++ (if null ps                                    -- Check all functions in input file if '_progs' list is empty:
@@ -331,8 +332,8 @@ checkValidTestSuites inps =
                      (fmap fst arbFuns)                      -- Gen-able.
                      (fmap fst benchFuns)                    -- Benchmarkable.
               else [])           
-           ++ checkValidDataOpts tyInps (_dataOpts ts)       -- Valid 'DataOpts'
-           ++ checkValidAnalOpts (_analOpts ts)              -- Valid 'AnalOpts'
+           ++ checkValidDataOpts tyInps (_dataOpts ts)       -- Valid 'DataOpts'.
+           ++ checkValidAnalOpts (_analOpts ts)              -- Valid 'AnalOpts'.
            ++ checkCritCfg (_critCfg ts)                     -- Valid Criterion configuration?? <TO-DO>
            ++ checkGhcFlags (_ghcFlags ts)                   -- Valid GHC flags?? <TO-DO>
       where
@@ -374,7 +375,6 @@ checkValidTestSuites inps =
         -- If the 'DataOpts' 'Gen' setting is selected, ensure all programs in 
         -- the '_progs' list that are defined in the input file have input 
         -- types that are members of the 'Arbitrary' type class.
-        progsArb [] = [] 
         progsArb idts = let diff = idts \\ fmap fst arbFuns in
           if null diff 
           then []
@@ -382,12 +382,11 @@ checkValidTestSuites inps =
 
         -- If the '_progs' list is empty then ensure at least one program in 
         -- the input file satisfies all test suite settings:
-        -- checkAll nf? gen? ..
+        -- checkAll nf? gen? NF-able Gen-able Benchmarkable ...
         checkAllFuns :: Bool -> Bool -> [Id] -> [Id] -> [Id] -> [InputError]
         checkAllFuns True True nfIdts arbIdts benchIdts                          -- Need to be NF-able, Gen-able, and Benchmarkable.
-          | null nfArbIdts = [checkAllNFArbErr]
+          | null (nfIdts `intersect` arbIdts `intersect` benchIdts) = [checkAllNFArbErr]
           | otherwise = []
-          where nfArbIdts = nfIdts `intersect` arbIdts `intersect` benchIdts
         checkAllFuns True False nfIdts _ benchIdts                               -- Need to be NF-able and Benchmarkable.
           | null (nfIdts `intersect` benchIdts) = [checkAllNfErr]
           | otherwise = []
@@ -400,7 +399,7 @@ checkValidTestSuites inps =
 
         -- Validate 'DataOpts':
         -- If the 'Manual' option is selected, ensure the test data is present, 
-        -- and has the correct type w.r.t.  the input types of test programs.
+        -- and has the correct type w.r.t. the input types of testable programs.
         -- If the 'Gen' option is selected, make sure the size range is
         -- valid and specifies a sufficient number of test inputs.
         checkValidDataOpts :: [HsType] -> DataOpts -> [InputError]
@@ -409,11 +408,10 @@ checkValidTestSuites inps =
           case lookup idt (unaryData ++ binaryData) of
             -- Missing:
             Nothing -> [dOptsMissErr idt]
-            -- Check that at least one valid test program exists before 
-            -- comparing types.
-            Just ty -> if notNull tyInps && testDataTyFunInps ty `notElem` tyInps 
-                       then [dOptsWrongTyErr]
-                       else []
+            -- Check test data type matches input types of testable programs:
+            Just ty -> if testDataTyFunInps ty `elem` tyInps 
+                       then []
+                       else [dOptsWrongTyErr]
         checkValidDataOpts _ (Gen l s u) 
           | l <= 0 || s <= 0 || u <= 0      = [dOptsParErr]     -- l, s, u > 0.
           | (u - l) `div` s + 1 < minInputs = [dOptsSizeErr]    -- Size range >= 20.

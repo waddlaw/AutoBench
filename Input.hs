@@ -120,4 +120,4 @@ ts :: TestSuite
 ts  = def
 
 ts2 :: TestSuite 
-ts2  = def { _progs = ["id"], _dataOpts = Manual "tDat2" }
+ts2  = def { _progs = ["id"], _dataOpts = Manual "tDat" }
