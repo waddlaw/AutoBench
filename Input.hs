@@ -12,7 +12,7 @@ id :: [Int] -> Int
 id x = head x 
 
 tDat :: UnaryTestData [Int]
-tDat  = take 20 $ zip [1..] $ fmap return (repeat [1])
+tDat  = []
 
 slowRev :: [Int] -> [Int]
 slowRev []       = []
@@ -25,7 +25,7 @@ fastRev xs = go xs []
     go (x : xs) ys = go xs (x : ys)
 
 ts :: TestSuite 
-ts  = def { _dataOpts = Manual "tDat" }
+ts  = def { _dataOpts = Manual "tDat2", _progs = ["lol", "lol"] }
 
 
 data Test = Test

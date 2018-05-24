@@ -525,21 +525,22 @@ instance Exception InputError
 -- | Show instance for UserInputs is quite involved.
 showUserInputs :: UserInputs -> String 
 showUserInputs inps = PP.render $ PP.vcat $ PP.punctuate (PP.text "\n")
-  [ PP.text "All module elements:"     PP.$$ (PP.nest 2 $ showElems $ _allElems inps)
-  , PP.text "Invalid module elements:" PP.$$ (PP.nest 2 $ showElems $ _invalidElems inps)
-  , PP.text "Valid module elements:"   PP.$$ (PP.nest 2 $ showTypeableElems $ _validElems  inps)
-  , PP.text "Nullary functions:"       PP.$$ (PP.nest 2 $ showTypeableElems $ _nullaryFuns inps)
-  , PP.text "Unary functions:"         PP.$$ (PP.nest 2 $ showTypeableElems $ _unaryFuns   inps)
-  , PP.text "Binary functions:"        PP.$$ (PP.nest 2 $ showTypeableElems $ _binaryFuns  inps)
-  , PP.text "Benchmarkable functions:" PP.$$ (PP.nest 2 $ showTypeableElems $ _benchFuns   inps)
-  , PP.text "Arbitrary functions:"     PP.$$ (PP.nest 2 $ showTypeableElems $ _arbFuns     inps)
-  , PP.text "NFData functions:"        PP.$$ (PP.nest 2 $ showTypeableElems $ _nfFuns      inps)
-  , PP.text "Unary test data:"         PP.$$ (PP.nest 2 $ showTypeableElems $ _unaryData   inps)
-  , PP.text "Binary test data:"        PP.$$ (PP.nest 2 $ showTypeableElems $ _binaryData  inps)
+  [ PP.text "All module elements:"     PP.$$ (PP.nest 2 $ showElems             $ _allElems          inps)
+  , PP.text "Invalid module elements:" PP.$$ (PP.nest 2 $ showElems             $ _invalidElems      inps)
+  , PP.text "Valid module elements:"   PP.$$ (PP.nest 2 $ showTypeableElems     $ _validElems        inps)
+  , PP.text "Nullary functions:"       PP.$$ (PP.nest 2 $ showTypeableElems     $ _nullaryFuns       inps)
+  , PP.text "Unary functions:"         PP.$$ (PP.nest 2 $ showTypeableElems     $ _unaryFuns         inps)
+  , PP.text "Binary functions:"        PP.$$ (PP.nest 2 $ showTypeableElems     $ _binaryFuns        inps)
+  , PP.text "Benchmarkable functions:" PP.$$ (PP.nest 2 $ showTypeableElems     $ _benchFuns         inps)
+  , PP.text "Arbitrary functions:"     PP.$$ (PP.nest 2 $ showTypeableElems     $ _arbFuns           inps)
+  , PP.text "NFData functions:"        PP.$$ (PP.nest 2 $ showTypeableElems     $ _nfFuns            inps)
+  , PP.text "Unary test data:"         PP.$$ (PP.nest 2 $ showTypeableElems     $ _unaryData         inps)
+  , PP.text "Binary test data:"        PP.$$ (PP.nest 2 $ showTypeableElems     $ _binaryData        inps)
+  , PP.text "Test suites:"             PP.$$ (PP.nest 2 $ showTestSuites        $ _testSuites        inps)
+  , PP.text "Invalid test data:"       PP.$$ (PP.nest 2 $ showInvalidData       $ _invalidData       inps)
+  , PP.text "Invalid test suites:"     PP.$$ (PP.nest 2 $ showInvalidTestSuites $ _invalidTestSuites inps)
   ]
   where 
-
-    -- '_allElems', '_invalidElems'
     showElems :: [(ModuleElem, Maybe TypeString)] -> PP.Doc 
     showElems [] = PP.text "N/A"
     showElems xs = PP.vcat [showDs, showCs, showFs]
@@ -558,13 +559,35 @@ showUserInputs inps = PP.render $ PP.vcat $ PP.punctuate (PP.text "\n")
     showTypeableElems xs = PP.vcat $ fmap PP.text $ sort $ zipWith (\idt ty -> idt ++ " :: " ++ prettyPrint ty) (deggar idts) tys
       where (idts, tys) = unzip xs
 
-
     showTestSuites :: [(Id, TestSuite)] -> PP.Doc 
-    showTestSuites
+    showTestSuites [] = PP.text "N/A"
+    showTestSuites xs = PP.vcat $ fmap (uncurry showTestSuite) xs
+      where 
+        showTestSuite :: Id -> TestSuite -> PP.Doc 
+        showTestSuite idt ts = PP.vcat 
+          [ PP.text idt PP.<+> PP.text ":: TestSuite"
+          , PP.nest 2 $ PP.vcat $ fmap PP.text (_progs ts)
+          ]
 
-    
-        
+    showInvalidData :: [(Id, HsType, [InputError])] -> PP.Doc
+    showInvalidData [] = PP.text "N/A"
+    showInvalidData xs = PP.vcat $ fmap showInvalidDat xs
+      where 
+        showInvalidDat :: (Id, HsType, [InputError]) -> PP.Doc
+        showInvalidDat (idt, ty, errs) = PP.vcat 
+          [ PP.text $ idt ++ " :: " ++ prettyPrint ty
+          , PP.nest 2 $ PP.vcat $ fmap (PP.text . show) errs 
+          ]
 
+    showInvalidTestSuites :: [(Id, [InputError])]  -> PP.Doc 
+    showInvalidTestSuites [] = PP.text "N/A"
+    showInvalidTestSuites xs = PP.vcat $ fmap showInvalidTestSuite xs
+      where 
+        showInvalidTestSuite :: (Id, [InputError]) -> PP.Doc 
+        showInvalidTestSuite (idt, errs) = PP.vcat 
+          [ PP.text idt PP.<+> PP.text ":: TestSuite"
+          , PP.nest 2 $ PP.vcat $ fmap (PP.text . show) errs 
+          ]
 
     -- Helpers:
 
@@ -584,6 +607,19 @@ showUserInputs inps = PP.render $ PP.vcat $ PP.punctuate (PP.text "\n")
 
 
 {-
+
+data TestSuite = 
+  TestSuite
+    {  _progs    :: [Id]             -- ^ Identifiers of programs in the input file to test: note all programs
+                                     --   in the file will be considered if this list is empty.
+    , _dataOpts :: DataOpts          -- ^ Test data options ('DataOpts').
+    , _analOpts :: AnalOpts          -- ^ Statistical analysis options ('AnalOpts').
+    , _critCfg  :: Criterion.Config  -- ^ Criterion's configuration ('Criterion.Types.Config').
+    , _baseline :: Bool              -- ^ Whether the graphs of runtime results should include baseline measurements.
+    , _nf       :: Bool              -- ^ Whether test cases should be evaluated to nf (@True@) or whnf (@False@).
+    , _ghcFlags :: [String]          -- ^ GHC compiler flags used when compiling 'BenchSuite's.
+    } deriving (Generic)
+
 
 data UserInputs = 
   UserInputs
