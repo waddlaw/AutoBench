@@ -62,6 +62,7 @@
    ----------------------------------------------------------------------------
    <TO-DO>:
    ----------------------------------------------------------------------------
+   - Comment expandTestSuites;
    -
 -}
 
@@ -133,6 +134,7 @@ import AutoBench.Utils (allEq, filepathToModuleName, notNull)
 
 -- * Top-level 
 
+-- | Top level function for parsing, validating and classifying user inputs.
 userInputCheck :: MonadInterpreter m => FilePath -> m UserInputs 
 userInputCheck fp  = do 
   let mn = filepathToModuleName fp
@@ -147,8 +149,7 @@ userInputCheck fp  = do
   fstDynInps <- firstDynamic mn fstStInps
   -- Second static checks.
   let sndStInps = secondStatic fstDynInps
-  
-
+  -- Return processed user inputs.
   return sndStInps
   where 
     -- First phase of static checking.
@@ -661,6 +662,13 @@ catchIE  = catch
 
 
 
+
+
+
+
+
+
+
 -- **** TO COMMENT **** 
 
 -- Expand valid test suites input by the user 
@@ -675,7 +683,7 @@ expandTestSuites inps =
       | notNull (_progs ts) = [(idt, ts)]
       -- In this case we need to expand test suites because the '_progs'
       -- list is empty. The only complication is to ensure the type of 
-      -- manually specified test data matches the programs added 
+      -- user-specified test data matches the programs added 
       -- to the '_progs' list.
       | _nf ts && gen = genTestSuites $ fmap (fmap fst) benchNfArbFunsGpd                      -- nf and gen benchmarkable: no manual match.
       | _nf ts        = genTestSuites $ matchWithTestData (_dataOpts ts) benchNfFunsGpd        -- nf benchmarkable:         manual match.

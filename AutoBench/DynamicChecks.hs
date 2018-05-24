@@ -59,7 +59,6 @@
    ----------------------------------------------------------------------------
    <TO-DO>:
    ----------------------------------------------------------------------------
-   - Principled method for 'checkInitialisedTestSuite';
    - 
 -}
 
@@ -74,6 +73,7 @@ module AutoBench.DynamicChecks
   , checkInitialisedTestSuite       -- Dynamic check for 5. /FullTestSuites/.
   , sizeUnaryTestData               -- Dynamic check for 6. /ValidUnaryData/.
   , sizeBinaryTestData              -- Dynamic check for 7. /ValidBinaryData/.
+  
   ) where 
 
 import Control.DeepSeq (NFData, rnf)

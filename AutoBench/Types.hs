@@ -26,6 +26,7 @@
    - Split Types into InternalTypes and Types;
    - Make AnalOpts in TestSuite a maybe type? In case users don't want to 
      analyse right away;
+   - Comment docTestSuite, docUserInputs;
    - 
 -}
 
@@ -225,8 +226,8 @@ type BinaryTestData a b = [(Int, Int, IO a, IO b)]
 -- tDat :: UnaryTestData [Int]
 -- tDat  = ...
 --
--- tOpts :: TestOpts 
--- tOpts  = def { _progs = ["tProg"], _dataOpts = Manual "tDat" }
+-- ts :: TestSuite 
+-- ts  = def { _progs = ["tProg"], _dataOpts = Manual "tDat" }
 -- @
 --
 -- See 'UnaryTestData' and 'BinaryTestData' for details regarding the /types/ 
@@ -414,27 +415,6 @@ initUserInputs xs =
     }
 
 -- * Benchmarking
-
-
-{-
--- | Each valid test suite ('TestSuite') gives rise to a 'BenchSuite', which 
--- encompasses all necessary information to generate Criterion 'Benchmarks'. 
--- At the point where benchmarking suites are generated, all the corresponding 
--- user inputs have been validated by the system, so further checking is not 
--- required.
-data BenchSuite = 
-  BenchSuite
-    {
-      _benchID       :: Int           -- ^ Unique 'BenchSuite' /integer/ identifier.
-    , _benchIDT      :: Id            -- ^ 'BenchSuite' /string/ identifier: not necessarily unique.
-    , _moduleName    :: ModuleName    -- ^ The module name of the user input file.
-    , _benchProgs    :: [Id]          -- ^ The names of all test programs.
-    , _benchDataOpts :: DataOpts      -- ^ Test data options.
-    , _benchNf       :: Bool          -- ^ Whether test cases should be evaluated to normal form.
-    , _benchBaseline :: Bool          -- ^ Whether baseline measurement should be included.
-    }
--}
-
 
 -- * Statistical analysis
 
