@@ -160,7 +160,7 @@ userInputCheck fp  = do
 
     -- Second phase of static checking.
     secondStatic = 
-      checkValidTestSuites     -- 10. /ValidTestSuites/.
+      checkTestSuites          -- 10. /ValidTestSuites/.
         >>> expandTestSuites   -- 11. /ExpandValidTestSuites/.
                    
     -- First phase of dynamic checking.
@@ -282,8 +282,8 @@ catTestData inps = inps { _unaryData = uns, _binaryData = bins }
 -- The '_testSuites' list is updated accordingly and test suites that are 
 -- invalid are added to the '_invalidTestSuites' list with one or more 
 -- 'InputError's related to the above checks.
-checkValidTestSuites :: UserInputs -> UserInputs
-checkValidTestSuites inps = 
+checkTestSuites :: UserInputs -> UserInputs
+checkTestSuites inps = 
   inps { _invalidTestSuites = _invalidTestSuites inps ++ invalids 
        , _testSuites = valids 
        }
@@ -652,6 +652,7 @@ catchIE  = catch
 
 
 
+-- **** TO COMMENT **** 
 
 -- Expand valid test suites input by the user 
 -- I.e., empty '_progs' lists are expanded                                              -- <TO-DO> **COMMENT**
@@ -689,7 +690,7 @@ expandTestSuites inps =
               , _nf       = _nf       ts 
               , _ghcFlags = _ghcFlags ts
               }
-          )
+          ))
 
         -- Whether the test suite requires generated test data.
         gen = case _dataOpts ts of 
@@ -701,8 +702,7 @@ expandTestSuites inps =
         -- been performed.
         matchWithTestData :: DataOpts -> [[(Id, HsType)]] -> [[Id]]
         matchWithTestData Gen{} _ = [] -- Shouldn't happen.
-        matchWithTestData (Manual s) validFuns = 
-          case lookup s testData of
+        matchWithTestData (Manual s) validFuns = case lookup s testData of
             Nothing -> [] -- Shouldn't happen.
             Just ty -> fmap (fmap fst) $ filter (\xs -> match (snd $ head xs) ty) validFuns
           where match fTy dTy = tyFunInps fTy == testDataTyFunInps dTy
