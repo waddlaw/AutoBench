@@ -696,6 +696,8 @@ expandTestSuites inps =
           Gen{}    -> True
 
         -- Match the /input type/ of each function with the type of test data.
+        -- At this point no errors should occur because validation has already 
+        -- been performed.
         matchWithTestData :: DataOpts -> [[(Id, HsType)]] -> [[Id]]
         matchWithTestData Gen{} _ = [] -- Shouldn't happen.
         matchWithTestData (Manual s) validFuns = 
