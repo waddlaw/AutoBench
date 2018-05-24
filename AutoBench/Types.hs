@@ -64,14 +64,15 @@ module AutoBench.Types
 
   ) where
 
-import           Control.DeepSeq        (NFData)
-import           Control.Exception.Base (Exception)
-import qualified Criterion.Types        as Criterion
-import qualified Criterion.Main         as Criterion
-import           Data.Default           (Default(..))
-import           Data.List              (partition, sort)
-import           Data.Maybe             (fromJust, isJust)
-import           GHC.Generics           (Generic)
+import           Control.DeepSeq           (NFData)
+import           Control.Exception.Base    (Exception)
+import qualified Criterion.Types           as Criterion
+import qualified Criterion.Main            as Criterion
+import           Data.Default              (Default(..))
+import           Data.List                 (partition, sort)
+import           Data.Maybe                (fromJust, isJust)
+import           GHC.Generics              (Generic)
+import qualified Text.PrettyPrint.HughesPJ as PP
 
 import AutoBench.AbstractSyntax 
   ( HsType
@@ -79,6 +80,7 @@ import AutoBench.AbstractSyntax
   , ModuleElem(..)
   , ModuleName
   , TypeString
+  , prettyPrint
   )
 import AutoBench.Utils          (deggar, subNum, superNum)
 
@@ -522,27 +524,58 @@ instance Exception InputError
 
 -- | Show instance for UserInputs is quite involved.
 showUserInputs :: UserInputs -> String 
-showUserInputs inps = showAllElems (_allElems inps)
+showUserInputs inps = PP.render $ PP.vcat $ PP.punctuate (PP.text "\n")
+  [ PP.text "All module elements:"     PP.$$ (PP.nest 2 $ showElems $ _allElems inps)
+  , PP.text "Invalid module elements:" PP.$$ (PP.nest 2 $ showElems $ _invalidElems inps)
+  , PP.text "Valid module elements:"   PP.$$ (PP.nest 2 $ showTypeableElems $ _validElems  inps)
+  , PP.text "Nullary functions:"       PP.$$ (PP.nest 2 $ showTypeableElems $ _nullaryFuns inps)
+  , PP.text "Unary functions:"         PP.$$ (PP.nest 2 $ showTypeableElems $ _unaryFuns   inps)
+  , PP.text "Binary functions:"        PP.$$ (PP.nest 2 $ showTypeableElems $ _binaryFuns  inps)
+  , PP.text "Benchmarkable functions:" PP.$$ (PP.nest 2 $ showTypeableElems $ _benchFuns   inps)
+  , PP.text "Arbitrary functions:"     PP.$$ (PP.nest 2 $ showTypeableElems $ _arbFuns     inps)
+  , PP.text "NFData functions:"        PP.$$ (PP.nest 2 $ showTypeableElems $ _nfFuns      inps)
+  , PP.text "Unary test data:"         PP.$$ (PP.nest 2 $ showTypeableElems $ _unaryData   inps)
+  , PP.text "Binary test data:"        PP.$$ (PP.nest 2 $ showTypeableElems $ _binaryData  inps)
+  ]
   where 
 
-    -- '_allElems'
-    showAllElems :: [(ModuleElem, Maybe TypeString)] -> String 
-    showAllElems [] = "N/A"
-    showAllElems xs = 
-      unlines (sort $ fmap fst noTys) ++ unlines (sort $ zipWith 
-        (\idt ty -> idt ++ " :: " ++ ty) (deggar names) types)
+    -- '_allElems', '_invalidElems'
+    showElems :: [(ModuleElem, Maybe TypeString)] -> PP.Doc 
+    showElems [] = PP.text "N/A"
+    showElems xs = PP.vcat [showDs, showCs, showFs]
       where 
-        (tys, noTys) = partition (isJust . snd) $ 
-          fmap (\(me, mTy) -> (showModuleElem me, mTy)) xs
-        tys' = fmap (fmap fromJust) tys
-        (names, types) = unzip tys'
+        ((fs, tys), cs, ds) = foldr splitShowModuleElems (([], []), [], []) xs
+
+        showDs | null ds   = PP.empty 
+               | otherwise = PP.vcat [PP.text "Data:", PP.nest 2 $ PP.vcat $ fmap PP.text $ sort ds]
+        showCs | null cs   = PP.empty 
+               | otherwise = PP.vcat [PP.text "Class:", PP.nest 2 $ PP.vcat $ fmap PP.text $ sort cs]
+        showFs | null fs   = PP.empty 
+               | otherwise = PP.vcat [PP.text "Fun:", PP.nest 2 $ PP.vcat $ fmap PP.text $ sort $ zipWith (\idt ty -> idt ++ " :: " ++ ty) (deggar fs) tys]
+
+    showTypeableElems :: [(Id, HsType)] -> PP.Doc
+    showTypeableElems [] = PP.text "N/A"
+    showTypeableElems xs = PP.vcat $ fmap PP.text $ sort $ zipWith (\idt ty -> idt ++ " :: " ++ prettyPrint ty) (deggar idts) tys
+      where (idts, tys) = unzip xs
+
+
+    showTestSuites :: [(Id, TestSuite)] -> PP.Doc 
+    showTestSuites
+
+    
+        
+
 
     -- Helpers:
 
-    showModuleElem :: ModuleElem -> String 
-    showModuleElem (Fun idt)     = idt 
-    showModuleElem (Class idt _) = idt ++ " (class)"
-    showModuleElem (Data idt _)  = idt ++ " (data)"
+    splitShowModuleElems 
+      :: (ModuleElem, Maybe TypeString)
+      -> (([String], [String]), [String], [String]) 
+      -> (([String], [String]), [String], [String])
+    splitShowModuleElems (Fun idt, Just ty) ((fs, tys), cs, ds) = ((idt : fs, ty : tys), cs, ds)
+    splitShowModuleElems (Fun idt, Nothing) ((fs, tys), cs, ds) = ((idt : fs, "" : tys), cs, ds)
+    splitShowModuleElems (Class idt _, _) (fs, cs, ds) = (fs, idt : cs, ds)
+    splitShowModuleElems (Data idt _, _)  (fs, cs, ds) = (fs, cs, idt : ds)
 
 
 
