@@ -68,7 +68,7 @@
 module AutoBench.UserInputChecks (userInputCheck) where 
 
 import           Control.Category    ((>>>))
-import           Data.List           ((\\), group, intersect, nub, sortBy)
+import           Data.List           ((\\), groupBy, intersect, nub, sortBy)
 import           Data.Ord            (comparing)
 import           Control.Monad       ((>=>), filterM, foldM, void)
 import           Control.Monad.Catch (catch, catchAll)
@@ -159,7 +159,9 @@ userInputCheck fp  = do
         >>> catTestData        -- 8. /UnaryData/, 9. /BinaryData/.
 
     -- Second phase of static checking.
-    secondStatic = checkValidTestSuites  -- 10. /ValidTestSuites/.
+    secondStatic = 
+      checkValidTestSuites  -- 10. /ValidTestSuites/.
+        >>> expandTestSuites
                    
     -- First phase of dynamic checking.
     firstDynamic mn = 
@@ -652,8 +654,8 @@ catchIE  = catch
 
 
 -- Expand valid test suites input by the user                                  -- <TO-DO> **COMMENT**
-expandTestSuites :: ModuleName -> UserInputs -> UserInputs
-expandTestSuites mn inps = 
+expandTestSuites :: UserInputs -> UserInputs
+expandTestSuites inps = 
   inps { _testSuites = concatMap (uncurry expandTestSuite) (_testSuites inps) }
   where 
     expandTestSuite :: Id -> TestSuite -> [(Id, TestSuite)]
@@ -661,18 +663,18 @@ expandTestSuites mn inps =
       -- If '_progs' list is populated, don't expand.
       | notNull (_progs ts) = [(idt, ts)]
       -- Only expand when '_progs' list is empty.
-      | _nf ts && gen = genTestSuites ts benchNfArbFunsGpd    -- nf and gen benchmarkable.
-      | _nf ts        = genTestSuites ts benchNfFunsGpd       -- nf benchmarkable.
-      | gen           = genTestSuites ts benchArbFunsGpd      -- gen benchmarkable.
-      | otherwise     = genTestSuites ts benchFunsGpd         -- All benchmarkable.
+      | _nf ts && gen = genTestSuites benchNfArbFunsGpd    -- nf and gen benchmarkable.
+      | _nf ts        = genTestSuites benchNfFunsGpd       -- nf benchmarkable.
+      | gen           = genTestSuites benchArbFunsGpd      -- gen benchmarkable.
+      | otherwise     = genTestSuites benchFunsGpd         -- All benchmarkable.
 
       where 
         -- In this case we need to expand test suites because the '_progs'
         -- list is empty. The only complication is to ensure the type of 
         -- manually specified test data matches the programs added 
         -- to the '_progs' list.
-        genTestSuites :: TestSuite -> [[(Id, HsType)]] -> [(Id, TestSuite)]
-        genTestSuites ts validFuns 
+        genTestSuites :: [[(Id, HsType)]] -> [(Id, TestSuite)]
+        genTestSuites validFuns 
           -- No need to check compatibility with test data.
           | gen = fmap (\idts -> 
               ( idt
@@ -717,10 +719,10 @@ expandTestSuites mn inps =
             match fTy dTy = tyFunInps fTy == testDataTyFunInps dTy
 
     -- Groupings by type:
-    benchArbFunsGpd   = group $ sortBy (comparing snd) benchArbFuns
-    benchNfFunsGpd    = group $ sortBy (comparing snd) benchNfFuns
-    benchNfArbFunsGpd = group $ sortBy (comparing snd) benchNfArbFuns
-    benchFunsGpd      = group $ sortBy (comparing snd) benchFuns
+    benchArbFunsGpd   = groupBy (\x1 x2 -> snd x1 == snd x2) $ sortBy (comparing snd) benchArbFuns
+    benchNfFunsGpd    = groupBy (\x1 x2 -> snd x1 == snd x2) $ sortBy (comparing snd) benchNfFuns
+    benchNfArbFunsGpd = groupBy (\x1 x2 -> snd x1 == snd x2) $ sortBy (comparing snd) benchNfArbFuns
+    benchFunsGpd      = groupBy (\x1 x2 -> snd x1 == snd x2) $ sortBy (comparing snd) benchFuns
 
     -- Cross-referencing:
     benchArbFuns   = benchFuns `intersect` arbFuns

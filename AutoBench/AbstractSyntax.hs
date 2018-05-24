@@ -1,5 +1,6 @@
 
-{-# OPTIONS_GHC -Wall #-}
+{-# OPTIONS_GHC -Wall             #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 {-|
 
@@ -71,6 +72,11 @@ import Language.Haskell.Syntax
 
 -- | The string representation of a type.
 type TypeString = String 
+
+-- We use this to group definitions by their types. (It's naive but seems 
+-- to work okay in practice.)
+instance Ord HsType where 
+  compare t1 t2 = compare (prettyPrint t1) (prettyPrint t2)
 
 -- ** Type constructor definitions
 
