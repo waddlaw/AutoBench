@@ -160,8 +160,8 @@ userInputCheck fp  = do
 
     -- Second phase of static checking.
     secondStatic = 
-      checkValidTestSuites  -- 10. /ValidTestSuites/.
-        >>> expandTestSuites
+      checkValidTestSuites     -- 10. /ValidTestSuites/.
+        >>> expandTestSuites   -- 11. /ExpandValidTestSuites/.
                    
     -- First phase of dynamic checking.
     firstDynamic mn = 
@@ -662,45 +662,33 @@ expandTestSuites inps =
     expandTestSuite idt ts 
       -- If '_progs' list is populated, don't expand.
       | notNull (_progs ts) = [(idt, ts)]
-      -- Only expand when '_progs' list is empty.
-      | _nf ts && gen = genTestSuites benchNfArbFunsGpd    -- nf and gen benchmarkable.
-      | _nf ts        = genTestSuites benchNfFunsGpd       -- nf benchmarkable.
-      | gen           = genTestSuites benchArbFunsGpd      -- gen benchmarkable.
-      | otherwise     = genTestSuites benchFunsGpd         -- All benchmarkable.
+      -- In this case we need to expand test suites because the '_progs'
+      -- list is empty. The only complication is to ensure the type of 
+      -- manually specified test data matches the programs added 
+      -- to the '_progs' list.
+      | _nf ts && gen = genTestSuites $ fmap (fmap fst)                  benchNfArbFunsGpd     -- nf and gen benchmarkable: no manual match.
+      | _nf ts        = genTestSuites $ matchWithTestData (_dataOpts ts) benchNfFunsGpd        -- nf benchmarkable:         manual match.
+      | gen           = genTestSuites $ fmap (fmap fst)                  benchArbFunsGpd       -- gen benchmarkable:        no manual match.
+      | otherwise     = genTestSuites $ matchWithTestData (_dataOpts ts) benchFunsGpd          -- All benchmarkable:        manual match.
 
       where 
-        -- In this case we need to expand test suites because the '_progs'
-        -- list is empty. The only complication is to ensure the type of 
-        -- manually specified test data matches the programs added 
-        -- to the '_progs' list.
-        genTestSuites :: [[(Id, HsType)]] -> [(Id, TestSuite)]
-        genTestSuites validFuns 
-          -- No need to check compatibility with test data.
-          | gen = fmap (\idts -> 
-              ( idt
-              , TestSuite 
-                  { _progs    = idts
-                  , _dataOpts = _dataOpts ts
-                  , _analOpts = _analOpts ts
-                  , _critCfg  = _critCfg  ts 
-                  , _baseline = _baseline ts 
-                  , _nf       = _nf       ts 
-                  , _ghcFlags = _ghcFlags ts
-                  }
-              )) $ fmap (fmap fst) validFuns
-          -- Need to check compatibility with test data.
-          | otherwise = fmap (\idts -> 
-              ( idt
-              , TestSuite 
-                  { _progs    = idts
-                  , _dataOpts = _dataOpts ts
-                  , _analOpts = _analOpts ts
-                  , _critCfg  = _critCfg  ts 
-                  , _baseline = _baseline ts 
-                  , _nf       = _nf       ts 
-                  , _ghcFlags = _ghcFlags ts
-                  }
-              )) $ matchWithTestData (_dataOpts ts) validFuns
+        -- For each /new/ '_progs' list, replicate the test suite's prior 
+        -- settings. This is how we perform the expansion. 
+        -- At the end every test suite will have a populated '_progs' list.
+        genTestSuites :: [[Id]] -> [(Id, TestSuite)]
+        genTestSuites  = fmap (\idts -> 
+          ( idt
+          , TestSuite 
+              { _progs    = idts          -- Add a new '_progs' list.
+              -- Everything else remains the same.
+              , _dataOpts = _dataOpts ts 
+              , _analOpts = _analOpts ts
+              , _critCfg  = _critCfg  ts 
+              , _baseline = _baseline ts 
+              , _nf       = _nf       ts 
+              , _ghcFlags = _ghcFlags ts
+              }
+          )
 
         -- Whether the test suite requires generated test data.
         gen = case _dataOpts ts of 
