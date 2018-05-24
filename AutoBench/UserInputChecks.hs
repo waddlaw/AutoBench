@@ -653,7 +653,8 @@ catchIE  = catch
 
 
 
--- Expand valid test suites input by the user                                  -- <TO-DO> **COMMENT**
+-- Expand valid test suites input by the user 
+-- I.e., empty '_progs' lists are expanded                                              -- <TO-DO> **COMMENT**
 expandTestSuites :: UserInputs -> UserInputs
 expandTestSuites inps = 
   inps { _testSuites = concatMap (uncurry expandTestSuite) (_testSuites inps) }
@@ -666,9 +667,9 @@ expandTestSuites inps =
       -- list is empty. The only complication is to ensure the type of 
       -- manually specified test data matches the programs added 
       -- to the '_progs' list.
-      | _nf ts && gen = genTestSuites $ fmap (fmap fst)                  benchNfArbFunsGpd     -- nf and gen benchmarkable: no manual match.
+      | _nf ts && gen = genTestSuites $ fmap (fmap fst) benchNfArbFunsGpd                      -- nf and gen benchmarkable: no manual match.
       | _nf ts        = genTestSuites $ matchWithTestData (_dataOpts ts) benchNfFunsGpd        -- nf benchmarkable:         manual match.
-      | gen           = genTestSuites $ fmap (fmap fst)                  benchArbFunsGpd       -- gen benchmarkable:        no manual match.
+      | gen           = genTestSuites $ fmap (fmap fst) benchArbFunsGpd                        -- gen benchmarkable:        no manual match.
       | otherwise     = genTestSuites $ matchWithTestData (_dataOpts ts) benchFunsGpd          -- All benchmarkable:        manual match.
 
       where 
@@ -704,9 +705,7 @@ expandTestSuites inps =
           case lookup s testData of
             Nothing -> [] -- Shouldn't happen.
             Just ty -> fmap (fmap fst) $ filter (\xs -> match (snd $ head xs) ty) validFuns
-          where 
-            match :: HsType -> HsType -> Bool
-            match fTy dTy = tyFunInps fTy == testDataTyFunInps dTy
+          where match fTy dTy = tyFunInps fTy == testDataTyFunInps dTy
 
     -- Groupings by type:
     benchArbFunsGpd   = groupBy (\x1 x2 -> snd x1 == snd x2) $ sortBy (comparing snd) benchArbFuns
