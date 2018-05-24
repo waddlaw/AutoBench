@@ -25,44 +25,303 @@
 
 module AutoBench.Internal.Benchmarking 
   (
-    genBenchSuites  -- <TO-DO>
+    -- * Generating Criterion benchmarks
+    genBenchmarksGenNfUn      -- Config.: generated test data, results to nf, unary test programs.
+  , genBenchmarksGenWhnfUn    -- Config.: generated test data, results to whnf, unary test programs.
+  , genBenchmarksGenNfBin     -- Config.: generated test data, results to nf, binary test programs. 
+  , genBenchmarksGenWhnfBin   -- Config.: generated test data, results to whnf, binary test programs.
+  , genBenchmarksManNfUn      -- Config.: manual test data, results to nf, unary test programs.
+  , genBenchmarksManWhnfUn    -- Config.: manual test data, results to whnf, unary test programs.
+  , genBenchmarksManNfBin     -- Config.: manual test data, results to nf, binary test programs.
+  , genBenchmarksManWhnfBin   -- Config.: manual test data, results to whnf, binary test programs.
   ) where 
 
+import Control.DeepSeq (NFData)
+import Criterion.Types 
+  ( Benchmark
+  , bench
+  , bgroup
+  , env
+  , nf
+  , whnf
+  )
+import Test.QuickCheck (Arbitrary)
+import AutoBench.AbstractSyntax          (Id, ModuleName)
+import AutoBench.Internal.DataGeneration (genDataUn, genDataBin)
+import AutoBench.Types                   (UnaryTestData, BinaryTestData, TestSuite(..), toHRange)
 
-import AutoBench.AbstractSyntax (Id, ModuleName)
-import AutoBench.Types          (BenchSuite(..), TestSuite(..))
 
 
+-- * Generate Criterion benchmarks
 
 
+-- ** Generated test data 
 
--- Generate BenchSuites from TestSuites
-genBenchSuites :: ModuleName -> [(Id, TestSuite)] -> [BenchSuite]
-genBenchSuites mn = reIndex . concatMap (uncurry genBenchSuite)
+-- | Generate benchmarks for a test suite with the following configuration:
+--
+-- * Generated test data;
+-- * Evaluate the results of test programs to normal form;
+-- * Unary test programs.
+genBenchmarksGenNfUn 
+  :: (Arbitrary a, NFData a, NFData b) 
+  => [(Id, a -> b)]  -- [(idt, test program)]
+  -> TestSuite
+  -> [Benchmark]
+genBenchmarksGenNfUn ps ts = gen ps <$> 
+  zip (toHRange $ _dataOpts ts) (genDataUn $ _dataOpts ts)
   where 
-    -- For each test suite, /should/ generate one benchmarking suite.
-    -- We perform an extra check here to ensure that the '_progs' list 
-    -- isn't empty.
-    genBenchSuite :: Id -> TestSuite -> [BenchSuite]
-    genBenchSuite idt ts 
-      -- This should never happen.
-      | null (_progs ts) = []
-      -- We just copy information across verbatim.
-      | otherwise = 
-          [ BenchSuite 
-              {
-                _benchID       = 0  -- Placeholder for now.
-              , _benchIDT      = idt 
-              , _moduleName    = mn
-              , _benchProgs    = _progs    ts 
-              , _benchDataOpts = _dataOpts ts
-              , _benchNf       = _nf       ts 
-              , _benchBaseline = _baseline ts
-              }
+    -- Whether to include baseline measurements.
+    baseline = _baseline ts 
+
+    -- Generate the benchmarks.
+    gen progs (size, d) 
+      | baseline = bgroup ("With Baseline")
+          [ env d 
+             ( \xs -> 
+                 bgroup ("Input Size: " ++ show (size :: Int))
+                   [ bench idt $ nf prog xs
+                   | (idt, prog) <- progs
+                   ]
+             )
+          , env (snd (head progs) <$> d) 
+              (bench ("Baseline for Input Size " ++ show (size :: Int)) . nf id)
           ]
+      | otherwise = env d 
+          ( \xs -> 
+              bgroup ("Input Size: " ++ show (size :: Int))
+                [ bench idt $ nf prog xs
+                | (idt, prog) <- progs
+                ]
+          )
 
-    -- Helpers:
-    -- Re-index to make sure each 'BenchSuite' integer identifier is unique.
-    reIndex = fmap (uncurry addIndex) . zip [1..]
-      where addIndex idx bs = bs { _benchID = idx }
+-- | Generate benchmarks for a test suite with the following configuration:
+--
+-- * Generated test data;
+-- * Evaluate the results of test programs to weak head normal form;
+-- * Unary test programs.
+genBenchmarksGenWhnfUn 
+  :: (Arbitrary a, NFData a) 
+  => [(Id, a -> b)]  -- [(idt, test program)]
+  -> TestSuite
+  -> [Benchmark]
+genBenchmarksGenWhnfUn ps ts = gen ps <$> 
+  zip (toHRange $ _dataOpts ts) (genDataUn $ _dataOpts ts)
+  where 
+    -- Generate the benchmarks.
+    gen progs (size, d) = env d 
+      ( \xs -> 
+          bgroup ("Input Size: " ++ show (size :: Int))
+            [ bench idt $ whnf prog xs
+            | (idt, prog) <- progs
+            ]
+      )
 
+-- | Generate benchmarks for a test suite with the following configuration:
+--
+-- * Generated test data;
+-- * Evaluate the results of test programs to normal form;
+-- * Binary test programs.
+genBenchmarksGenNfBin 
+  :: (Arbitrary a, Arbitrary b, NFData a, NFData b, NFData c)
+  => [(Id, a -> b -> c)]  -- [(idt, test program)]
+  -> TestSuite
+  -> [Benchmark]
+genBenchmarksGenNfBin ps ts = fmap (gen ps) testData
+  where 
+    -- Whether to include baseline measurements.
+    baseline = _baseline ts 
+
+    -- Generate the benchmarks.
+    gen progs ((s1, s2), d) 
+      | baseline = bgroup ("With Baseline")
+          [ env d 
+              ( \xs -> bgroup ("Input Sizes: (" ++ show (s1 :: Int)
+                                                ++ ", " 
+                                                ++ show (s2 :: Int)
+                                                ++ ")")
+                  [ bench idt $ nf (uncurry prog) xs
+                  | (idt, prog) <- progs 
+                  ]
+              )
+          , env ((uncurry $ snd $ head progs) <$> d) 
+              ( bench ("Baseline for Input Size " ++ show (s1 :: Int)
+                                                 ++ ", " 
+                                                 ++ show (s2 :: Int)
+                                                 ++ ")"
+                      ) . nf id
+              )
+          ] 
+
+      | otherwise = env d 
+          ( \xs -> bgroup ("Input Sizes: (" ++ show (s1 :: Int)
+                                            ++ ", " 
+                                            ++ show (s2 :: Int)
+                                            ++ ")")
+              [ bench idt $ nf (uncurry prog) xs
+              | (idt, prog) <- progs 
+              ]
+          )
+
+    testData = zip ((,) <$> size <*> size) (genDataBin $ _dataOpts ts)
+    size     = toHRange (_dataOpts ts)
+
+-- | Generate benchmarks for a test suite with the following configuration:
+--
+-- * Generated test data;
+-- * Evaluate the results of test programs to weak head normal form;
+-- * Binary test programs.
+genBenchmarksGenWhnfBin 
+  :: (Arbitrary a, Arbitrary b, NFData a, NFData b)
+  => [(Id, a -> b -> c)] -- [(idt, test program)]
+  -> TestSuite
+  -> [Benchmark]
+genBenchmarksGenWhnfBin ps ts = fmap (gen ps) testData
+  where
+    -- Generate the benchmarks. 
+    gen progs ((s1, s2), d) = env d  
+      ( \xs -> bgroup ("Input Sizes: (" ++ show (s1 :: Int)
+                                        ++ ", " 
+                                        ++ show (s2 :: Int)
+                                        ++ ")")
+          [ bench idt $ whnf (uncurry prog) xs
+          | (idt, prog) <- progs 
+          ]
+      )
+
+    testData = zip ((,) <$> size <*> size) (genDataBin $ _dataOpts ts)
+    size     = toHRange (_dataOpts ts)
+
+-- ** User-specified test data
+
+-- | Generate benchmarks for a test suite with the following configuration:
+--
+-- * Manually specified test data;
+-- * Evaluate the results of test programs to normal form;
+-- * Unary test programs.
+genBenchmarksManNfUn 
+  :: (NFData a, NFData b) 
+  => [(Id, a -> b)]  -- [(idt, test program)]
+  -> TestSuite
+  -> UnaryTestData a
+  -> [Benchmark]
+genBenchmarksManNfUn ps ts = fmap (gen ps)
+  where 
+    -- Whether to include baseline measurements.
+    baseline = _baseline ts 
+
+    -- Generate the benchmarks.
+    gen progs (size, d) 
+      | baseline = bgroup ("With Baseline")
+          [ env d 
+             ( \xs -> 
+                 bgroup ("Input Size: " ++ show (size :: Int))
+                   [ bench idt $ nf prog xs
+                   | (idt, prog) <- progs
+                   ]
+             )
+          , env (snd (head progs) <$> d) 
+              (bench ("Baseline for Input Size " ++ show (size :: Int)) . nf id)
+          ]
+      | otherwise = env d 
+          ( \xs -> 
+              bgroup ("Input Size: " ++ show (size :: Int))
+                [ bench idt $ nf prog xs
+                | (idt, prog) <- progs
+                ]
+          )
+
+-- | Generate benchmarks for a test suite with the following configuration:
+--
+-- * Manually specified test data;
+-- * Evaluate the results of test programs to weak head normal form;
+-- * Unary test programs.
+genBenchmarksManWhnfUn 
+  :: NFData a 
+  => [(Id, a -> b)]  -- [(idt, test program)]
+  -> TestSuite
+  -> UnaryTestData a
+  -> [Benchmark]
+genBenchmarksManWhnfUn ps _ = fmap (gen ps)
+  where
+    -- Generate the benchmarks.
+    gen progs (size, d) = env d 
+      ( \xs -> 
+          bgroup ("Input Size: " ++ show (size :: Int))
+            [ bench idt $ whnf prog xs
+            | (idt, prog) <- progs
+            ]
+      )
+
+-- | Generate benchmarks for a test suite with the following configuration:
+--
+-- * Manually specified test data;
+-- * Evaluate the results of test programs to normal form;
+-- * Binary test programs.
+genBenchmarksManNfBin 
+  :: (NFData a, NFData b, NFData c) 
+  => [(Id, a -> b -> c)]  -- [(idt, test program)]
+  -> TestSuite
+  -> BinaryTestData a b  
+  -> [Benchmark]
+genBenchmarksManNfBin ps ts = fmap (gen ps)
+  where 
+    -- Whether to include baseline measurements.
+    baseline = _baseline ts 
+
+    -- Generate the benchmarks.
+    gen progs (s1, s2, d1, d2) 
+      | baseline = bgroup ("With Baseline")
+          [ env ((,) <$> d1 <*> d2)
+              ( \xs -> bgroup ("Input Sizes: (" ++ show (s1 :: Int)
+                                                ++ ", " 
+                                                ++ show (s2 :: Int)
+                                                ++ ")")
+                  [ bench idt $ nf (uncurry prog) xs
+                  | (idt, prog) <- progs 
+                  ]
+              )
+          , env ((snd $ head progs) <$> d1 <*> d2) 
+              ( bench ("Baseline for Input Size " ++ show (s1 :: Int)
+                                                  ++ ", " 
+                                                  ++ show (s2 :: Int)
+                                                  ++ ")"
+                      ) . nf id
+              )
+          ] 
+
+      | otherwise = env ((,) <$> d1 <*> d2) 
+          ( \xs -> bgroup ("Input Sizes: (" ++ show (s1 :: Int)
+                                            ++ ", " 
+                                            ++ show (s2 :: Int)
+                                            ++ ")")
+              [ bench idt $ nf (uncurry prog) xs
+              | (idt, prog) <- progs 
+              ]
+          )
+
+-- | Generate benchmarks for a test suite with the following configuration:
+--
+-- * Manually specified test data;
+-- * Evaluate the results of test programs to weak head normal form;
+-- * Binary test programs.
+genBenchmarksManWhnfBin 
+  :: (NFData a, NFData b) 
+  => [(Id, a -> b -> c)] -- [(idt, test program)]  
+  -> TestSuite
+  -> BinaryTestData a b  
+  -> [Benchmark]
+genBenchmarksManWhnfBin ps ts = fmap (gen ps)
+  where 
+    -- Whether to include baseline measurements.
+    baseline = _baseline ts 
+
+    -- Generate the benchmarks.
+    gen progs (s1, s2, d1, d2) = env ((,) <$> d1 <*> d2) 
+      ( \xs -> bgroup ("Input Sizes: (" ++ show (s1 :: Int)
+                                        ++ ", " 
+                                        ++ show (s2 :: Int)
+                                        ++ ")")
+          [ bench idt $ whnf (uncurry prog) xs
+          | (idt, prog) <- progs 
+          ]
+      )

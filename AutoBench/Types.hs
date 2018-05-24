@@ -40,6 +40,7 @@ module AutoBench.Types
   , UnaryTestData          -- User-specified test data for unary test programs.
   , BinaryTestData         -- User-specified test data for binary test programs.
   , DataOpts(..)           -- Test data options.
+  , toHRange               -- Convert @Gen l s u :: DataOpts@ to a Haskell range.
   , minInputs              -- Minimum number of distinctly sized test inputs.
   -- ** Statistical analysis options
   , AnalOpts(..)           -- Statistical analysis options.
@@ -53,7 +54,6 @@ module AutoBench.Types
   , docUserInputs          -- Create a 'PP.Doc' for a 'UserInputs'.
   , initUserInputs         -- Initialise a 'UserInputs' data structure.
   -- * Benchmarking
-  , BenchSuite(..)         -- Benchmarking suites are AutoBench's principle benchmarking datatype.
   -- * Statistical analysis
   , LinearType(..)
   , Stats(..)                                                                                           -- <TO-DO>
@@ -133,7 +133,7 @@ data TestSuite =
     , _critCfg  :: Criterion.Config  -- ^ Criterion's configuration ('Criterion.Types.Config').
     , _baseline :: Bool              -- ^ Whether the graphs of runtime results should include baseline measurements.
     , _nf       :: Bool              -- ^ Whether test cases should be evaluated to nf (@True@) or whnf (@False@).
-    , _ghcFlags :: [String]          -- ^ GHC compiler flags used when compiling 'BenchSuite's.
+    , _ghcFlags :: [String]          -- ^ GHC compiler flags used when compiling files compiling benchmarks.
     } deriving (Generic)
 
 instance Default TestSuite where 
@@ -260,6 +260,11 @@ instance Show DataOpts where
 
 instance Default DataOpts where 
   def = Gen 5 5 100
+
+-- | Convert @Gen l s u :: DataOpts@ to a Haskell range.
+toHRange :: DataOpts -> [Int]
+toHRange Manual{}    = []
+toHRange (Gen l s u) = [l, (l + s) .. u]
 
 -- | Each test suite requires a minimum number of distinctly sized test inputs.
 -- 
@@ -410,6 +415,8 @@ initUserInputs xs =
 
 -- * Benchmarking
 
+
+{-
 -- | Each valid test suite ('TestSuite') gives rise to a 'BenchSuite', which 
 -- encompasses all necessary information to generate Criterion 'Benchmarks'. 
 -- At the point where benchmarking suites are generated, all the corresponding 
@@ -426,6 +433,8 @@ data BenchSuite =
     , _benchNf       :: Bool          -- ^ Whether test cases should be evaluated to normal form.
     , _benchBaseline :: Bool          -- ^ Whether baseline measurement should be included.
     }
+-}
+
 
 -- * Statistical analysis
 

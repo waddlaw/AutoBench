@@ -338,6 +338,7 @@ checkTestSuites inps =
            ++ checkValidDataOpts tyInps (_dataOpts ts)       -- Valid 'DataOpts'.
            ++ checkValidAnalOpts (_analOpts ts)              -- Valid 'AnalOpts'.
            ++ checkCritCfg (_critCfg ts)                     -- Valid Criterion configuration?? <TO-DO>
+           ++ checkBaseLine (_baseline ts) (_nf ts)          -- Valid baseline option?
            ++ checkGhcFlags (_ghcFlags ts)                   -- Valid GHC flags?? <TO-DO>
       where
         -- Ensure all programs specified in the '_progs' list are defined
@@ -456,6 +457,13 @@ checkTestSuites inps =
         checkCritCfg :: Criterion.Config -> [InputError]                                             -- <TO-DO>
         checkCritCfg  = const []  
 
+        -- Check baseline is only being used with nf.
+        -- checkBaseLine bl? nf?
+        checkBaseLine :: Bool -> Bool -> [InputError] 
+        checkBaseLine True False = [tsBaselineErr]
+        checkBaseLine _ _ = []
+
+
         -- Check the GHC compiler flags??
         checkGhcFlags :: [String] -> [InputError]                                                    -- <TO-DO>
         checkGhcFlags  = const []
@@ -477,11 +485,12 @@ checkTestSuites inps =
     progsBenchErr diff   = TestSuiteErr $ "One or more programs specified in the '_progs' list cannot be benchmarked: " ++ show diff ++ "."
     progsNfErr diff      = TestSuiteErr $ "The results of one or more benchmarkable programs specified in the '_progs' list cannot be evaluated to normal form:" ++ show diff ++ "."
     progsArbErr diff     = TestSuiteErr $ "Test data cannot be generated for one or more benchmarkable programs specified in the '_progs' list: " ++ show diff ++ "."
-    -- Check all:
+    -- Other 'TestSuite' errors:
     checkAllNFArbErr     = TestSuiteErr "There are no benchmarkable programs specified in the input file whereby their results can be evaluated to normal and for which test data can be generated." 
     checkAllNfErr        = TestSuiteErr "The results of all benchmarkable programs specified in the input file cannot be evaluated to normal form."
     checkAllArbErr       = TestSuiteErr "Test data cannot be generated for any benchmarkable programs specified in the input file."
     checkAllBenchErr     = TestSuiteErr "None of the programs in the input file can be benchmarked."
+    tsBaselineErr        = TestSuiteErr "The baseline option can only be used when test cases are being fully evaluated."
     -- 'DataOpts':
     dOptsMissErr idt     = DataOptsErr $ "Specified test data is invalid or missing: '" ++ idt ++ "'."
     dOptsWrongTyErr      = DataOptsErr "The type of the specified test data is incompatible with the types of testable programs."
