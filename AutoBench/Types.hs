@@ -1,10 +1,11 @@
 
-{-# OPTIONS_GHC -Wall      #-}
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric        #-}
+{-# OPTIONS_GHC -Wall             #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 {-|
 
-  Module      : AutoBench.Types
+  Module      : AutoBench.TypeString
   Description : Datatypes and associated helper functions\/defaults.
   Copyright   : (c) 2018 Martin Handley
   License     : BSD-style
@@ -23,6 +24,8 @@
    ----------------------------------------------------------------------------
    - 'DataOpts' Discover setting;
    - Split Types into InternalTypes and Types;
+   - Make AnalOpts in TestSuite a maybe type? In case users don't want to 
+     analyse right away;
    - 
 -}
 
@@ -53,7 +56,6 @@ module AutoBench.Types
   , LinearType(..)
   , Stats(..)                                                                                           -- <TO-DO>
   , numPredictors          --  Number of predictors for each type of model.
-
   -- * Errors
   -- ** System errors
   , SystemError(..)        -- System errors.
@@ -69,7 +71,7 @@ import qualified Criterion.Main         as Criterion
 import           Data.Default           (Default(..))
 import           GHC.Generics           (Generic)
 
-import AutoBench.AbstractSyntax (HsType, Id, ModuleElem, TypeString)
+import AutoBench.AbstractSyntax (HsType, Id, ModuleElem, ModuleName, TypeString)
 import AutoBench.Utils          (subNum, superNum)
 
 -- To be able to DeepSeq CR.Config add NFData instances:
@@ -388,10 +390,22 @@ initUserInputs xs =
 
 -- * Benchmarking
 
-data BenchSuite = BenchSuite{}
-
-
-
+-- | Each valid test suite ('TestSuite') gives rise to a 'BenchSuite', which 
+-- encompasses all necessary information to generate Criterion 'Benchmarks'. 
+-- At the point where benchmarking suites are generated, all the corresponding 
+-- user inputs have been validated by the system, so further checking is not 
+-- required.
+data BenchSuite = 
+  BenchSuite
+    {
+      _benchID       :: Int           -- ^ Unique 'BenchSuite' /integer/ identifier.
+    , _benchIDT      :: Id            -- ^ 'BenchSuite' /string/ identifier: not necessarily unique.
+    , _moduleName    :: ModuleName    -- ^ The module name of the user input file.
+    , _benchProgs    :: [Id]          -- ^ The names of all test programs.
+    , _benchDataOpts :: DataOpts      -- ^ Test data options.
+    , _benchNf       :: Bool          -- ^ Whether test cases should be evaluated to normal form.
+    , _benchBaseline :: Bool          -- ^ Whether baseline measurement should be included.
+    }
 
 -- * Statistical analysis
 

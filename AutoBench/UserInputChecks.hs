@@ -67,11 +67,12 @@
 
 module AutoBench.UserInputChecks (userInputCheck) where 
 
-import           Control.Category       ((>>>))
-import           Data.List              ((\\), intersect, nub)
-import           Control.Monad          ((>=>), filterM, foldM, void)
-import           Control.Monad.Catch    (catch, catchAll)
-import qualified Criterion.Types        as Criterion
+import           Control.Category    ((>>>))
+import           Data.List           ((\\), group, intersect, nub, sortBy)
+import           Data.Ord            (comparing)
+import           Control.Monad       ((>=>), filterM, foldM, void)
+import           Control.Monad.Catch (catch, catchAll)
+import qualified Criterion.Types     as Criterion
 
 import Language.Haskell.Interpreter 
   (InterpreterError
@@ -158,7 +159,7 @@ userInputCheck fp  = do
         >>> catTestData        -- 8. /UnaryData/, 9. /BinaryData/.
 
     -- Second phase of static checking.
-    secondStatic = checkValidTestSuites
+    secondStatic = checkValidTestSuites  -- 10. /ValidTestSuites/.
                    
     -- First phase of dynamic checking.
     firstDynamic mn = 
@@ -250,7 +251,7 @@ catTestData inps = inps { _unaryData = uns, _binaryData = bins }
 -- ** Second phase
 
 -- | Validate test suites in the '_testSuites' list according to
--- 8. /ValidTestSuites/. The following checks are performed:
+-- 10. /ValidTestSuites/. The following checks are performed:
 --
 -- If '_progs' list is populated:
 --   * No programs missing from the '_progs' list;
@@ -262,10 +263,10 @@ catTestData inps = inps { _unaryData = uns, _binaryData = bins }
 --    * If 'Gen' then programs in the '_progs' list have input types that are 
 --      members of the 'Arbitrary' type class;
 -- If '_progs' list is empty:
---   * Depending on settings, check that at least one program is: 
+--   * Depending on test suite settings, check that at least one program is: 
 --     NF-able\/Gen-able and Benchmarkable: see 'checkAllFuns'.
 --
--- Remaining checks for both cases: 
+-- Remaining checks in both cases: 
 --
 -- * Validate 'DataOpts': for 'Manual' data, check that it is present and has 
 --   the correct type; for 'Gen', check the size range is valid and gives the 
@@ -393,7 +394,7 @@ checkValidTestSuites inps =
         checkAllFuns False True _ arbIdts benchIdts                              -- Need to be Gen-able and Benchmarkable.
           | null (arbIdts `intersect` benchIdts) = [checkAllArbErr]
           | otherwise = []
-        checkAllFuns False False _ _ benchIdts                                   -- Need to be Benchmarkable
+        checkAllFuns False False _ _ benchIdts                                   -- Need to be Benchmarkable.
           | null benchIdts = [checkAllBenchErr]
           | otherwise = []
 
@@ -458,12 +459,12 @@ checkValidTestSuites inps =
         checkGhcFlags  = const []
 
     -- Cross-referencing fields in the 'UserInputs' data structure:
-    unaryFuns  = _unaryFuns inps 
+    unaryFuns  = _unaryFuns  inps 
     binaryFuns = _binaryFuns inps
-    benchFuns  = _benchFuns inps
-    nfFuns     = _nfFuns inps
-    arbFuns    = _arbFuns inps
-    unaryData  = _unaryData inps 
+    benchFuns  = _benchFuns  inps
+    nfFuns     = _nfFuns     inps
+    arbFuns    = _arbFuns    inps
+    unaryData  = _unaryData  inps 
     binaryData = _binaryData inps
 
     -- Errors:
@@ -486,14 +487,9 @@ checkValidTestSuites inps =
     dOptsSizeErr         = DataOptsErr $ "A minimum of " ++ show minInputs ++ " distinctly sized test inputs are required."
     -- 'AnalOpts':
     aOptsModelErr        = AnalOptsErr $ "Linear regression models can have a maximum of " ++ show maxPredictors ++ " predictors."
-    aOptsCVItersErr      = AnalOptsErr $ "The number of cross-validation iterators must be " ++ show minCVIters ++ " <= x <= " ++ show maxCVIters 
-    aOptsCVTrainErr      = AnalOptsErr $ "The percentage of cross-validation training data must be " ++ show minCVTrain ++ " <= x <= " ++ show maxCVTrain
+    aOptsCVItersErr      = AnalOptsErr $ "The number of cross-validation iterators must be " ++ show minCVIters ++ " <= x <= " ++ show maxCVIters ++ "." 
+    aOptsCVTrainErr      = AnalOptsErr $ "The percentage of cross-validation training data must be " ++ show minCVTrain ++ " <= x <= " ++ show maxCVTrain ++ "." 
     aOptsTopModelsErr    = AnalOptsErr $ "The number of models to review must be strictly positive."
-
-
-
-
-
 
 -- * Dynamic checking
 
@@ -576,7 +572,7 @@ interpTestSuites mn inps = do
           ) (const $ return (vs, (idt, [interpErr idt]) : ivs))
       | otherwise = return (vs, ivs)
     
-    interpErr idt = TestSuiteErr $ "could not interpret " ++ idt ++ " as a TestSuite."
+    interpErr idt = TestSuiteErr $ "Could not interpret " ++ idt ++ " as a TestSuite."
 
 -- | Validate test suites in the '_testSuites' list according to
 -- 5. /FullTestSuites/, i.e., ensure that all record fields are initialised. 
@@ -648,3 +644,73 @@ extractUserInputs fp =
 -- | Compiler needs the error's type information.
 catchIE :: MonadInterpreter m => m a -> (InterpreterError -> m a) -> m a
 catchIE  = catch
+
+
+
+
+
+
+
+-- Expand valid test suites input by the user                                  -- <TO-DO> **COMMENT**
+expandTestSuites :: ModuleName -> UserInputs -> UserInputs
+expandTestSuites mn inps = 
+
+  where 
+
+    expandTestSuite :: Id -> TestSuite -> [TestSuite]
+    expandTestSuite idt ts 
+      -- If '_progs' list is populated, don't expand.
+      | notNull (_progs ts) = [ts]
+      -- Only expand when '_progs' list is empty.
+      | _nf ts && gen = genTestSuites ts benchNfArbFunsGpd    -- nf and gen benchmarkable.
+      | _nf ts        = genTestSuites ts benchNfFunsGpd       -- nf benchmarkable.
+      | gen           = genTestSuites ts benchArbFunsGpd      -- gen benchmarkable.
+      | otherwise     = genTestSuites ts benchFunsGpd         -- All benchmarkable.
+
+      where 
+
+        -- In this case we need to expand test suites because the '_progs'
+        -- list is empty. The only complication is to ensure the type of 
+        -- manually specified test data matches the programs added 
+        -- to the '_progs' list.
+        genTestSuites :: [[(Id, HsType)]] -> TestSuite -> [(Id, TestSuite)]
+        genTestSuites validFuns ts 
+          -- No need to check compatibility with test data.
+          | gen = fmap (\idts -> ( idt
+                                 , TestSuite 
+                                         { _progs    = idts
+                                         , _dataOpts = _dataOpts ts
+                                         , _analOpts = _analOpts ts
+                                         , _critCfg  = _critCfg  ts 
+                                         , _baseline = _baseline ts 
+                                         , _nf       = _nf       ts 
+                                         , _ghcFlags = _ghcFlags ts
+                                         }
+                                 )
+                       ) $ fmap (fmap fst) validFuns
+          -- Need to check compatibility with test data.
+          | otherwise = 
+
+
+        -- Whether the test suite requires generated test data.
+        gen = case _dataOpts ts of 
+          Manual{} -> False 
+          Gen{}    -> True
+
+    -- Groupings by type:
+    benchArbFunsGpd   = group $ sortBy (comparing snd) benchArbFuns
+    benchNfFunsGpd    = group $ sortBy (comparing snd) benchNfFuns
+    benchNfArbFunsGpd = group $ sortBy (comparing snd) benchNfArbFuns
+    benchFunsGpd      = group $ sortBy (comparing snd) benchFuns
+
+    -- Cross-referencing:
+    benchArbFuns   = benchFuns `intersect` arbFuns
+    benchNfFuns    = benchFuns `intersect` nfFuns
+    benchNfArbFuns = benchFuns `intersect` nfFuns `intersect` arbFuns
+
+    -- Projections:
+    benchFuns = _benchFuns  inps
+    nfFuns    = _nfFuns     inps
+    arbFuns   = _arbFuns    inps
+
+  
