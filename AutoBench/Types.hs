@@ -69,10 +69,18 @@ import           Control.Exception.Base (Exception)
 import qualified Criterion.Types        as Criterion
 import qualified Criterion.Main         as Criterion
 import           Data.Default           (Default(..))
+import           Data.List              (partition, sort)
+import           Data.Maybe             (fromJust, isJust)
 import           GHC.Generics           (Generic)
 
-import AutoBench.AbstractSyntax (HsType, Id, ModuleElem, ModuleName, TypeString)
-import AutoBench.Utils          (subNum, superNum)
+import AutoBench.AbstractSyntax 
+  ( HsType
+  , Id
+  , ModuleElem(..)
+  , ModuleName
+  , TypeString
+  )
+import AutoBench.Utils          (deggar, subNum, superNum)
 
 -- To be able to DeepSeq CR.Config add NFData instances:
 instance NFData Criterion.Verbosity
@@ -366,6 +374,9 @@ data UserInputs =
    , _testSuites         :: [(Id, TestSuite)]                        -- ^ Valid test suites.
    }
 
+instance Show UserInputs where 
+  show = showUserInputs
+
 -- | Initialise a 'UserInputs' data structure by specifying the '_allElems' 
 -- list. 
 initUserInputs :: [(ModuleElem, Maybe TypeString)] -> UserInputs
@@ -461,10 +472,6 @@ numPredictors (Log     _ k) = k + 1
 numPredictors (PolyLog _ k) = k + 1 
 numPredictors Exp{}         = 2
 
-
-
-
-
 -- * Errors 
 
 -- | Errors raised by the system due to implementation failures. These can be 
@@ -510,3 +517,58 @@ instance Show InputError where
   show (InstanceErr  s) = "Instance error: "         ++ s
 
 instance Exception InputError
+
+-- * Helpers 
+
+-- | Show instance for UserInputs is quite involved.
+showUserInputs :: UserInputs -> String 
+showUserInputs inps = showAllElems (_allElems inps)
+  where 
+
+    -- '_allElems'
+    showAllElems :: [(ModuleElem, Maybe TypeString)] -> String 
+    showAllElems [] = "N/A"
+    showAllElems xs = 
+      unlines (sort $ fmap fst noTys) ++ unlines (sort $ zipWith 
+        (\idt ty -> idt ++ " :: " ++ ty) (deggar names) types)
+      where 
+        (tys, noTys) = partition (isJust . snd) $ 
+          fmap (\(me, mTy) -> (showModuleElem me, mTy)) xs
+        tys' = fmap (fmap fromJust) tys
+        (names, types) = unzip tys'
+
+    -- Helpers:
+
+    showModuleElem :: ModuleElem -> String 
+    showModuleElem (Fun idt)     = idt 
+    showModuleElem (Class idt _) = idt ++ " (class)"
+    showModuleElem (Data idt _)  = idt ++ " (data)"
+
+
+
+  
+
+
+
+{-
+
+data UserInputs = 
+  UserInputs
+   {
+     _allElems           :: [(ModuleElem, Maybe TypeString)]         -- ^ All definitions in a user input file.
+   , _invalidElems       :: [(ModuleElem, Maybe TypeString)]         -- ^ Syntactically invalid definitions (see 'AutoBench.AbstractSyntax').
+   , _validElems         :: [(Id, HsType)]                           -- ^ Syntactically valid definitions (see 'AutoBench.AbstractSyntax').
+   , _nullaryFuns        :: [(Id, HsType)]                           -- ^ Nullary functions.
+   , _unaryFuns          :: [(Id, HsType)]                           -- ^ Unary functions.
+   , _binaryFuns         :: [(Id, HsType)]                           -- ^ Binary functions.
+   , _arbFuns            :: [(Id, HsType)]                           -- ^ Unary/binary functions whose input types are members of the Arbitrary type class.
+   , _benchFuns          :: [(Id, HsType)]                           -- ^ Unary/binary functions whose input types are members of the NFData type class.
+   , _nfFuns             :: [(Id, HsType)]                           -- ^ Unary/binary functions whose result types are members of the NFData type class.
+   , _invalidData        :: [(Id, HsType, [InputError])]             -- ^ Invalid user-specified test data. 
+   , _unaryData          :: [(Id, HsType)]                           -- ^ Valid user-specified test data for unary functions.
+   , _binaryData         :: [(Id, HsType)]                           -- ^ Valid user-specified test data for binary functions.
+   , _invalidTestSuites  :: [(Id, [InputError])]                     -- ^ Invalid test suites.
+   , _testSuites         :: [(Id, TestSuite)]                        -- ^ Valid test suites.
+   }
+
+-}

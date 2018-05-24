@@ -25,7 +25,7 @@ main = do
 
 
 
-
+{-
 instance Show UserInputs where 
   show usrInps = unlines 
     [
@@ -60,4 +60,4 @@ instance Show UserInputs where
     ]
 
 indent :: Int -> [String] -> [String]
-indent n = zipWith (++) (repeat $ replicate n ' ')
+indent n = zipWith (++) (repeat $ replicate n ' ')-}

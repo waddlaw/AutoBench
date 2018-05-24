@@ -48,15 +48,15 @@ module AutoBench.Utils
   -- ** Command line parsing
   , CLArgs(..)           -- Command line arguments.
   , clArgsParser         -- Options parser for command line arguments.
-
   -- * Misc 
   , (.*)                 -- Generalised function composition.
+  , deggar               -- Pad a list of strings to the same length.
 
   ) where 
 
 import           Control.Applicative          ((<*>))
 import           Data.Char                    (isSpace, toUpper)
-import           Data.List                    (dropWhileEnd, tails)
+import           Data.List                    (dropWhileEnd, tails, transpose)
 import           Data.Monoid                  ((<>))
 import           Data.Void                    (Void)
 import           Language.Haskell.Interpreter (ModuleName)
@@ -204,3 +204,24 @@ clArgsParser  = CLArgs <$> OPTS.info
 infixr 8 .*
 (.*) :: (Functor f, Functor g) => (a -> b) -> f (g a) -> f (g b)
 (.*)  = fmap . fmap 
+
+-- Padding lists. interesting solution by 
+-- McBride: https://stackoverflow.com/questions/
+-- 21349408/zip-with-default-value-instead-of-dropping-values
+
+data Padme m = (:-) { padded :: [m], padder :: m } deriving (Show, Eq)
+
+instance Functor Padme where 
+  fmap = (<*>) . pure
+
+instance Applicative Padme where
+  pure                    = ([] :-)
+  (fs :- f) <*> (ss :- s) = zapp fs ss :- f s 
+    where
+      zapp  []       ss       = fmap f ss
+      zapp  fs       []       = fmap ($ s) fs
+      zapp  (f : fs) (s : ss) = f s : zapp fs ss
+
+-- | Pad a list of strings to the same length.
+deggar :: [String] -> [String]
+deggar  = transpose . padded . traverse (:- ' ')

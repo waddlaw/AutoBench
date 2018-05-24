@@ -26,3 +26,6 @@ fastRev xs = go xs []
 
 ts :: TestSuite 
 ts  = def { _dataOpts = Manual "tDat" }
+
+
+data Test = Test
