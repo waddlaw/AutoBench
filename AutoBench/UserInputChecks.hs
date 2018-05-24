@@ -654,13 +654,12 @@ catchIE  = catch
 -- Expand valid test suites input by the user                                  -- <TO-DO> **COMMENT**
 expandTestSuites :: ModuleName -> UserInputs -> UserInputs
 expandTestSuites mn inps = 
-
+  inps { _testSuites = concatMap (uncurry expandTestSuite) (_testSuites inps) }
   where 
-
-    expandTestSuite :: Id -> TestSuite -> [TestSuite]
+    expandTestSuite :: Id -> TestSuite -> [(Id, TestSuite)]
     expandTestSuite idt ts 
       -- If '_progs' list is populated, don't expand.
-      | notNull (_progs ts) = [ts]
+      | notNull (_progs ts) = [(idt, ts)]
       -- Only expand when '_progs' list is empty.
       | _nf ts && gen = genTestSuites ts benchNfArbFunsGpd    -- nf and gen benchmarkable.
       | _nf ts        = genTestSuites ts benchNfFunsGpd       -- nf benchmarkable.
@@ -668,34 +667,54 @@ expandTestSuites mn inps =
       | otherwise     = genTestSuites ts benchFunsGpd         -- All benchmarkable.
 
       where 
-
         -- In this case we need to expand test suites because the '_progs'
         -- list is empty. The only complication is to ensure the type of 
         -- manually specified test data matches the programs added 
         -- to the '_progs' list.
-        genTestSuites :: [[(Id, HsType)]] -> TestSuite -> [(Id, TestSuite)]
-        genTestSuites validFuns ts 
+        genTestSuites :: TestSuite -> [[(Id, HsType)]] -> [(Id, TestSuite)]
+        genTestSuites ts validFuns 
           -- No need to check compatibility with test data.
-          | gen = fmap (\idts -> ( idt
-                                 , TestSuite 
-                                         { _progs    = idts
-                                         , _dataOpts = _dataOpts ts
-                                         , _analOpts = _analOpts ts
-                                         , _critCfg  = _critCfg  ts 
-                                         , _baseline = _baseline ts 
-                                         , _nf       = _nf       ts 
-                                         , _ghcFlags = _ghcFlags ts
-                                         }
-                                 )
-                       ) $ fmap (fmap fst) validFuns
+          | gen = fmap (\idts -> 
+              ( idt
+              , TestSuite 
+                  { _progs    = idts
+                  , _dataOpts = _dataOpts ts
+                  , _analOpts = _analOpts ts
+                  , _critCfg  = _critCfg  ts 
+                  , _baseline = _baseline ts 
+                  , _nf       = _nf       ts 
+                  , _ghcFlags = _ghcFlags ts
+                  }
+              )) $ fmap (fmap fst) validFuns
           -- Need to check compatibility with test data.
-          | otherwise = 
-
+          | otherwise = fmap (\idts -> 
+              ( idt
+              , TestSuite 
+                  { _progs    = idts
+                  , _dataOpts = _dataOpts ts
+                  , _analOpts = _analOpts ts
+                  , _critCfg  = _critCfg  ts 
+                  , _baseline = _baseline ts 
+                  , _nf       = _nf       ts 
+                  , _ghcFlags = _ghcFlags ts
+                  }
+              )) $ matchWithTestData (_dataOpts ts) validFuns
 
         -- Whether the test suite requires generated test data.
         gen = case _dataOpts ts of 
           Manual{} -> False 
           Gen{}    -> True
+
+        -- Match the /input type/ of each function with the type of test data.
+        matchWithTestData :: DataOpts -> [[(Id, HsType)]] -> [[Id]]
+        matchWithTestData Gen{} _ = [] -- Shouldn't happen.
+        matchWithTestData (Manual s) validFuns = 
+          case lookup s testData of
+            Nothing -> [] -- Shouldn't happen.
+            Just ty -> fmap (fmap fst) $ filter (\xs -> match (snd $ head xs) ty) validFuns
+          where 
+            match :: HsType -> HsType -> Bool
+            match fTy dTy = tyFunInps fTy == testDataTyFunInps dTy
 
     -- Groupings by type:
     benchArbFunsGpd   = group $ sortBy (comparing snd) benchArbFuns
@@ -712,5 +731,4 @@ expandTestSuites mn inps =
     benchFuns = _benchFuns  inps
     nfFuns    = _nfFuns     inps
     arbFuns   = _arbFuns    inps
-
-  
+    testData  = _unaryData  inps ++ _binaryData inps
