@@ -26,14 +26,14 @@
 module AutoBench.Internal.Benchmarking 
   (
     -- * Generating Criterion benchmarks
-    genBenchmarksGenNfUn      -- Config.: generated test data, results to nf, unary test programs.
-  , genBenchmarksGenWhnfUn    -- Config.: generated test data, results to whnf, unary test programs.
-  , genBenchmarksGenNfBin     -- Config.: generated test data, results to nf, binary test programs. 
-  , genBenchmarksGenWhnfBin   -- Config.: generated test data, results to whnf, binary test programs.
-  , genBenchmarksManNfUn      -- Config.: manual test data, results to nf, unary test programs.
-  , genBenchmarksManWhnfUn    -- Config.: manual test data, results to whnf, unary test programs.
-  , genBenchmarksManNfBin     -- Config.: manual test data, results to nf, binary test programs.
-  , genBenchmarksManWhnfBin   -- Config.: manual test data, results to whnf, binary test programs.
+    genBenchmarksGenNfUn      -- Cfg: generated test data, results to nf, unary test programs.
+  , genBenchmarksGenWhnfUn    -- Cfg: generated test data, results to whnf, unary test programs.
+  , genBenchmarksGenNfBin     -- Cfg: generated test data, results to nf, binary test programs. 
+  , genBenchmarksGenWhnfBin   -- Cfg: generated test data, results to whnf, binary test programs.
+  , genBenchmarksManNfUn      -- Cfg: manual test data, results to nf, unary test programs.
+  , genBenchmarksManWhnfUn    -- Cfg: manual test data, results to whnf, unary test programs.
+  , genBenchmarksManNfBin     -- Cfg: manual test data, results to nf, binary test programs.
+  , genBenchmarksManWhnfBin   -- Cfg: manual test data, results to whnf, binary test programs.
   ) where 
 
 import Control.DeepSeq (NFData)
@@ -46,9 +46,15 @@ import Criterion.Types
   , whnf
   )
 import Test.QuickCheck (Arbitrary)
+
 import AutoBench.AbstractSyntax          (Id, ModuleName)
 import AutoBench.Internal.DataGeneration (genDataUn, genDataBin)
-import AutoBench.Types                   (UnaryTestData, BinaryTestData, TestSuite(..), toHRange)
+import AutoBench.Types
+  ( UnaryTestData
+  , BinaryTestData
+  , TestSuite(..)
+  , toHRange
+  )
 
 
 
