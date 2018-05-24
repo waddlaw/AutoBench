@@ -49,6 +49,7 @@ module AutoBench.Utils
   , CLArgs(..)           -- Command line arguments.
   , clArgsParser         -- Options parser for command line arguments.
   -- * Misc 
+  , Padme(..)            -- Padded lists.
   , (.*)                 -- Generalised function composition.
   , deggar               -- Pad a list of strings to the same length.
 
@@ -218,9 +219,9 @@ instance Applicative Padme where
   pure                    = ([] :-)
   (fs :- f) <*> (ss :- s) = zapp fs ss :- f s 
     where
-      zapp  []       ss       = fmap f ss
-      zapp  fs       []       = fmap ($ s) fs
-      zapp  (f : fs) (s : ss) = f s : zapp fs ss
+      zapp  []         ss'        = fmap f ss'
+      zapp  fs'        []         = fmap ($ s) fs'
+      zapp  (f' : fs') (s' : ss') = f' s' : zapp fs' ss'
 
 -- | Pad a list of strings to the same length.
 deggar :: [String] -> [String]

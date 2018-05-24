@@ -69,8 +69,7 @@ import           Control.Exception.Base    (Exception)
 import qualified Criterion.Types           as Criterion
 import qualified Criterion.Main            as Criterion
 import           Data.Default              (Default(..))
-import           Data.List                 (partition, sort)
-import           Data.Maybe                (fromJust, isJust)
+import           Data.List                 (sort)
 import           GHC.Generics              (Generic)
 import qualified Text.PrettyPrint.HughesPJ as PP
 
