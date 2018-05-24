@@ -8,12 +8,6 @@ import Data.List
 import Prelude hiding (id)
 
 
-id :: [Int] -> Int 
-id x = head x 
-
-tDat :: UnaryTestData [Int]
-tDat  = []
-
 slowRev :: [Int] -> [Int]
 slowRev []       = []
 slowRev (x : xs) = slowRev xs ++ [x]
@@ -26,6 +20,3 @@ fastRev xs = go xs []
 
 ts :: TestSuite 
 ts  = def
-
-
-data Test = Test

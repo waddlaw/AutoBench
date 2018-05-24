@@ -35,6 +35,7 @@ module AutoBench.Types
   -- * User inputs
   -- ** Test suites
     TestSuite(..)          -- Test suites are AutoBench's principle user input datatype.
+  , docTestSuite           -- Generate a 'PP.Doc' for a 'TestSuite'.
   -- ** Test data options
   , UnaryTestData          -- User-specified test data for unary test programs.
   , BinaryTestData         -- User-specified test data for binary test programs.
@@ -49,6 +50,7 @@ module AutoBench.Types
   , maxCVIters             -- Maximum number of cross-validation iterations.
   -- ** Internal representation of user inputs
   , UserInputs(..)         -- A data structure maintained by the system to classify user inputs.
+  , docUserInputs          -- Create a 'PP.Doc' for a 'UserInputs'.
   , initUserInputs         -- Initialise a 'UserInputs' data structure.
   -- * Benchmarking
   , BenchSuite(..)         -- Benchmarking suites are AutoBench's principle benchmarking datatype.
@@ -146,6 +148,8 @@ instance Default TestSuite where
           }
   
 instance NFData TestSuite 
+instance Show TestSuite where 
+  show = PP.render . docTestSuite
 
 -- ** Test data options
 
@@ -249,6 +253,10 @@ data DataOpts =
     deriving (Eq, Generic)
 
 instance NFData DataOpts 
+
+instance Show DataOpts where 
+  show (Manual idt) = "Manual " ++ "\"" ++ idt ++ "\""
+  show (Gen l s u)  = "Gen " ++ show l ++ " " ++ show s  ++ " " ++ show u
 
 instance Default DataOpts where 
   def = Gen 5 5 100
@@ -376,7 +384,7 @@ data UserInputs =
    }
 
 instance Show UserInputs where 
-  show = showUserInputs
+  show = PP.render . docUserInputs
 
 -- | Initialise a 'UserInputs' data structure by specifying the '_allElems' 
 -- list. 
@@ -521,9 +529,17 @@ instance Exception InputError
 
 -- * Helpers 
 
--- | Show instance for UserInputs is quite involved.
-showUserInputs :: UserInputs -> String 
-showUserInputs inps = PP.render $ PP.vcat $ PP.punctuate (PP.text "\n")
+-- | Generate a 'PP.Doc' for a 'TestSuite'. 
+docTestSuite :: TestSuite -> PP.Doc 
+docTestSuite ts = PP.vcat 
+  [ 
+    PP.hcat $ PP.punctuate (PP.text ", ") $ fmap PP.text $ _progs ts
+  , PP.text $ show $ _dataOpts ts
+  ]
+
+-- | Generate a 'PP.Doc' for a 'UserInputs'. 
+docUserInputs :: UserInputs -> PP.Doc 
+docUserInputs inps = PP.vcat $ PP.punctuate (PP.text "\n")
   [ PP.text "All module elements:"     PP.$$ (PP.nest 2 $ showElems             $ _allElems          inps)
   , PP.text "Valid module elements:"   PP.$$ (PP.nest 2 $ showTypeableElems     $ _validElems        inps)
   , PP.text "Nullary functions:"       PP.$$ (PP.nest 2 $ showTypeableElems     $ _nullaryFuns       inps)
