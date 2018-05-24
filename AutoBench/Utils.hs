@@ -68,7 +68,6 @@ import qualified Text.Megaparsec.Char         as MP
 import qualified Text.Megaparsec.Char.Lexer   as L 
 
 
-
 -- * AutoBench specific
 
 -- | Convert a filepath to a module name.

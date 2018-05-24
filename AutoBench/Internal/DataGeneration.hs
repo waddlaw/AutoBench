@@ -20,16 +20,18 @@
    ----------------------------------------------------------------------------
    <TO-DO>:
    ----------------------------------------------------------------------------
-   - 
+   - Comment all;
 -}
 
 module AutoBench.Internal.DataGeneration 
   (
+
     genDataBin -- Generate test data for binary test programs in the given size range.
   , genDataUn  -- Generate test data for unary test programs in the given size range.
+
   ) where 
 
-import Test.QuickCheck (Arbitrary, arbitrary, generate, resize, sized, vectorOf)
+import Test.QuickCheck (Arbitrary, arbitrary, generate, resize)
 import AutoBench.Types (DataOpts(..), toHRange)
 
 -- | Generate test data for binary test programs in the given size range.

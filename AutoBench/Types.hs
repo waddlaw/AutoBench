@@ -43,6 +43,7 @@ module AutoBench.Types
   , DataOpts(..)           -- Test data options.
   , toHRange               -- Convert @Gen l s u :: DataOpts@ to a Haskell range.
   , minInputs              -- Minimum number of distinctly sized test inputs.
+  , defBenchRepFilename    -- Default benchmarking JSON report filename.
   -- ** Statistical analysis options
   , AnalOpts(..)           -- Statistical analysis options.
   , maxPredictors          -- Maximum number of predictors for models to be used for regression analysis.         
@@ -56,7 +57,7 @@ module AutoBench.Types
   , initUserInputs         -- Initialise a 'UserInputs' data structure.
   -- * Benchmarking
   -- * Statistical analysis
-  , LinearType(..)
+  , LinearType(..)                                                                                      -- <TO-DO>
   , Stats(..)                                                                                           -- <TO-DO>
   , numPredictors          --  Number of predictors for each type of model.
   -- * Errors
@@ -80,11 +81,11 @@ import AutoBench.AbstractSyntax
   ( HsType
   , Id
   , ModuleElem(..)
-  , ModuleName
   , TypeString
   , prettyPrint
   )
 import AutoBench.Utils          (deggar, subNum, superNum)
+
 
 -- To be able to DeepSeq CR.Config add NFData instances:
 instance NFData Criterion.Verbosity
@@ -272,6 +273,10 @@ toHRange (Gen l s u) = [l, (l + s) .. u]
 -- > minInputs = 20
 minInputs :: Int 
 minInputs  = 20
+
+-- | Default benchmarking JSON report filename.
+defBenchRepFilename :: String
+defBenchRepFilename  = "autobench_tmp.json"
 
 -- ** Statistical analysis options
 

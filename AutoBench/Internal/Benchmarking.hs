@@ -39,28 +39,35 @@ module AutoBench.Internal.Benchmarking
   , genBenchmarksManNfBin     -- Cfg: user-specified test data, results to nf, binary test programs.
   , genBenchmarksManWhnfBin   -- Cfg: user-specified test data, results to whnf, binary test programs.
 
+
+  -- * Running benchmarks
+  , runBenchmarks               -- Run benchmarks with Criterion.
   ) where 
 
 import Control.DeepSeq (NFData)
+import Criterion.Main  (defaultMainWith)
+import Data.Maybe      (fromMaybe)
+import Test.QuickCheck (Arbitrary)
 import Criterion.Types 
   ( Benchmark
   , bench
   , bgroup
   , env
+  , jsonFile
   , nf
+  , reportFile
   , whnf
   )
-import Test.QuickCheck (Arbitrary)
 
-import AutoBench.AbstractSyntax          (Id, ModuleName)
+import AutoBench.AbstractSyntax          (Id)
 import AutoBench.Internal.DataGeneration (genDataUn, genDataBin)
 import AutoBench.Types
   ( UnaryTestData
   , BinaryTestData
   , TestSuite(..)
+  , defBenchRepFilename
   , toHRange
   )
-
 
 
 -- * Generate Criterion benchmarks
@@ -320,11 +327,8 @@ genBenchmarksManWhnfBin
   -> TestSuite
   -> BinaryTestData a b  
   -> [Benchmark]
-genBenchmarksManWhnfBin ps ts = fmap (gen ps)
+genBenchmarksManWhnfBin ps _ = fmap (gen ps)
   where 
-    -- Whether to include baseline measurements.
-    baseline = _baseline ts 
-
     -- Generate the benchmarks.
     gen progs (s1, s2, d1, d2) = env ((,) <$> d1 <*> d2) 
       ( \xs -> bgroup ("Input Sizes: (" ++ show (s1 :: Int)
@@ -335,3 +339,12 @@ genBenchmarksManWhnfBin ps ts = fmap (gen ps)
           | (idt, prog) <- progs 
           ]
       )
+
+
+
+
+runBenchmarks :: [Benchmark] -> TestSuite -> IO () 
+runBenchmarks bs ts = defaultMainWith cfg { jsonFile = Just repFile } bs
+  where 
+    cfg     = _critCfg ts
+    repFile = fromMaybe defBenchRepFilename (reportFile cfg)

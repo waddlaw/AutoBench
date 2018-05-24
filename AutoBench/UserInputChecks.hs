@@ -130,7 +130,6 @@ import AutoBench.Types
   )
 import AutoBench.Utils (allEq, filepathToModuleName, notNull)
 
--- makeLenses ''UserInputs
 
 -- * Top-level 
 
