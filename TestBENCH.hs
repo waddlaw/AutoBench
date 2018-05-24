@@ -1,10 +1,7 @@
 
 module Main (main) where
 
-import Data.Default (def)
-
 import AutoBench.Internal.Benchmarking
-import AutoBench.Types
 import Input
 
 main :: IO ()

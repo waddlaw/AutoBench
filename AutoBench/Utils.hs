@@ -51,7 +51,7 @@ module AutoBench.Utils
   -- * Misc 
   , Padme(..)            -- Padded lists.
   , (.*)                 -- Generalised function composition.
-  , deggar               -- Pad a list of strings to the same length.
+  , deggar               -- Pad strings with whitespace so they are the same length.
 
   ) where 
 
@@ -222,6 +222,6 @@ instance Applicative Padme where
       zapp  fs'        []         = fmap ($ s) fs'
       zapp  (f' : fs') (s' : ss') = f' s' : zapp fs' ss'
 
--- | Pad a list of strings to the same length.
+-- | Pad strings with whitespace so they are the same length.
 deggar :: [String] -> [String]
 deggar  = transpose . padded . traverse (:- ' ')

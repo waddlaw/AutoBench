@@ -68,10 +68,7 @@ generateBenchmarks fp mn inps idt ts = writeFile fp (PP.render contents)
       [ PP.text "" 
       , PP.text "module Main (main) where"
       , PP.text ""
-      , PP.text  "import Data.Default (def)"
-      , PP.text ""
       , PP.text "import AutoBench.Internal.Benchmarking"
-      , PP.text "import AutoBench.Types"
       , PP.text "import" PP.<+> PP.text mn
       , PP.text ""
       , PP.text "main :: IO ()"
@@ -167,7 +164,7 @@ generateBenchmarks fp mn inps idt ts = writeFile fp (PP.render contents)
     qualProgs = fmap (prettyPrint . qualIdt mn) (_progs ts)
     
     getManualDat (Manual s) = s 
-    getManualDat Gen{}      = ""
+    getManualDat Gen{}      = "" --                           **  ERROR HANDLING?! **
 
 
 
