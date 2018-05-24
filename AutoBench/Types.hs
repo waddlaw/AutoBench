@@ -525,7 +525,6 @@ instance Exception InputError
 showUserInputs :: UserInputs -> String 
 showUserInputs inps = PP.render $ PP.vcat $ PP.punctuate (PP.text "\n")
   [ PP.text "All module elements:"     PP.$$ (PP.nest 2 $ showElems             $ _allElems          inps)
-  , PP.text "Invalid module elements:" PP.$$ (PP.nest 2 $ showElems             $ _invalidElems      inps)
   , PP.text "Valid module elements:"   PP.$$ (PP.nest 2 $ showTypeableElems     $ _validElems        inps)
   , PP.text "Nullary functions:"       PP.$$ (PP.nest 2 $ showTypeableElems     $ _nullaryFuns       inps)
   , PP.text "Unary functions:"         PP.$$ (PP.nest 2 $ showTypeableElems     $ _unaryFuns         inps)
@@ -536,6 +535,7 @@ showUserInputs inps = PP.render $ PP.vcat $ PP.punctuate (PP.text "\n")
   , PP.text "Unary test data:"         PP.$$ (PP.nest 2 $ showTypeableElems     $ _unaryData         inps)
   , PP.text "Binary test data:"        PP.$$ (PP.nest 2 $ showTypeableElems     $ _binaryData        inps)
   , PP.text "Test suites:"             PP.$$ (PP.nest 2 $ showTestSuites        $ _testSuites        inps)
+  , PP.text "Invalid module elements:" PP.$$ (PP.nest 2 $ showElems             $ _invalidElems      inps)
   , PP.text "Invalid test data:"       PP.$$ (PP.nest 2 $ showInvalidData       $ _invalidData       inps)
   , PP.text "Invalid test suites:"     PP.$$ (PP.nest 2 $ showInvalidTestSuites $ _invalidTestSuites inps)
   ]
@@ -598,45 +598,3 @@ showUserInputs inps = PP.render $ PP.vcat $ PP.punctuate (PP.text "\n")
     splitShowModuleElems (Fun idt, Nothing) ((fs, tys), cs, ds) = ((idt : fs, "" : tys), cs, ds)
     splitShowModuleElems (Class idt _, _) (fs, cs, ds) = (fs, idt : cs, ds)
     splitShowModuleElems (Data idt _, _)  (fs, cs, ds) = (fs, cs, idt : ds)
-
-
-
-  
-
-
-
-{-
-
-data TestSuite = 
-  TestSuite
-    {  _progs    :: [Id]             -- ^ Identifiers of programs in the input file to test: note all programs
-                                     --   in the file will be considered if this list is empty.
-    , _dataOpts :: DataOpts          -- ^ Test data options ('DataOpts').
-    , _analOpts :: AnalOpts          -- ^ Statistical analysis options ('AnalOpts').
-    , _critCfg  :: Criterion.Config  -- ^ Criterion's configuration ('Criterion.Types.Config').
-    , _baseline :: Bool              -- ^ Whether the graphs of runtime results should include baseline measurements.
-    , _nf       :: Bool              -- ^ Whether test cases should be evaluated to nf (@True@) or whnf (@False@).
-    , _ghcFlags :: [String]          -- ^ GHC compiler flags used when compiling 'BenchSuite's.
-    } deriving (Generic)
-
-
-data UserInputs = 
-  UserInputs
-   {
-     _allElems           :: [(ModuleElem, Maybe TypeString)]         -- ^ All definitions in a user input file.
-   , _invalidElems       :: [(ModuleElem, Maybe TypeString)]         -- ^ Syntactically invalid definitions (see 'AutoBench.AbstractSyntax').
-   , _validElems         :: [(Id, HsType)]                           -- ^ Syntactically valid definitions (see 'AutoBench.AbstractSyntax').
-   , _nullaryFuns        :: [(Id, HsType)]                           -- ^ Nullary functions.
-   , _unaryFuns          :: [(Id, HsType)]                           -- ^ Unary functions.
-   , _binaryFuns         :: [(Id, HsType)]                           -- ^ Binary functions.
-   , _arbFuns            :: [(Id, HsType)]                           -- ^ Unary/binary functions whose input types are members of the Arbitrary type class.
-   , _benchFuns          :: [(Id, HsType)]                           -- ^ Unary/binary functions whose input types are members of the NFData type class.
-   , _nfFuns             :: [(Id, HsType)]                           -- ^ Unary/binary functions whose result types are members of the NFData type class.
-   , _invalidData        :: [(Id, HsType, [InputError])]             -- ^ Invalid user-specified test data. 
-   , _unaryData          :: [(Id, HsType)]                           -- ^ Valid user-specified test data for unary functions.
-   , _binaryData         :: [(Id, HsType)]                           -- ^ Valid user-specified test data for binary functions.
-   , _invalidTestSuites  :: [(Id, [InputError])]                     -- ^ Invalid test suites.
-   , _testSuites         :: [(Id, TestSuite)]                        -- ^ Valid test suites.
-   }
-
--}

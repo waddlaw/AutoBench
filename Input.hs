@@ -25,7 +25,7 @@ fastRev xs = go xs []
     go (x : xs) ys = go xs (x : ys)
 
 ts :: TestSuite 
-ts  = def { _dataOpts = Manual "tDat2", _progs = ["lol", "lol"] }
+ts  = def
 
 
 data Test = Test
