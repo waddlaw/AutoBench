@@ -77,6 +77,7 @@ import           Data.List                 (sort)
 import           GHC.Generics              (Generic)
 import qualified Text.PrettyPrint.HughesPJ as PP
 
+import AutoBench.Utils (deggar, subNum, superNum)
 import AutoBench.AbstractSyntax 
   ( HsType
   , Id
@@ -84,8 +85,6 @@ import AutoBench.AbstractSyntax
   , TypeString
   , prettyPrint
   )
-import AutoBench.Utils          (deggar, subNum, superNum)
-
 
 -- To be able to DeepSeq CR.Config add NFData instances:
 instance NFData Criterion.Verbosity
@@ -524,14 +523,14 @@ instance Exception InputError
 -- * Helpers 
 
 -- | Generate a 'PP.Doc' for a 'TestSuite'. 
-docTestSuite :: TestSuite -> PP.Doc 
+docTestSuite :: TestSuite -> PP.Doc                                                                        -- ** NEEDS COMMENTS ** 
 docTestSuite ts = PP.vcat 
   [ 
     PP.hcat $ PP.punctuate (PP.text ", ") $ fmap PP.text $ _progs ts
   , PP.text $ show $ _dataOpts ts
   ]
 
--- | Generate a 'PP.Doc' for a 'UserInputs'. 
+-- | Generate a 'PP.Doc' for a 'UserInputs'.                                                               -- ** NEEDS COMMENTS ** 
 docUserInputs :: UserInputs -> PP.Doc 
 docUserInputs inps = PP.vcat $ PP.punctuate (PP.text "\n")
   [ PP.text "All module elements:"     PP.$$ (PP.nest 2 $ showElems             $ _allElems          inps)
