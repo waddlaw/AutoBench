@@ -29,7 +29,7 @@
    - generateBenchmarks error handling?
    - It would be nice for the generating benchmarking file to be nicely
      formatted;
-   - 
+   - comment: compileBenchmarkingFile 
 -}
 
 module AutoBench.Internal.IO 
@@ -40,8 +40,9 @@ module AutoBench.Internal.IO
                                         -- Note: in some cases no valid test suites will be available due to
                                         -- input errors, in this case users can review the 'UserInputs'
                                         -- data structure /using this function/.
-  -- * Generating benchmarking files
+  -- * IO for benchmarking files
   , generateBenchmarkingFile            -- Generate a benchmarking file to benchmark all the test programs in a given test suite
+  , compileBenchmarkingFile             -- Compile benchmarking file using zero or more user-specified compiler flags.
   -- * Helper functions
   , discoverInputFiles                  -- Discover potential input files in the working directory.
   , genBenchmarkingFilename             -- Generate a valid filename for the benchmarking file from the filename of the user input file.
@@ -150,7 +151,7 @@ selTestSuiteOption inps = case _testSuites inps of
     showUserInputs = print $ PP.nest 2 $ docUserInputs inps
 
 
--- * Generating benchmarking files:
+-- * IO for benchmarking files:
 
 -- | Generate a benchmarking file to benchmark all the test programs in a 
 -- given test suite. This includes generating/supplying necessary test data.
@@ -277,6 +278,17 @@ generateBenchmarkingFile fp mn inps tsIdt ts = do
     getManualDatIdt (Manual s) = return s 
     getManualDatIdt Gen{} = 
       throwM (InternalErr $ "generateBenchmarks: unexpected 'Gen' setting.")
+
+
+
+
+                                                                                  -- ** COMMENT ** 
+compileBenchmarkingFile 
+  :: FilePath     -- ^ Benchmarking filepath.
+  -> [String]     -- ^ GHC compiler flags.
+  -> FilePath     -- ^ User input filepath.
+  -> IO ()   
+compileBenchmarkingFile = undefined
 
 -- * Helper functions 
 

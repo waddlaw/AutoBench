@@ -22,6 +22,7 @@ import AutoBench.Internal.IO
 
 main :: IO () 
 main = do
+  
   --args <- OPTS.customExecParser (OPTS.prefs OPTS.showHelpOnError) $ clArgsParser
 
   let fp = "./Input.hs"
@@ -42,7 +43,7 @@ main = do
     _ -> printGoodbyeMessage
 
   where 
-
+    -- Runner for the 'hint' monad but throw any errors in IO.
     processUserInputFile :: FilePath -> IO UserInputs
     processUserInputFile  = 
       (either throwIO return =<<) . runInterpreter . userInputCheck
