@@ -22,4 +22,4 @@ tDat :: UnaryTestData [Int]
 tDat  = take 20 $ zip [1..] $ fmap return (repeat [1])
 
 ts :: TestSuite 
-ts  = def { _dataOpts = Manual "tDat" }
+ts  = def { _dataOpts = Manual "tDat", _baseline = True }

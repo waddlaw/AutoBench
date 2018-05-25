@@ -1,30 +1,23 @@
 
+{-# OPTIONS_GHC -Wall   #-} 
 {-# LANGUAGE LambdaCase #-}
 
-import qualified Options.Applicative as OPTS
-import Language.Haskell.Interpreter
-import Control.Exception.Base
+-- import qualified Options.Applicative as OPTS
 
-import AutoBench.Internal.Hint 
-import AutoBench.Internal.UserInputChecks
-import AutoBench.Internal.AbstractSyntax
-import AutoBench.Internal.Types
-import AutoBench.Internal.Utils
-import AutoBench.Internal.IO 
+import Control.Exception.Base       (throwIO)
+import System.Console.Haskeline     (defaultSettings, runInputT)
+import Language.Haskell.Interpreter (runInterpreter)
 
+import AutoBench.Internal.Types           (UserInputs)
+import AutoBench.Internal.UserInputChecks (userInputCheck)
+import AutoBench.Internal.Utils           (filepathToModuleName)
+import AutoBench.Internal.IO              
+  ( genBenchmarkingFilename 
+  , generateBenchmarkingFile
+  , printGoodbyeMessage
+  , selTestSuiteOption 
+  )
 
-import qualified Text.PrettyPrint.HughesPJ as PP
-
-
-import System.Directory           ( doesFileExist, getDirectoryContents
-                                  , removeFile )
-
-
-import System.Console.Haskeline hiding (throwIO)
-
-
-runAndHandle :: Interpreter a -> IO a
-runAndHandle  = (either throwIO return =<<) . runInterpreter
 
 
 main :: IO () 
@@ -33,30 +26,24 @@ main = do
 
   let fp = "./Input.hs"
       mn = filepathToModuleName fp
-  
-  putStr "\n  \9656 Processing input file "
+
+  putStr "\n  \9656 Processing input file "                                      -- (1) Process user input file.
   inps <- processUserInputFile fp
   putStrLn "\10004"
-  (runInputT defaultSettings $ selTestSuiteOption inps) >>= \case 
+  (runInputT defaultSettings $ selTestSuiteOption inps) >>= \case                -- (2) Select test suite.
     [(idt, ts)] -> do 
       putStrLn $ "  \9656 Running test suite '" ++ idt ++ "'"
       putStr   $ "     Generating benchmarking file "  
-      benchFP <- genBenchmarkingFilename fp
-      generateBenchmarkingFile benchFP mn inps idt ts 
+      benchFP <- genBenchmarkingFilename fp                                      -- (3) Generate benchmarking file.
+      generateBenchmarkingFile benchFP mn inps idt ts                            
       putStrLn "\10004"
-
-
-
-
-
+      putStr   $ "     Compiling benchmarking file "                             -- (4) Compile benchmarking file.
 
     _ -> printGoodbyeMessage
 
+  where 
 
-
-
-
-processUserInputFile :: FilePath -> IO UserInputs
-processUserInputFile  = (either throwIO return =<<) . runInterpreter . userInputCheck
-
+    processUserInputFile :: FilePath -> IO UserInputs
+    processUserInputFile  = 
+      (either throwIO return =<<) . runInterpreter . userInputCheck
 
