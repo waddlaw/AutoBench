@@ -3,7 +3,7 @@
 
 {-|
 
-  Module      : AutoBench.DynamicChecks
+  Module      : AutoBench.Internal.DynamicChecks
   Description : Dynamically validating and classifying user inputs.
   Copyright   : (c) 2018 Martin Handley
   License     : BSD-style
@@ -62,7 +62,7 @@
    - 
 -}
 
-module AutoBench.DynamicChecks
+module AutoBench.Internal.DynamicChecks
   (
     checkNFDataInputUn              -- Dynamic check for 1. /NFDataInput/ for unary functions.
   , checkNFDataInputBin             -- Dynamic check for 1. /NFDataInput/ for binary functions.
@@ -80,7 +80,7 @@ import Control.DeepSeq (NFData, rnf)
 import Data.List       (nub)
 import Test.QuickCheck (Arbitrary)
 
-import AutoBench.Types 
+import AutoBench.Internal.Types 
   ( BinaryTestData
   , TestSuite(..)
   , UnaryTestData

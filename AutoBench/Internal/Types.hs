@@ -5,7 +5,7 @@
 
 {-|
 
-  Module      : AutoBench.TypeString
+  Module      : AutoBench.Internal.Types
   Description : Datatypes and associated helper functions\/defaults.
   Copyright   : (c) 2018 Martin Handley
   License     : BSD-style
@@ -30,7 +30,7 @@
    - 
 -}
 
-module AutoBench.Types 
+module AutoBench.Internal.Types 
   (
 
   -- * User inputs
@@ -77,8 +77,8 @@ import           Data.List                 (sort)
 import           GHC.Generics              (Generic)
 import qualified Text.PrettyPrint.HughesPJ as PP
 
-import AutoBench.Utils (deggar, subNum, superNum)
-import AutoBench.AbstractSyntax 
+import AutoBench.Internal.Utils (deggar, subNum, superNum)
+import AutoBench.Internal.AbstractSyntax 
   ( HsType
   , Id
   , ModuleElem(..)

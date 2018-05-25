@@ -4,7 +4,7 @@
 
 {-|
 
-  Module      : AutoBench.AbstractSyntax
+  Module      : AutoBench.Internal.AbstractSyntax
   Description : Abstract syntactic representation of user inputs.
   Copyright   : (c) 2018 Martin Handley
   License     : BSD-style
@@ -25,7 +25,7 @@
    -
 -}
 
-module AutoBench.AbstractSyntax
+module AutoBench.Internal.AbstractSyntax
   (
 
   -- * Abstract syntax

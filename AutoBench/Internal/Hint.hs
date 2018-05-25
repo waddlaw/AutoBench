@@ -48,9 +48,9 @@ import Language.Haskell.Interpreter
   , typeOf
   )
 
-import AutoBench.AbstractSyntax (Id, ModuleElem(..), ModuleName, TypeString)
-import AutoBench.Types          (InputError(..), SystemError(..))
-import AutoBench.Utils          (filepathToModuleName)
+import AutoBench.Internal.AbstractSyntax (Id, ModuleElem(..), ModuleName, TypeString)
+import AutoBench.Internal.Types          (InputError(..), SystemError(..))
+import AutoBench.Internal.Utils          (filepathToModuleName)
 
 -- | Load a file and set the top level module. The module name is calculated
 -- from the filename by simply dropping the \'.hs\' extension. For example, if

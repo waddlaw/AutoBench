@@ -32,7 +32,7 @@ module AutoBench.Internal.DataGeneration
   ) where 
 
 import Test.QuickCheck (Arbitrary, arbitrary, generate, resize)
-import AutoBench.Types (DataOpts(..), toHRange)
+import AutoBench.Internal.Types (DataOpts(..), toHRange)
 
 -- | Generate test data for binary test programs in the given size range.
 genDataBin :: (Arbitrary a, Arbitrary b) => DataOpts -> [IO (a, b)] 

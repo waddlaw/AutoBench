@@ -39,9 +39,9 @@ import qualified Data.ByteString.Char8 as C
 
 
 
-import AutoBench.Types 
-import AutoBench.Utils
-import AutoBench.AbstractSyntax
+import AutoBench.Internal.Types 
+import AutoBench.Internal.Utils
+import AutoBench.Internal.AbstractSyntax
 
 import qualified Text.PrettyPrint.HughesPJ as PP
 

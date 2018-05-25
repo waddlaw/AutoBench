@@ -4,7 +4,7 @@
 
 {-|
 
-  Module      : AutoBench.StaticChecks
+  Module      : AutoBench.Internal.StaticChecks
   Description : Statically validating and classifying user inputs.
   Copyright   : (c) 2018 Martin Handley
   License     : BSD-style
@@ -51,7 +51,7 @@
    -
 -}
 
-module AutoBench.StaticChecks
+module AutoBench.Internal.StaticChecks
   (
 
   -- * Syntactic checks
@@ -74,7 +74,7 @@ module AutoBench.StaticChecks
 
 import Language.Haskell.Parser (ParseResult(..), parseModule)
 
-import AutoBench.AbstractSyntax
+import AutoBench.Internal.AbstractSyntax
   ( HsDecl(..)
   , HsModule(..)
   , HsQualType(..)

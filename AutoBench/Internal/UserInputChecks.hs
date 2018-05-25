@@ -5,7 +5,7 @@
 
 {-|
 
-  Module      : AutoBench.UserInputChecks
+  Module      : AutoBench.Internal.UserInputChecks
   Description : Interpreting, validating, and classifying user inputs.
   Copyright   : (c) 2018 Martin Handley
   License     : BSD-style
@@ -62,11 +62,10 @@
    ----------------------------------------------------------------------------
    <TO-DO>:
    ----------------------------------------------------------------------------
-   - Comment expandTestSuites;
    -
 -}
 
-module AutoBench.UserInputChecks (userInputCheck) where 
+module AutoBench.Internal.UserInputChecks (userInputCheck) where 
 
 import           Control.Category    ((>>>))
 import           Data.List           ((\\), groupBy, intersect, nub, sortBy)
@@ -83,7 +82,7 @@ import Language.Haskell.Interpreter
   , interpret
   )
 
-import AutoBench.AbstractSyntax
+import AutoBench.Internal.AbstractSyntax
   ( HsType
   , Id
   , ModuleElem(..)
@@ -94,7 +93,7 @@ import AutoBench.AbstractSyntax
   , tyFunInps
   , unqualTyToTy
   )
-import AutoBench.StaticChecks 
+import AutoBench.Internal.StaticChecks 
   ( isABGenTyFun
   , isABTyFun
   , isBinaryTestData
@@ -107,12 +106,12 @@ import AutoBench.StaticChecks
   , parseTySig
   , testDataTyFunInps
   )
-import AutoBench.Hint  
+import AutoBench.Internal.Hint  
   ( extractElemsAndTypes
   , loadFileSetTopLevelModule
   , loadFileSetTopLevelModuleWithHelpers
   )
-import AutoBench.Types 
+import AutoBench.Internal.Types 
   ( AnalOpts(..)
   , DataOpts(..)
   , InputError(..)
@@ -128,12 +127,12 @@ import AutoBench.Types
   , minInputs
   , numPredictors
   )
-import AutoBench.Utils (allEq, filepathToModuleName, notNull)
+import AutoBench.Internal.Utils (allEq, filepathToModuleName, notNull)
 
 
 -- * Top-level 
 
--- | Top level function for parsing, validating and classifying user inputs.
+-- | Top level function for parsing, validating and classifying user inputs.     -- <TO-DO> 
 userInputCheck :: MonadInterpreter m => FilePath -> m UserInputs 
 userInputCheck fp  = do 
   let mn = filepathToModuleName fp
@@ -656,22 +655,18 @@ extractUserInputs fp =
 catchIE :: MonadInterpreter m => m a -> (InterpreterError -> m a) -> m a
 catchIE  = catch
 
-
-
-
-
-
-
-
-
-
-
-
-
--- **** TO COMMENT **** 
-
--- Expand valid test suites input by the user 
--- I.e., empty '_progs' lists are expanded                                              -- <TO-DO> **COMMENT**
+-- Expand valid test suites input by the user which have empty '_progs' lists. 
+--           
+-- Background:                              
+-- Users can provide empty '_progs' lists in their test suites to instruct the 
+-- system to generate all valid options based on the remainder of the test 
+-- suite's settings. In practice, this means the system has to generate 
+-- one or more test suites for every test suite of this form.
+--
+-- The main complication is ensuring that, when the '_progs' list is populated,
+-- the test programs selected must be compatible with user-specified test data,
+-- if applicable. If users have chosen to generate test data automatically,
+-- then this isn't an issue.
 expandTestSuites :: UserInputs -> UserInputs
 expandTestSuites inps = 
   inps { _testSuites = concatMap (uncurry expandTestSuite) (_testSuites inps) }
@@ -683,7 +678,7 @@ expandTestSuites inps =
       -- In this case we need to expand test suites because the '_progs'
       -- list is empty. The only complication is to ensure the type of 
       -- user-specified test data matches the programs added 
-      -- to the '_progs' list.
+      -- to the '_progs' list. To do this we use 'matchWithTestData'.
       | _nf ts && gen = genTestSuites $ fmap (fmap fst) benchNfArbFunsGpd                      -- nf and gen benchmarkable: no manual match.
       | _nf ts        = genTestSuites $ matchWithTestData (_dataOpts ts) benchNfFunsGpd        -- nf benchmarkable:         manual match.
       | gen           = genTestSuites $ fmap (fmap fst) benchArbFunsGpd                        -- gen benchmarkable:        no manual match.
@@ -723,18 +718,18 @@ expandTestSuites inps =
             Just ty -> fmap (fmap fst) $ filter (\xs -> match (snd $ head xs) ty) validFuns
           where match fTy dTy = tyFunInps fTy == testDataTyFunInps dTy
 
-    -- Groupings by type:
+    -- Groupings by type: to match against the type of user-specified test data.
     benchArbFunsGpd   = groupBy (\x1 x2 -> snd x1 == snd x2) $ sortBy (comparing snd) benchArbFuns
     benchNfFunsGpd    = groupBy (\x1 x2 -> snd x1 == snd x2) $ sortBy (comparing snd) benchNfFuns
     benchNfArbFunsGpd = groupBy (\x1 x2 -> snd x1 == snd x2) $ sortBy (comparing snd) benchNfArbFuns
     benchFunsGpd      = groupBy (\x1 x2 -> snd x1 == snd x2) $ sortBy (comparing snd) benchFuns
 
-    -- Cross-referencing:
+    -- Cross-referencing from the 'UserInputs':
     benchArbFuns   = benchFuns `intersect` arbFuns
     benchNfFuns    = benchFuns `intersect` nfFuns
     benchNfArbFuns = benchFuns `intersect` nfFuns `intersect` arbFuns
 
-    -- Projections:
+    -- Projections from 'UserInputs':
     benchFuns = _benchFuns  inps
     nfFuns    = _nfFuns     inps
     arbFuns   = _arbFuns    inps

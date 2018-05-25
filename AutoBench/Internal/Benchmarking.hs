@@ -59,9 +59,9 @@ import Criterion.Types
   , whnf
   )
 
-import AutoBench.AbstractSyntax          (Id)
+import AutoBench.Internal.AbstractSyntax (Id)
 import AutoBench.Internal.DataGeneration (genDataUn, genDataBin)
-import AutoBench.Types
+import AutoBench.Internal.Types
   ( UnaryTestData
   , BinaryTestData
   , TestSuite(..)

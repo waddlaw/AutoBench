@@ -3,7 +3,7 @@
 
 {-|
 
-  Module      : AutoBench.Utils
+  Module      : AutoBench.Internal.Utils
   Description : General-purpose helper functions.
   Copyright   : (c) 2018 Martin Handley
   License     : BSD-style
@@ -22,7 +22,7 @@
    - 
 -}
 
-module AutoBench.Utils
+module AutoBench.Internal.Utils
   (
 
   -- * AutoBench specific
