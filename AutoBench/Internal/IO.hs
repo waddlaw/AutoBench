@@ -29,7 +29,7 @@
    - generateBenchmarks error handling?
    - It would be nice for the generating benchmarking file to be nicely
      formatted;
-   - comment: compileBenchmarkingFile 
+   - comment: compileBenchmarkingFile deleteBenchmarkingFiles
 -}
 
 module AutoBench.Internal.IO 
@@ -43,21 +43,46 @@ module AutoBench.Internal.IO
   -- * IO for benchmarking files
   , generateBenchmarkingFile            -- Generate a benchmarking file to benchmark all the test programs in a given test suite
   , compileBenchmarkingFile             -- Compile benchmarking file using zero or more user-specified compiler flags.
+  , deleteBenchmarkingFiles             -- **COMMENT**
   -- * Helper functions
   , discoverInputFiles                  -- Discover potential input files in the working directory.
-  , genBenchmarkingFilename             -- Generate a valid filename for the benchmarking file from the filename of the user input file.
+  , execute                             -- Execute a file, capturing its output to STDOUT and printing it to the command line.
+  , generateBenchmarkingFilename        -- Generate a valid filename for the benchmarking file from the filename of the user input file.
   , printGoodbyeMessage                 -- Say goodbye.
 
   ) where
 
+
+
+
+import           Control.Exception         (catch)
+import           Control.Exception.Base    (throwIO)
+import           Control.Monad             (unless, void)
 import           Control.Monad.Catch       (throwM)
 import           Control.Monad.IO.Class    (MonadIO, liftIO)
+import qualified Data.ByteString           as BS
+import qualified Data.ByteString.Char8     as C
 import           Data.Char                 (toLower)
+import qualified DynFlags                  as GHC
+import qualified GHC                       as GHC
+import qualified GHC.Paths                 as GHC   
 import           System.Console.Haskeline  (InputT, MonadException, getInputLine)
-import           System.Directory          (doesFileExist, getDirectoryContents)
-import           System.FilePath.Posix     ( takeBaseName, takeDirectory
-                                           , takeExtension )
+import           System.Directory          ( doesFileExist, getDirectoryContents 
+                                           , removeFile )
+import           System.FilePath.Posix     ( dropExtension, takeBaseName
+                                           , takeDirectory, takeExtension )
+import           System.IO                 (Handle)
+import           System.IO.Error           (isDoesNotExistError)
 import qualified Text.PrettyPrint.HughesPJ as PP
+
+import System.Process 
+  ( ProcessHandle
+  , StdStream(..)
+  , createProcess
+  , getProcessExitCode
+  , proc
+  , std_out
+  )
 
 import AutoBench.Internal.Utils          (strip)
 import AutoBench.Internal.AbstractSyntax (Id, ModuleName, prettyPrint, qualIdt)
@@ -284,18 +309,70 @@ generateBenchmarkingFile fp mn inps tsIdt ts = do
 
                                                                                   -- ** COMMENT ** 
 compileBenchmarkingFile 
-  :: FilePath     -- ^ Benchmarking filepath.
-  -> [String]     -- ^ GHC compiler flags.
-  -> FilePath     -- ^ User input filepath.
-  -> IO ()   
-compileBenchmarkingFile = undefined
+  :: FilePath             -- ^ Benchmarking filepath.
+  -> FilePath             -- ^ User input filepath.
+  -> [String]             -- ^ GHC compiler flags.
+  -> IO (Bool, [String])  -- ^ (Successful, Invalid flags).   
+compileBenchmarkingFile benchFP userFP flags = 
+  GHC.runGhc (Just GHC.libdir) $ do
+    dflags <- GHC.getSessionDynFlags
+    (dflags', invalidFlags, _) <- GHC.parseDynamicFlagsCmdLine dflags (GHC.noLoc <$> flags) 
+    -- Make sure location of input file is included in import paths.
+    let dflags'' = dflags' { GHC.importPaths = GHC.importPaths dflags ++ [takeDirectory userFP] }
+    void $ GHC.setSessionDynFlags dflags''
+    target <- GHC.guessTarget benchFP Nothing
+    GHC.setTargets [target]
+    success <- GHC.succeeded <$> GHC.load GHC.LoadAllTargets
+    return (success, fmap GHC.unLoc invalidFlags)
+
+
+                                                                                  -- ** COMMENT ** 
+
+deleteBenchmarkingFiles :: FilePath -> FilePath -> [FilePath] -> IO ()
+deleteBenchmarkingFiles fout fin sysTmps = 
+  mapM_ removeIfExists (fins_ ++ fouts_ ++ sysTmps)
+  where 
+    fin_    = dropExtension fin
+    fins_   = fmap (fin_ ++) exts
+    fout_   = dropExtension fout
+    fouts_  = fout : fout_ : fmap (fout_ ++ ) exts
+    exts    = [".o", ".hi"]
+
+    removeIfExists fp = removeFile fp `catch` handleExists
+      where handleExists e | isDoesNotExistError e = return ()
+                           | otherwise = throwIO e
+
+
+
+
+
 
 -- * Helper functions 
 
+-- | Execute a file, capturing its output to STDOUT and printing it to the
+-- command line.
+execute :: FilePath -> IO ()
+execute fp = do 
+  let p = (proc fp []) { std_out = CreatePipe }
+  (_, Just out, _, ph) <- createProcess p
+  printOutput ph out 
+  where
+    printOutput :: ProcessHandle -> Handle -> IO ()
+    printOutput ph h = go 
+      where 
+        go = do 
+               bs <- BS.hGetNonBlocking h (64 * 1024)
+               printLine bs 
+               ec <- getProcessExitCode ph
+               maybe go (const $ do 
+                end <- BS.hGetContents h
+                print end) ec
+        printLine bs = unless (BS.null bs) (C.putStr bs)
+
 -- | Generate a valid filename for the benchmarking file from the filename of 
 -- the user input file.
-genBenchmarkingFilename :: String -> IO String 
-genBenchmarkingFilename s = do 
+generateBenchmarkingFilename :: String -> IO String 
+generateBenchmarkingFilename s = do 
   b1 <- doesFileExist s'
   b2 <- doesFileExist (addSuffix s')
   if b1 || b2
