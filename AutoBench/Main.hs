@@ -31,7 +31,7 @@ main :: IO ()
 main = do
   --args <- OPTS.customExecParser (OPTS.prefs OPTS.showHelpOnError) $ clArgsParser
 
-  let fp = "Input.hs"
+  let fp = "./Input.hs"
       mn = filepathToModuleName fp
   
   putStr "\n  \9656 Processing input file "

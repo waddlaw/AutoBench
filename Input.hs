@@ -18,5 +18,8 @@ fastRev xs = go xs []
     go [] ys       = ys 
     go (x : xs) ys = go xs (x : ys)
 
+tDat :: UnaryTestData [Int]
+tDat  = take 20 $ zip [1..] $ fmap return (repeat [1])
+
 ts :: TestSuite 
-ts  = def
+ts  = def { _dataOpts = Manual "tDat" }

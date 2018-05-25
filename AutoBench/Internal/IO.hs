@@ -54,7 +54,8 @@ import           Control.Monad.IO.Class    (MonadIO, liftIO)
 import           Data.Char                 (toLower)
 import           System.Console.Haskeline  (InputT, MonadException, getInputLine)
 import           System.Directory          (doesFileExist, getDirectoryContents)
-import           System.FilePath.Posix     (takeExtension)
+import           System.FilePath.Posix     ( takeBaseName, takeDirectory
+                                           , takeExtension )
 import qualified Text.PrettyPrint.HughesPJ as PP
 
 import AutoBench.Internal.Utils          (strip)
@@ -179,7 +180,7 @@ generateBenchmarkingFile fp mn inps tsIdt ts = do
                   , PP.text "main :: IO ()"                                          -- Generate a main function.
                   , PP.text "main  = AutoBench.Internal.Benchmarking.runBenchmarks"  -- Run benchmarks.
                       PP.<+> PP.char '(' PP.<> gFunc PP.<>  PP.char ')'              -- Generate benchmarks.
-                      PP.<+> PP.text tsIdt                                           -- Identifier of chosen test suite (for run cfg).
+                      PP.<+> PP.text (prettyPrint . qualIdt mn $ tsIdt)              -- Identifier of chosen test suite (for run cfg).
                   ]
   -- Write to file.
   writeFile fp (PP.render contents)
@@ -231,7 +232,7 @@ generateBenchmarkingFile fp mn inps tsIdt ts = do
     genGenFunc func = PP.hsep $ 
         [ PP.text func
         , ppList $ fmap ppTuple qualProgs
-        , PP.text tsIdt
+        , PP.text (prettyPrint . qualIdt mn $ tsIdt)
         ]    
 
     -- Generate function call for benchmarks using user-specified test data.
@@ -241,8 +242,8 @@ generateBenchmarkingFile fp mn inps tsIdt ts = do
       return $ PP.hsep
         [ PP.text func
         , ppList $ fmap ppTuple qualProgs
-        , PP.text tsIdt
-        , PP.text dat
+        , PP.text (prettyPrint . qualIdt mn $ tsIdt)
+        , PP.text (prettyPrint . qualIdt mn $ dat)
         ] 
 
     -- Pretty print a (identifier, program) tuple.
@@ -299,7 +300,7 @@ genBenchmarkingFilename s = do
       else return (addSuffix s_')
 
     addSuffix = (++ ".hs")
-    s'        = "Bench" ++ s
+    s'        = takeDirectory s ++ "/Bench" ++ takeBaseName s
 
 -- | Discover potential input files in the working directory.
 discoverInputFiles :: IO [FilePath]
