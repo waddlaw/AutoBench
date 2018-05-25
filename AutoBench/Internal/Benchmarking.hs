@@ -5,14 +5,30 @@
 {-|
 
   Module      : AutoBench.Internal.Benchmarking
-  Description : <TO-DO>
+  Description : Functions used to generate Criterion benchmarks.
   Copyright   : (c) 2018 Martin Handley
   License     : BSD-style
   Maintainer  : martin.handley@nottingham.ac.uk
   Stability   : Experimental
   Portability : GHC
 
-  <TO-DO>
+  This module is responsible for generating benchmarks for test programs
+  to be executed by Criterion. In some cases (i.e., when users require the
+  system to automatically generate test data), this processes involves 
+  generating appropriate benchmark inputs using 
+  'AutoBench.Internal.DataGeneration'.
+
+  Also included is AutoBench's top-level function for running benchmarks:
+  see 'runBenchmarks'.
+
+  Due to Arbitrary/NFData typing constraints, one generation function is 
+  required for each possible configuration of:
+
+  -- Generated or user-specified test data
+  -- Results of test programs evaluated to weak head normal form or normal form;
+  -- Unary or binary test programs
+
+  Therefore eight generation functions are required in total.
 
 -}
 
@@ -20,8 +36,7 @@
    ----------------------------------------------------------------------------
    <TO-DO>:
    ----------------------------------------------------------------------------
-   - Comment all;
-   - 
+   - I'm all for aligning syntax, but there's too much white space!
 -}
 
 module AutoBench.Internal.Benchmarking 
@@ -38,10 +53,9 @@ module AutoBench.Internal.Benchmarking
   , genBenchmarksManWhnfUn    -- Cfg: user-specified test data, results to whnf, unary test programs.
   , genBenchmarksManNfBin     -- Cfg: user-specified test data, results to nf, binary test programs.
   , genBenchmarksManWhnfBin   -- Cfg: user-specified test data, results to whnf, binary test programs.
+  -- * Running Criterion benchmarks
+  , runBenchmarks             -- AutoBench's top-level function for running benchmarks using Criterion.
 
-
-  -- * Running benchmarks
-  , runBenchmarks               -- Run benchmarks with Criterion.
   ) where 
 
 import Control.DeepSeq (NFData)
@@ -340,9 +354,14 @@ genBenchmarksManWhnfBin ps _ = fmap (gen ps)
           ]
       )
 
+-- * Running Criterion benchmarks.
 
-
-
+-- | Run one or more Criterion benchmarks sequentially.
+--
+-- Note: Criterion /must/ output a JSON report file for benchmark results so 
+-- runtimes can be analysed by AutoBench. If the user-specified Criterion 
+-- configuration doesn't include a JSON file (the default configuration 
+-- doesn't), AutoBench uses its own default: 'defBenchRepFilename'.
 runBenchmarks :: [Benchmark] -> TestSuite -> IO () 
 runBenchmarks bs ts = defaultMainWith cfg { jsonFile = Just repFile } bs
   where 

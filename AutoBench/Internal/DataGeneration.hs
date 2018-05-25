@@ -1,18 +1,21 @@
 
 {-# OPTIONS_GHC -Wall #-}
 
-
 {-|
 
   Module      : AutoBench.Internal.DataGeneration
-  Description : <TO-DO>
+  Description : Generate test data using QuickCheck.
   Copyright   : (c) 2018 Martin Handley
   License     : BSD-style
   Maintainer  : martin.handley@nottingham.ac.uk
   Stability   : Experimental
   Portability : GHC
 
-  <TO-DO>
+  This module is responsible for generating test data using QuickCheck.
+  
+  The types do all the work here, so when these functions are used in 
+  a specific context, they generate the right data. Only the size
+  range of the inputs to be generated must be specified using 'DataOpts'.
 
 -}
 
