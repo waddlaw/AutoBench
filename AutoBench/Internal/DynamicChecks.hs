@@ -12,11 +12,12 @@
   Portability : GHC
 
   A number of dynamic checks are used to classify user inputs according to 
-  properties that cannot be checked statically (see 'AutoBench.StaticChecks'
-  for static checking). For example, the system cannot determine whether the 
-  input types of user-specified test programs are members of the 'NFData' or 
-  'Arbitrary' type classes by simply inspecting their type signatures. Instead,
-  dynamic checks are used to determine whether these properties hold.
+  properties that cannot be checked statically (see 
+  'AutoBench.Internal.StaticChecks' for static checking). For example, the 
+  system cannot determine whether the input types of user-specified test 
+  programs are members of the 'NFData' or 'Arbitrary' type classes by simply 
+  inspecting their type signatures. Instead, dynamic checks are used to 
+  determine whether these properties hold.
 
   Following static checking, the system determines whether the types of user 
   inputs have the following properties:

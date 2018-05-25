@@ -72,7 +72,7 @@ loadFileSetTopLevelModule fp = do
 
 -- | Similar to 'loadFileSetTopLevelModule' but loads additional helper 
 -- modules. In practice, this is used for dynamically checking user input files:
--- see AutoBench.UserInputChecks.
+-- see AutoBench.Internal.UserInputChecks.
 --
 -- For AutoBench purposes:
 -- 'hint' requires that all modules are loaded at the same, so the system cannot 

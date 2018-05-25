@@ -359,14 +359,15 @@ maxCVIters  = 500
 -- system first interprets a user input file, all of its definitions are added 
 -- to the '_allElems' list. This list is then processed to determine which 
 -- definitions have function types that are syntactically compatible with the 
--- requirements of the system (see 'AutoBench.StaticChecks'). Definitions that 
--- are compatible are added to the '_validElems' list, and those that aren't are 
--- added to the '_invalidElems' list. Elements in the '_validElems' list are
--- then classified according to, for example, whether they are nullary, 
--- unary, or binary functions. This check process continues until all user 
--- inputs are classified according to the list headers below. Note that
--- both static ('AutoBench.StaticChecks') and dynamic 
--- ('AutoBench.DynamicChecks') checks are required to classify user inputs.
+-- requirements of the system (see 'AutoBench.Internal.StaticChecks'). 
+-- Definitions that are compatible are added to the '_validElems' list, and 
+-- those that aren't are added to the '_invalidElems' list. Elements in the 
+-- '_validElems' list are then classified according to, for example, whether 
+-- they are nullary, unary, or binary functions. This check process continues
+-- until all user  inputs are classified according to the list headers below. 
+-- Note that both static ('AutoBench.Internal.StaticChecks') and dynamic 
+-- ('AutoBench.Internal.DynamicChecks') checks are required to classify user 
+-- inputs.
 --
 -- Notice that each /invalid/ definitions has one or more input errors 
 -- associated with it.
@@ -378,8 +379,8 @@ data UserInputs =
   UserInputs
    {
      _allElems           :: [(ModuleElem, Maybe TypeString)]         -- ^ All definitions in a user input file.
-   , _invalidElems       :: [(ModuleElem, Maybe TypeString)]         -- ^ Syntactically invalid definitions (see 'AutoBench.AbstractSyntax').
-   , _validElems         :: [(Id, HsType)]                           -- ^ Syntactically valid definitions (see 'AutoBench.AbstractSyntax').
+   , _invalidElems       :: [(ModuleElem, Maybe TypeString)]         -- ^ Syntactically invalid definitions (see 'AutoBench.Internal.AbstractSyntax').
+   , _validElems         :: [(Id, HsType)]                           -- ^ Syntactically valid definitions (see 'AutoBench.Internal.AbstractSyntax').
    , _nullaryFuns        :: [(Id, HsType)]                           -- ^ Nullary functions.
    , _unaryFuns          :: [(Id, HsType)]                           -- ^ Unary functions.
    , _binaryFuns         :: [(Id, HsType)]                           -- ^ Binary functions.
@@ -479,7 +480,7 @@ numPredictors Exp{}         = 2
 -- | Errors raised by the system due to implementation failures. These can be 
 -- generated at any time but are usually used to report unexpected IO results. 
 -- For example, when dynamically checking user inputs (see 
--- 'AutoBench.UserInputChecks'), system errors are used to relay 
+-- 'AutoBench.Internal.UserInputChecks'), system errors are used to relay 
 -- 'InterpreterError's thrown by functions in the hint package in cases
 -- where the system didn't expect errors to result.
 data SystemError = InternalErr String

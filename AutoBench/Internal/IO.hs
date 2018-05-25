@@ -44,6 +44,7 @@ module AutoBench.Internal.IO
   , generateBenchmarkingFile            -- Generate a benchmarking file to benchmark all the test programs in a given test suite
   -- * Helper functions
   , discoverInputFiles                  -- Discover potential input files in the working directory.
+  , genBenchmarkingFilename             -- Generate a valid filename for the benchmarking file from the filename of the user input file.
   , printGoodbyeMessage                 -- Say goodbye.
 
   ) where
@@ -52,13 +53,20 @@ import           Control.Monad.Catch       (throwM)
 import           Control.Monad.IO.Class    (MonadIO, liftIO)
 import           Data.Char                 (toLower)
 import           System.Console.Haskeline  (InputT, MonadException, getInputLine)
-import           System.Directory          (getDirectoryContents)
+import           System.Directory          (doesFileExist, getDirectoryContents)
 import           System.FilePath.Posix     (takeExtension)
 import qualified Text.PrettyPrint.HughesPJ as PP
 
+import AutoBench.Internal.Utils          (strip)
+import AutoBench.Internal.AbstractSyntax (Id, ModuleName, prettyPrint, qualIdt)
 import AutoBench.Internal.Types 
-import AutoBench.Internal.Utils
-import AutoBench.Internal.AbstractSyntax
+  ( DataOpts(..)
+  , SystemError(..)
+  , TestSuite(..)
+  , UserInputs(..)
+  , docTestSuite
+  , docUserInputs
+  )
 
 
 -- * User interactions 
@@ -154,7 +162,7 @@ generateBenchmarkingFile
   -> IO ()    
 generateBenchmarkingFile fp mn inps tsIdt ts = do 
   -- Generate functional call.
-  func <- genFunc gen nf unary
+  gFunc <- genFunc gen nf unary
   -- Generate file contents.
 
   -----------------------------------------------------------------------------
@@ -165,13 +173,13 @@ generateBenchmarkingFile fp mn inps tsIdt ts = do
                   [ PP.text "" 
                   , PP.text "module Main (main) where"
                   , PP.text ""
-                  , PP.text "import AutoBench.Internal.Benchmarking"
-                  , PP.text "import" PP.<+> PP.text mn
+                  , PP.text "import qualified AutoBench.Internal.Benchmarking"       -- Import all generation functions.
+                  , PP.text "import qualified" PP.<+> PP.text mn                     -- Import user input file.
                   , PP.text ""
-                  , PP.text "main :: IO ()"
-                  , PP.text "main  = AutoBench.Internal.Benchmarking.runBenchmarks" 
-                      PP.<+> PP.char '(' PP.<> func PP.<>  PP.char ')'
-                      PP.<+> PP.text tsIdt
+                  , PP.text "main :: IO ()"                                          -- Generate a main function.
+                  , PP.text "main  = AutoBench.Internal.Benchmarking.runBenchmarks"  -- Run benchmarks.
+                      PP.<+> PP.char '(' PP.<> gFunc PP.<>  PP.char ')'              -- Generate benchmarks.
+                      PP.<+> PP.text tsIdt                                           -- Identifier of chosen test suite (for run cfg).
                   ]
   -- Write to file.
   writeFile fp (PP.render contents)
@@ -270,6 +278,28 @@ generateBenchmarkingFile fp mn inps tsIdt ts = do
       throwM (InternalErr $ "generateBenchmarks: unexpected 'Gen' setting.")
 
 -- * Helper functions 
+
+-- | Generate a valid filename for the benchmarking file from the filename of 
+-- the user input file.
+genBenchmarkingFilename :: String -> IO String 
+genBenchmarkingFilename s = do 
+  b1 <- doesFileExist s'
+  b2 <- doesFileExist (addSuffix s')
+  if b1 || b2
+  then go s' 0
+  else return (addSuffix s')
+  where 
+    go :: String -> Int -> IO String
+    go s_ i = do 
+      let s_' = s_ ++ show i
+      b1 <- doesFileExist s_'
+      b2 <- doesFileExist (addSuffix s_')
+      if b1 || b2
+      then go s_ (i + 1)
+      else return (addSuffix s_')
+
+    addSuffix = (++ ".hs")
+    s'        = "Bench" ++ s
 
 -- | Discover potential input files in the working directory.
 discoverInputFiles :: IO [FilePath]

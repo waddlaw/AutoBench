@@ -13,7 +13,7 @@
   Portability : GHC
 
   To statically validate and classify user inputs, the system uses an abstract 
-  representation of Haskell 98 (see 'AutoBench.AbstractSyntax'). This 
+  representation of Haskell 98 (see 'AutoBench.Internal.AbstractSyntax'). This 
   representation allows the system to check syntactic properties of types. 
   In particular, the system checks whether the types of user inputs have the 
   following properties:
@@ -38,9 +38,9 @@
   9.  BinaryData: a nullary function with type @BinaryTestData x y@ for some 
       types @x@ and @y@.                                                         => added to '_binaryData'
   
-  Subsequent /dynamic/ checks (see 'AutoBench.DynamicChecks') are performed to 
-  further (re-)classify user inputs according to additional properties they 
-  satisfy.
+  Subsequent /dynamic/ checks (see 'AutoBench.Internal.DynamicChecks') are 
+  performed to further (re-)classify user inputs according to additional 
+  properties they satisfy.
 
 -}
 

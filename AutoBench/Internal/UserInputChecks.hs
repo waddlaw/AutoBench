@@ -51,8 +51,9 @@
   /dynamic/ checks can be used to classify functions according to the property 
   \'has input types that are members of the 'NFData' type class\'.
   
-  As such, the system performs static ('AutoBench.StaticChecks') and dynamic 
-  validation and classification ('AutoBench.DynamicChecks') of user inputs.
+  As such, the system performs static ('AutoBench.Internal.StaticChecks') and 
+  dynamic validation and classification ('AutoBench.Internal.DynamicChecks') 
+  of user inputs.
 
   This module is responsible for coordinating the overall checking process.
 
@@ -142,7 +143,7 @@ userInputCheck fp  = do
   inps <- extractUserInputs fp
   -- First static checks/categorising.
   let fstStInps = firstStatic inps
-  loadFileSetTopLevelModuleWithHelpers fp ["AutoBench.DynamicChecks"]            -- Use AutoBench.DynamicChecks dynamically.
+  loadFileSetTopLevelModuleWithHelpers fp ["AutoBench.Internal.DynamicChecks"]            -- Use AutoBench.Internal.DynamicChecks dynamically.
   -- First dynamic checks/categorising.
   fstDynInps <- firstDynamic mn fstStInps
   -- Second static checks.
@@ -518,8 +519,8 @@ catNFDataInput mn inps = do
       (const $ return False)
 
     -- Functions to perform checks, qualified with module name.
-    qualCheckFunUn  = "AutoBench.DynamicChecks.checkNFDataInputUn"
-    qualCheckFunBin = "AutoBench.DynamicChecks.checkNFDataInputBin"
+    qualCheckFunUn  = "AutoBench.Internal.DynamicChecks.checkNFDataInputUn"
+    qualCheckFunBin = "AutoBench.Internal.DynamicChecks.checkNFDataInputBin"
 
 -- | Categorise functions in the '_unaryFuns' and '_binaryFuns' list according
 -- to 2. /NFDataResult/, i.e., their result types are members of the 'NFData' 
@@ -536,8 +537,8 @@ catNFDataResult mn inps = do
       (const $ return False)
 
     -- Functions to perform checks, qualified with module name.
-    qualCheckFunUn  = "AutoBench.DynamicChecks.checkNFDataResultUn"
-    qualCheckFunBin = "AutoBench.DynamicChecks.checkNFDataResultBin"
+    qualCheckFunUn  = "AutoBench.Internal.DynamicChecks.checkNFDataResultUn"
+    qualCheckFunBin = "AutoBench.Internal.DynamicChecks.checkNFDataResultBin"
 
 -- | Categorise functions in the '_arbFuns' list according to 3. /Arbitrary/, 
 -- i.e., their input types are members of the 'Arbitrary' type class. 
@@ -558,8 +559,8 @@ catArbitrary mn inps = do
       | otherwise = return False                                                                           -- <TO-DO>: should probably error report here?
 
     -- Functions to perform checks, qualified with module name.
-    qualCheckFunUn  = "AutoBench.DynamicChecks.checkArbitraryUn"
-    qualCheckFunBin = "AutoBench.DynamicChecks.checkArbitraryBin"
+    qualCheckFunUn  = "AutoBench.Internal.DynamicChecks.checkArbitraryUn"
+    qualCheckFunBin = "AutoBench.Internal.DynamicChecks.checkArbitraryBin"
 
 -- | Categorise functions in the '_nullaryFuns' list according to 
 -- 4. /TestSuites/. Load and interpret test suites in this list and add them to 
@@ -605,7 +606,7 @@ checkFullTestSuites mn inps = do
           return ((idt, ts) : vs, ivs)
       ) (const $ return (vs, (idt, [inputErr]) : ivs))
     
-    qualCheckFun = "AutoBench.DynamicChecks.checkInitialisedTestSuite"
+    qualCheckFun = "AutoBench.Internal.DynamicChecks.checkInitialisedTestSuite"
     inputErr = TestSuiteErr "One or more record fields are uninitialised/undefined."
 
 -- | Validate test data in the '_unaryData' and '_binaryData' lists according
@@ -638,8 +639,8 @@ checkValidTestData mn inps = do
           else return (vs, (idt, ty, [sizeErr]) : ivs)
       ) (\e -> return (vs, (idt, ty, [DataOptsErr $ show e]) : ivs))
     
-    qualCheckFunUn  = "AutoBench.DynamicChecks.sizeUnaryTestData"
-    qualCheckFunBin = "AutoBench.DynamicChecks.sizeBinaryTestData"
+    qualCheckFunUn  = "AutoBench.Internal.DynamicChecks.sizeUnaryTestData"
+    qualCheckFunBin = "AutoBench.Internal.DynamicChecks.sizeBinaryTestData"
 
     sizeErr = DataOptsErr $ "A minimum of " ++ show minInputs ++ " distinctly sized test inputs are required."
 

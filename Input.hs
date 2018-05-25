@@ -1,7 +1,7 @@
 
 module Input where 
 
-import AutoBench.Types 
+import AutoBench.Internal.Types 
 import Data.Default 
 import Data.List
 
