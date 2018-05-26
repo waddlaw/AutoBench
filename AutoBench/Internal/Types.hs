@@ -33,7 +33,7 @@ module AutoBench.Internal.Types
   (
 
   -- * Re-exports
-  module AutoBench.Types
+    module AutoBench.Types
   -- * User inputs
   -- ** Test suites
   , docTestSuite           -- Generate a 'PP.Doc' for a 'TestSuite'.
