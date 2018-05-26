@@ -12,8 +12,8 @@
   Stability   : Experimental
   Portability : GHC
 
-  Datatypes used throughout AutoBench's implementation and any associated 
-  helper functions\/defaults.
+  Datatypes used internally throughout AutoBench's implementation and any 
+  associated helper functions\/defaults.
 
 -}
 

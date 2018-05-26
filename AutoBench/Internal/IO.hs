@@ -29,7 +29,8 @@
    - generateBenchmarks error handling?
    - It would be nice for the generating benchmarking file to be nicely
      formatted;
-   - comment: compileBenchmarkingFile deleteBenchmarkingFiles
+   - Comment: compileBenchmarkingFile, deleteBenchmarkingFiles;
+   -
 -}
 
 module AutoBench.Internal.IO 
@@ -51,9 +52,6 @@ module AutoBench.Internal.IO
   , printGoodbyeMessage                 -- Say goodbye.
 
   ) where
-
-
-
 
 import           Control.Exception         (catch)
 import           Control.Exception.Base    (throwIO)
