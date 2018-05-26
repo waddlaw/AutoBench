@@ -68,7 +68,7 @@ import           Data.List                 (sort)
 import qualified Text.PrettyPrint.HughesPJ as PP
 
 import           AutoBench.Internal.Utils (deggar)
-import           AutoBench.Types 
+import           AutoBench.Types  -- Re-export
 
 import AutoBench.Internal.AbstractSyntax 
   ( HsType
