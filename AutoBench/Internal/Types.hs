@@ -35,8 +35,6 @@ module AutoBench.Internal.Types
   -- * Re-exports
     module AutoBench.Types
   -- * User inputs
-  -- ** Test suites
-  , docTestSuite           -- Generate a 'PP.Doc' for a 'TestSuite'.
   -- ** Test data options
   , toHRange               -- Convert @Gen l s u :: DataOpts@ to a Haskell range.
   , minInputs              -- Minimum number of distinctly sized test inputs.
@@ -49,7 +47,6 @@ module AutoBench.Internal.Types
   , maxCVIters             -- Maximum number of cross-validation iterations.
   -- ** Internal representation of user inputs
   , UserInputs(..)         -- A data structure maintained by the system to classify user inputs.
-  , docUserInputs          -- Create a 'PP.Doc' for a 'UserInputs'.
   , initUserInputs         -- Initialise a 'UserInputs' data structure.
   -- * Benchmarking
   -- * Statistical analysis                                                                                        -- <TO-DO>
@@ -59,12 +56,16 @@ module AutoBench.Internal.Types
   , SystemError(..)        -- System errors.
   -- ** Input errors
   , InputError(..)         -- User input errors.
-
-
+  -- * Helpers 
+  -- ** Pretty printing
+  , docTestSuite           -- Generate a 'PP.Doc' for a 'TestSuite'.
+  , docUserInputs          -- Create a 'PP.Doc' for a 'UserInputs'.
   ) where
 
 import           Control.Exception.Base    (Exception)
-import           Data.List                 (sort)
+import           Data.List                 (sort, sortBy)
+import           Data.Ord                  (comparing)
+import           Data.Tuple.Select         (sel1)
 import qualified Text.PrettyPrint.HughesPJ as PP
 
 import           AutoBench.Internal.Utils (deggar)
@@ -271,15 +272,20 @@ instance Exception InputError
 
 -- * Helpers 
 
--- | Generate a 'PP.Doc' for a 'TestSuite'. 
-docTestSuite :: TestSuite -> PP.Doc                                                                        -- ** NEEDS COMMENTS ** 
+-- ** Pretty printing 
+
+-- | Simplified pretty printing for the 'TestSuite' data structure.
+-- Note: prints test programs and 'DataOpts' only.
+docTestSuite :: TestSuite -> PP.Doc                                                                        
 docTestSuite ts = PP.vcat 
   [ 
     PP.hcat $ PP.punctuate (PP.text ", ") $ fmap PP.text $ _progs ts
   , PP.text $ show $ _dataOpts ts
   ]
 
--- | Generate a 'PP.Doc' for a 'UserInputs'.                                                               -- ** NEEDS COMMENTS ** 
+-- | Full pretty printing for the 'UserInputs' data structure. 
+-- Note: prints all fields; invalids are printed last. 
+-- NB. always print in alphabetical order.                                                
 docUserInputs :: UserInputs -> PP.Doc 
 docUserInputs inps = PP.vcat $ PP.punctuate (PP.text "\n")
   [ PP.text "All module elements:"     PP.$$ (PP.nest 2 $ showElems             $ _allElems          inps)
@@ -293,32 +299,50 @@ docUserInputs inps = PP.vcat $ PP.punctuate (PP.text "\n")
   , PP.text "Unary test data:"         PP.$$ (PP.nest 2 $ showTypeableElems     $ _unaryData         inps)
   , PP.text "Binary test data:"        PP.$$ (PP.nest 2 $ showTypeableElems     $ _binaryData        inps)
   , PP.text "Test suites:"             PP.$$ (PP.nest 2 $ showTestSuites        $ _testSuites        inps)
-  , PP.text "Invalid module elements:" PP.$$ (PP.nest 2 $ showElems             $ _invalidElems      inps)
+
+  -- Invalids come last because they have associated 'InputError's.
+  , PP.text "Invalid module elements:" PP.$$ (PP.nest 2 $ showElems             $ _invalidElems      inps) 
   , PP.text "Invalid test data:"       PP.$$ (PP.nest 2 $ showInvalidData       $ _invalidData       inps)
   , PP.text "Invalid test suites:"     PP.$$ (PP.nest 2 $ showInvalidTestSuites $ _invalidTestSuites inps)
   ]
   where 
+
+    -- Pretty printing for @[(ModuleElem, Maybe TypeString)]@.
     showElems :: [(ModuleElem, Maybe TypeString)] -> PP.Doc 
     showElems [] = PP.text "N/A"
     showElems xs = PP.vcat [showDs, showCs, showFs]
       where 
         ((fs, tys), cs, ds) = foldr splitShowModuleElems (([], []), [], []) xs
 
+      
         showDs | null ds   = PP.empty 
-               | otherwise = PP.vcat [PP.text "Data:", PP.nest 2 $ PP.vcat $ fmap PP.text $ sort ds]
+               | otherwise = PP.vcat 
+                   [ PP.text "Data:"
+                   , PP.nest 2 $ PP.vcat $ fmap PP.text $ sort ds
+                   ]
         showCs | null cs   = PP.empty 
-               | otherwise = PP.vcat [PP.text "Class:", PP.nest 2 $ PP.vcat $ fmap PP.text $ sort cs]
+               | otherwise = PP.vcat 
+                   [ PP.text "Class:"
+                   , PP.nest 2 $ PP.vcat $ fmap PP.text $ sort cs
+                   ]
         showFs | null fs   = PP.empty 
-               | otherwise = PP.vcat [PP.text "Fun:", PP.nest 2 $ PP.vcat $ fmap PP.text $ sort $ zipWith (\idt ty -> idt ++ " :: " ++ ty) (deggar fs) tys]
+               | otherwise = PP.vcat 
+                   [ PP.text "Fun:"
+                   , PP.nest 2 $ PP.vcat $ fmap PP.text $ sort $ 
+                       zipWith (\idt ty -> idt ++ " :: " ++ ty) (deggar fs) tys
+                   ]
 
+    -- Pretty printing for @[(Id, HsType)]@..
     showTypeableElems :: [(Id, HsType)] -> PP.Doc
     showTypeableElems [] = PP.text "N/A"
-    showTypeableElems xs = PP.vcat $ fmap PP.text $ sort $ zipWith (\idt ty -> idt ++ " :: " ++ prettyPrint ty) (deggar idts) tys
+    showTypeableElems xs = PP.vcat $ fmap PP.text $ sort $ 
+      zipWith (\idt ty -> idt ++ " :: " ++ prettyPrint ty) (deggar idts) tys
       where (idts, tys) = unzip xs
 
+    -- Pretty printing for 'TestSuite's.
     showTestSuites :: [(Id, TestSuite)] -> PP.Doc 
     showTestSuites [] = PP.text "N/A"
-    showTestSuites xs = PP.vcat $ fmap (uncurry showTestSuite) xs
+    showTestSuites xs = PP.vcat $ fmap (uncurry showTestSuite) $ sortBy (comparing fst) xs
       where 
         showTestSuite :: Id -> TestSuite -> PP.Doc 
         showTestSuite idt ts = PP.vcat 
@@ -326,33 +350,42 @@ docUserInputs inps = PP.vcat $ PP.punctuate (PP.text "\n")
           , PP.nest 2 $ PP.vcat $ fmap PP.text (_progs ts)
           ]
 
+    -- Invalids, need additional nesting for input errors: --------------------
+    -- Don't forget to sort alphabetically. 
+
     showInvalidData :: [(Id, HsType, [InputError])] -> PP.Doc
     showInvalidData [] = PP.text "N/A"
-    showInvalidData xs = PP.vcat $ fmap showInvalidDat xs
+    showInvalidData xs = PP.vcat $ fmap showInvalidDat $ sortBy (comparing sel1) xs
       where 
         showInvalidDat :: (Id, HsType, [InputError]) -> PP.Doc
         showInvalidDat (idt, ty, errs) = PP.vcat 
           [ PP.text $ idt ++ " :: " ++ prettyPrint ty
-          , PP.nest 2 $ PP.vcat $ fmap (PP.text . show) errs 
+          , PP.nest 2 $ PP.vcat $ fmap (PP.text . show) $ sortBy (comparing show) errs 
           ]
 
     showInvalidTestSuites :: [(Id, [InputError])]  -> PP.Doc 
     showInvalidTestSuites [] = PP.text "N/A"
-    showInvalidTestSuites xs = PP.vcat $ fmap showInvalidTestSuite xs
+    showInvalidTestSuites xs = PP.vcat $ fmap showInvalidTestSuite $ sortBy (comparing fst) xs
       where 
         showInvalidTestSuite :: (Id, [InputError]) -> PP.Doc 
         showInvalidTestSuite (idt, errs) = PP.vcat 
           [ PP.text idt PP.<+> PP.text ":: TestSuite"
-          , PP.nest 2 $ PP.vcat $ fmap (PP.text . show) errs 
+          , PP.nest 2 $ PP.vcat $ fmap (PP.text . show) $ sortBy (comparing show) errs 
           ]
 
     -- Helpers:
 
+    -- Split the 'ModuleElem's to display 'Fun' types by the side of 'Fun' identifiers.
+    -- (The 'Class' and 'Data' 'ModuleElem's don't have typing information.)
     splitShowModuleElems 
       :: (ModuleElem, Maybe TypeString)
       -> (([String], [String]), [String], [String]) 
       -> (([String], [String]), [String], [String])
-    splitShowModuleElems (Fun idt, Just ty) ((fs, tys), cs, ds) = ((idt : fs, ty : tys), cs, ds)
-    splitShowModuleElems (Fun idt, Nothing) ((fs, tys), cs, ds) = ((idt : fs, "" : tys), cs, ds)
+    -- Types.
+    splitShowModuleElems (Fun idt, Just ty) ((fs, tys), cs, ds) = 
+      ((idt : fs, ty : tys), cs, ds)
+    -- No types.
+    splitShowModuleElems (Fun idt, Nothing) ((fs, tys), cs, ds) = 
+      ((idt : fs, "" : tys), cs, ds) -- Shouldn't happen.
     splitShowModuleElems (Class idt _, _) (fs, cs, ds) = (fs, idt : cs, ds)
     splitShowModuleElems (Data idt _, _)  (fs, cs, ds) = (fs, cs, idt : ds)
