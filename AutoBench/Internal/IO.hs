@@ -50,6 +50,7 @@ module AutoBench.Internal.IO
   , discoverInputFiles                  -- Discover potential input files in the working directory.
   , execute                             -- Execute a file, capturing its output to STDOUT and printing it to the command line.
   , generateBenchmarkingFilename        -- Generate a valid filename for the benchmarking file from the filename of the user input file.
+  , generateBenchmarkingReport          -- ** COMMENT **
   , printGoodbyeMessage                 -- Say goodbye.
 
   ) where
@@ -93,28 +94,21 @@ import System.Process
   )
 
 import Criterion.Types 
- ( Benchmark
- , Report
+ ( Report
  , anMean
  , anOutlierVar
  , anRegress
  , anStdDev
- , bench
- , bgroup
- , env
- , jsonFile
  , ovEffect
  , ovFraction
  , regCoeffs
  , regResponder
  , reportAnalysis
- , reportFile
  , reportName
  , reportMeasured
  )
 
-import AutoBench.Internal.Utils          ( Parser, allEq, integer, lexeme, strip
-                                         , symbol )
+import AutoBench.Internal.Utils          (Parser, allEq, integer, strip, symbol)
 import AutoBench.Internal.AbstractSyntax (Id, ModuleName, prettyPrint, qualIdt)
 import AutoBench.Internal.Types 
   ( BenchReport(..)
@@ -378,10 +372,10 @@ deleteBenchmarkingFiles fBench fUser sysTmps =
 
 
 
--- <TO-DO>:  Compare with UserInputs to confirm sizes of test data
+-- <TO-DO>:  Compare with UserInputs to confirm sizes of test data              -- ** COMMENT ** 
 
-genBenchmarkingReport :: TestSuite -> FilePath -> IO BenchReport 
-genBenchmarkingReport ts fp = do 
+generateBenchmarkingReport :: TestSuite -> FilePath -> IO BenchReport 
+generateBenchmarkingReport ts fp = do 
   -- Check file exists.
   exists <- doesFileExist fp 
   unless exists (throwIO $ FileErr $ "Cannot locate Criterion report: " ++ fp)
@@ -402,7 +396,7 @@ genBenchmarkingReport ts fp = do
     where
 
 
-      withBaselines :: [Report] -> [Report] -> Maybe ([DataSize], [(Id, DataSize)])
+      withBaselines :: [Report] -> [Report] -> Maybe ([DataSize], [(Id, DataSize)])          --  <TO-DO>: ADD MORE CHECKS
       withBaselines [] [] = Nothing
       withBaselines _  [] = Nothing 
       withBaselines []  _ = Nothing 
@@ -410,20 +404,19 @@ genBenchmarkingReport ts fp = do
         nBls <- sequence $ fmap (MP.parseMaybe parseBaseline . 
           dropWhile (/= 'I') . reportName) bls
         nNonBls <- sequence $ fmap (MP.parseMaybe parseRepName . 
-          dropWhile (/= 'I') . reportName) nonBls 
+          dropWhile (/= 'I') . reportName) nonBls
         let nNonBlss = groupBy (\x1 x2 -> fst x1 == fst x2) $ sortBy (comparing fst) nNonBls
-            sizes = fmap (sort . fmap snd) nNonBlss                                                    --  <TO-DO>: ADD MORE CHECKS
+            sizes = fmap (sort . fmap snd) nNonBlss                                           
         if | not (allEq $ sort nBls : sizes) -> Nothing 
            | otherwise -> Just (nBls, nNonBls)
 
-
-      noBaselines :: [Report] -> Maybe [(Id, DataSize)]
+      noBaselines :: [Report] -> Maybe [(Id, DataSize)]                                       -- <TO-DO>: ADD MORE CHECKS
       noBaselines [] = Nothing
-      noBaselines reps = do 
+      noBaselines reps = do
         xs <- sequence $ fmap (MP.parseMaybe parseRepName . reportName) reps 
         let xss = groupBy (\x1 x2 -> fst x1 == fst x2) $ sortBy (comparing fst) xs
             sizes = fmap (sort . fmap snd) xss
-        if | not (allEq sizes) -> Nothing                                                              -- <TO-DO>: ADD MORE CHECKS
+        if | not (allEq sizes) -> Nothing                                                           
            | otherwise -> Just xs
 
       convertReps :: [(Report, (Id, DataSize))] -> [(Report, DataSize)] -> BenchReport
@@ -498,7 +491,7 @@ genBenchmarkingReport ts fp = do
         -- E.g., "Input Sizes (5, 5)/p1"
         -- E.g., "Input Size 5/p2"
         void $ symbol "Input Size"
-        void $ MP.anyChar
+        void $ MP.optional (MP.letterChar)
         ds <- parseDataSize
         void $ symbol "/"
         idt <- MP.manyTill MP.anyChar MP.eof
@@ -508,7 +501,7 @@ genBenchmarkingReport ts fp = do
       parseBaseline :: Parser DataSize 
       parseBaseline = do
         void $ symbol "Input Size"
-        void $ MP.anyChar 
+        void $ MP.optional (MP.letterChar)
         parseDataSize
 
       -- Parse the encoded data size from the name of a Criterion report.
@@ -549,7 +542,7 @@ execute fp = do
                ec <- getProcessExitCode ph
                maybe go (const $ do 
                 end <- BS.hGetContents h
-                print end) ec
+                printLine end) ec
         printLine bs = unless (BS.null bs) (C.putStr bs)
 
 -- | Generate a valid filename for the benchmarking file from the filename of 

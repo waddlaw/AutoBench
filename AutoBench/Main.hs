@@ -7,13 +7,19 @@
 import           Control.Exception.Base       (finally, throwIO)
 import           Control.Monad                (unless)
 import           Criterion.Types              (reportFile)
+import           Data.Maybe                   (fromMaybe)
 import           Language.Haskell.Interpreter (runInterpreter)
 import           System.Console.Haskeline     (defaultSettings, runInputT)
 import           System.FilePath.Posix        (dropExtension)
 import qualified Text.PrettyPrint.HughesPJ    as PP
 
-import AutoBench.Internal.Types           ( InputError(..), TestSuite(..)
-                                          , UserInputs, defBenchRepFilename)
+import AutoBench.Internal.Types          
+  ( BenchReport(..)
+  , InputError(..)
+  , TestSuite(..)
+  , UserInputs
+  , defBenchRepFilename
+  )
 import AutoBench.Internal.UserInputChecks (userInputCheck)
 import AutoBench.Internal.Utils           (filepathToModuleName)
 import AutoBench.Internal.IO              
@@ -22,6 +28,7 @@ import AutoBench.Internal.IO
   , execute
   , generateBenchmarkingFilename 
   , generateBenchmarkingFile
+  , generateBenchmarkingReport
   , printGoodbyeMessage
   , selTestSuiteOption 
   )
@@ -63,6 +70,14 @@ main = do
                   putStrLn $ poorNest 5 "\8226 Executing benchmarking file..."                       -- (5) Execute benchmarking file.
                   putStrLn ""
                   execute (dropExtension benchFP)
+                  putStrLn $ poorNest 5 "\8226 Executed benchmarking file \10004"                    
+                  putStr $ poorNest 5 "\8226 Generating benchmarking report"                         -- (6) Generate benchmarking report.
+                  rep <- generateBenchmarkingReport ts (benchRepFilename ts)
+                  putStrLn $ poorNest 1 "\10004"
+                  print $ _bProgs rep
+
+
+
               ) (deleteBenchmarkingFiles benchFP fp $ tempSysFiles ts)                               -- (X) Finally delete benchmarking files.  *** WHICH SYS FILES? ***
 
 
@@ -97,3 +112,5 @@ main = do
     tempSysFiles ts = [] 
      --reportFile (_critCfg ts) == Nothing = [defBenchRepFilename] ******** TO DO !!
      -- | otherwise = []
+
+    benchRepFilename ts = fromMaybe defBenchRepFilename (reportFile $ _critCfg ts) 
