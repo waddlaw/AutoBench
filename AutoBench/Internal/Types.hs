@@ -346,13 +346,11 @@ docUserInputs inps = PP.vcat $ PP.punctuate (PP.text "\n")
   , PP.text "Benchmarkable functions:" PP.$$ (PP.nest 2 $ showTypeableElems     $ _benchFuns         inps)
   , PP.text "Arbitrary functions:"     PP.$$ (PP.nest 2 $ showTypeableElems     $ _arbFuns           inps)
   , PP.text "NFData functions:"        PP.$$ (PP.nest 2 $ showTypeableElems     $ _nfFuns            inps)
-  , PP.text "Unary test data:"         PP.$$ (PP.nest 2 $ showTypeableElems     $ 
-      fmap (sel1 &&& sel2) $ _unaryData  inps) -- Don't print sizing information.
-  , PP.text "Binary test data:"        PP.$$ (PP.nest 2 $ showTypeableElems     $ 
-      fmap (sel1 &&& sel2) $ _binaryData inps) -- Don't print sizing information.
+  , PP.text "Unary test data:"         PP.$$ (PP.nest 2 $ showTypeableElems     $ fmap (sel1 &&& sel2) $ _unaryData  inps) -- Don't print sizing information.
+  , PP.text "Binary test data:"        PP.$$ (PP.nest 2 $ showTypeableElems     $ fmap (sel1 &&& sel2) $ _binaryData inps) -- Don't print sizing information.
   , PP.text "Test suites:"             PP.$$ (PP.nest 2 $ showTestSuites        $ _testSuites        inps)
 
-  -- Invalids come last because they have associated 'InputError's.
+  -- Invalids come last because they have 'InputError's.
   , PP.text "Invalid module elements:" PP.$$ (PP.nest 2 $ showElems             $ _invalidElems      inps) 
   , PP.text "Invalid test data:"       PP.$$ (PP.nest 2 $ showInvalidData       $ _invalidData       inps)
   , PP.text "Invalid test suites:"     PP.$$ (PP.nest 2 $ showInvalidTestSuites $ _invalidTestSuites inps)
@@ -364,19 +362,22 @@ docUserInputs inps = PP.vcat $ PP.punctuate (PP.text "\n")
     showElems [] = PP.text "N/A"
     showElems xs = PP.vcat [showDs, showCs, showFs]
       where 
+        -- Split into (Fun, Class, Data).
         ((fs, tys), cs, ds) = foldr splitShowModuleElems (([], []), [], []) xs
 
-      
+        -- Data.
         showDs | null ds   = PP.empty 
                | otherwise = PP.vcat 
                    [ PP.text "Data:"
                    , PP.nest 2 $ PP.vcat $ fmap PP.text $ sort ds
                    ]
+        -- Class.
         showCs | null cs   = PP.empty 
                | otherwise = PP.vcat 
                    [ PP.text "Class:"
                    , PP.nest 2 $ PP.vcat $ fmap PP.text $ sort cs
                    ]
+        -- Fun.
         showFs | null fs   = PP.empty 
                | otherwise = PP.vcat 
                    [ PP.text "Fun:"
@@ -394,7 +395,8 @@ docUserInputs inps = PP.vcat $ PP.punctuate (PP.text "\n")
     -- Pretty printing for 'TestSuite's.
     showTestSuites :: [(Id, TestSuite)] -> PP.Doc 
     showTestSuites [] = PP.text "N/A"
-    showTestSuites xs = PP.vcat $ fmap (uncurry showTestSuite) $ sortBy (comparing fst) xs
+    showTestSuites xs = PP.vcat $ fmap (uncurry showTestSuite) $ 
+      sortBy (comparing fst) xs
       where 
         showTestSuite :: Id -> TestSuite -> PP.Doc 
         showTestSuite idt ts = PP.vcat 
@@ -407,27 +409,32 @@ docUserInputs inps = PP.vcat $ PP.punctuate (PP.text "\n")
 
     showInvalidData :: [(Id, HsType, [InputError])] -> PP.Doc
     showInvalidData [] = PP.text "N/A"
-    showInvalidData xs = PP.vcat $ fmap showInvalidDat $ sortBy (comparing sel1) xs
+    showInvalidData xs = PP.vcat $ fmap showInvalidDat $ 
+      sortBy (comparing sel1) xs
       where 
         showInvalidDat :: (Id, HsType, [InputError]) -> PP.Doc
         showInvalidDat (idt, ty, errs) = PP.vcat 
           [ PP.text $ idt ++ " :: " ++ prettyPrint ty
-          , PP.nest 2 $ PP.vcat $ fmap (PP.text . show) $ sortBy (comparing show) errs 
+          , PP.nest 2 $ PP.vcat $ fmap (PP.text . show) $ 
+              sortBy (comparing show) errs 
           ]
 
     showInvalidTestSuites :: [(Id, [InputError])]  -> PP.Doc 
     showInvalidTestSuites [] = PP.text "N/A"
-    showInvalidTestSuites xs = PP.vcat $ fmap showInvalidTestSuite $ sortBy (comparing fst) xs
+    showInvalidTestSuites xs = PP.vcat $ fmap showInvalidTestSuite $ 
+      sortBy (comparing fst) xs
       where 
         showInvalidTestSuite :: (Id, [InputError]) -> PP.Doc 
         showInvalidTestSuite (idt, errs) = PP.vcat 
           [ PP.text idt PP.<+> PP.text ":: TestSuite"
-          , PP.nest 2 $ PP.vcat $ fmap (PP.text . show) $ sortBy (comparing show) errs 
+          , PP.nest 2 $ PP.vcat $ fmap (PP.text . show) $ 
+              sortBy (comparing show) errs 
           ]
 
     -- Helpers:
 
-    -- Split the 'ModuleElem's to display 'Fun' types by the side of 'Fun' identifiers.
+    -- Split the 'ModuleElem's to display 'Fun' types by the side of 'Fun' 
+    -- identifiers.
     -- (The 'Class' and 'Data' 'ModuleElem's don't have typing information.)
     splitShowModuleElems 
       :: (ModuleElem, Maybe TypeString)

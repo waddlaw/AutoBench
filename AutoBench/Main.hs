@@ -5,7 +5,6 @@
 -- import qualified Options.Applicative as OPTS
 
 import           Control.Exception.Base       (finally, throwIO)
-import           Control.Monad                (unless)
 import           Criterion.Types              (reportFile)
 import           Data.Maybe                   (fromMaybe)
 import           Language.Haskell.Interpreter (runInterpreter)
@@ -15,7 +14,6 @@ import qualified Text.PrettyPrint.HughesPJ    as PP
 
 import AutoBench.Internal.Types          
   ( BenchReport(..)
-  , InputError(..)
   , TestSuite(..)
   , UserInputs
   , defBenchRepFilename

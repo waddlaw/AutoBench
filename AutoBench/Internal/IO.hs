@@ -45,13 +45,13 @@ module AutoBench.Internal.IO
                                         -- data structure /using this function/.
   -- * IO for benchmarking files
   , generateBenchmarkingFile            -- Generate a benchmarking file to benchmark all the test programs in a given test suite
+  , generateBenchmarkingReport          -- Generate a 'BenchReport' that summarises the benchmarking phase of testing.
   , compileBenchmarkingFile             -- Compile benchmarking file using zero or more user-specified compiler flags.
   , deleteBenchmarkingFiles             -- Delete any temporary files created for/during the benchmarking phase.
   -- * Helper functions
   , discoverInputFiles                  -- Discover potential input files in the working directory.
   , execute                             -- Execute a file, capturing its output to STDOUT and printing it to the command line.
   , generateBenchmarkingFilename        -- Generate a valid filename for the benchmarking file from the filename of the user input file.
-  , generateBenchmarkingReport          -- Generate a 'BenchReport' that summarises the benchmarking phase of testing.
   , printGoodbyeMessage                 -- Say goodbye.
 
   ) where
@@ -129,7 +129,7 @@ import AutoBench.Internal.Types
 
 -- | Select which test suite to run from the 'UserInputs' data structure:
 -- 
--- * If one test suite is valid, then this is automatically selected;
+-- * If precisely one test suite is valid, then it is automatically selected;
 -- * If two or more test suites are valid, then users must pick;
 -- * If no test suites are valid, then users can review the 'UserInput's 
 --   data structure.
@@ -138,24 +138,23 @@ import AutoBench.Internal.Types
 selTestSuiteOption 
   :: (MonadIO m, MonadException m) 
   => UserInputs 
-  -> InputT m [(Id, TestSuite)]    -- Note: to be generalised to one or more 
-                                   -- test suites running sequentially.
+  -> InputT m [(Id, TestSuite)]    -- Note: to be generalised to one or more test suites running sequentially.
 selTestSuiteOption inps = case _testSuites inps of 
   -- No valid test suites:
   []   -> do
     liftIO $ putStr "\n\n"
     liftIO (putStrLn "  No valid test suites.")
-    let go = do 
-               liftIO $ putStrLn ""
-               liftIO $ putStrLn $ unlines [ "  * View parse results [P]" 
-                                           , "  * Exit               [E]" ]
-               fmap (fmap toLower . strip) <$> getInputLine "> " >>= \case 
-                 Nothing  -> return []
-                 Just "e" -> return [] 
-                 Just "p" -> liftIO (putStrLn "\n" >> showUserInputs >> putStrLn "\n") >> go
-                 Just _   -> inpErr >> go
+    let go = do liftIO $ putStrLn ""
+                liftIO $ putStrLn $ unlines 
+                  [ "  * View parse results [P]" 
+                  , "  * Exit               [E]" ]
+                fmap (fmap toLower . strip) <$> getInputLine "> " >>= \case 
+                  Nothing  -> return []
+                  Just "e" -> return [] 
+                  Just "p" -> liftIO (putStrLn "\n" >> showUserInputs >> putStrLn "\n") >> go
+                  Just _   -> inpErr >> go
     go
-  -- One valid test suite: automatically select.
+  -- One valid test suite: automatically selected.
   [ts] -> return [ts]
   -- Two or more test suites: user picks /one for the time being/.
   -- This will be generalised to picking multiple for sequential executing.
@@ -163,22 +162,22 @@ selTestSuiteOption inps = case _testSuites inps of
     liftIO $ putStr "\n\n"
     liftIO (putStrLn "  Multiple valid test suites:")
     liftIO (showTestSuites $ _testSuites inps)
-    let go = do 
-               liftIO $ putStrLn ""
-               liftIO $ putStrLn $ unlines [ "  * Run a test suite   [1" ++ endRange
-                                           , "  * View test suites   [V]"
-                                           , "  * View parse results [P]" 
-                                           , "  * Exit               [E]" ]
-               fmap (fmap toLower . strip) <$> getInputLine "> " >>= \case 
-                 Nothing  -> return []
-                 Just "e" -> return [] 
-                 Just "p" -> liftIO (putStrLn "\n" >> showUserInputs >> putStrLn "\n") >> go
-                 Just "v" -> liftIO (showTestSuites $ _testSuites inps) >> go
-                 Just inp -> case reads inp :: [(Int, String)] of 
-                   []         -> inpErr >> go
-                   (n, _) : _ -> if n >= 1 && n <= l
-                                 then return [_testSuites inps !! (n - 1)]
-                                 else inpErr >> go
+    let go = do liftIO $ putStrLn ""
+                liftIO $ putStrLn $ unlines 
+                  [ "  * Run a test suite   [1" ++ endRange
+                  , "  * View test suites   [V]"
+                  , "  * View parse results [P]" 
+                  , "  * Exit               [E]" ]
+                fmap (fmap toLower . strip) <$> getInputLine "> " >>= \case 
+                  Nothing  -> return []
+                  Just "e" -> return [] 
+                  Just "p" -> liftIO (putStrLn "\n" >> showUserInputs >> putStrLn "\n") >> go
+                  Just "v" -> liftIO (showTestSuites $ _testSuites inps) >> go
+                  Just inp -> case reads inp :: [(Int, String)] of 
+                    []         -> inpErr >> go
+                    (n, _) : _ -> if n >= 1 && n <= l
+                                  then return [_testSuites inps !! (n - 1)]
+                                  else inpErr >> go
     go
  
   where 
@@ -198,10 +197,10 @@ selTestSuiteOption inps = case _testSuites inps of
       where
         showTestSuite :: Int -> (Id, TestSuite) -> PP.Doc
         showTestSuite idx (idt, ts) = PP.vcat 
-          [ PP.text $ "" ++ show idx ++ ") " ++ idt
+          [ PP.text $ show idx ++ ") " ++ idt
           , PP.nest 10 $ docTestSuite ts ]
 
-    -- Use the 'docUserInputs' but nest 2.
+    -- Use 'docUserInputs' but nest 2.
     showUserInputs = print $ PP.nest 2 $ docUserInputs inps
 
 
@@ -224,30 +223,31 @@ generateBenchmarkingFile
   -> TestSuite      -- ^ The chosen test suite.
   -> IO ()    
 generateBenchmarkingFile fp mn inps tsIdt ts = do 
-  -- Generate functional call.
-  gFunc <- genFunc gen nf unary
-  
-  -- Generate file contents.
-  -----------------------------------------------------------------------------
-  -- ** CHANGING THE CONTENTS WILL BREAK THE SYSTEM **
-  ----------------------------------------------------------------------------- 
-
-  let contents = PP.vcat 
-                   [ PP.text "" 
-                   , PP.text "module Main (main) where"
-                   , PP.text ""
-                   , PP.text "import qualified AutoBench.Internal.Benchmarking"       -- Import all generation functions.
-                   , PP.text "import qualified" PP.<+> PP.text mn                     -- Import user input file.
-                   , PP.text ""
-                   , PP.text "main :: IO ()"                                          -- Generate a main function.
-                   , PP.text "main  = AutoBench.Internal.Benchmarking.runBenchmarks"  -- Run benchmarks.
-                       PP.<+> PP.char '(' PP.<> gFunc PP.<> PP.char ')'               -- Generate benchmarks.
-                       PP.<+> PP.text (prettyPrint . qualIdt mn $ tsIdt)              -- Identifier of chosen test suite (for run cfg).
-                   ]
-  -- Write contents to file.
-  writeFile fp (PP.render contents)
+  -- Generate functional call that will in turn generate the appropriate 
+  -- benchmarks.
+  gFunc <- genFunc gen nf unary 
+  -- Generate file contents and write to file.
+  writeFile fp (PP.render $ contents gFunc)
 
   where 
+    ---------------------------------------------------------------------------
+    -- ** CHANGING THE CONTENTS WILL BREAK THE SYSTEM **
+    ---------------------------------------------------------------------------
+    -- Note: imports/definitions are qualified to avoid ambiguity.
+
+    contents gFunc = PP.vcat 
+      [ PP.text "" 
+      , PP.text "module Main (main) where"
+      , PP.text ""
+      , PP.text "import qualified AutoBench.Internal.Benchmarking"       -- Import all generation functions.
+      , PP.text "import qualified" PP.<+> PP.text mn                     -- Import user input file.
+      , PP.text ""
+      , PP.text "main :: IO ()"                                          -- Generate a main function.
+      , PP.text "main  = AutoBench.Internal.Benchmarking.runBenchmarks"  -- Run benchmarks.
+          PP.<+> PP.char '(' PP.<> gFunc PP.<> PP.char ')'               -- Generate benchmarks.
+          PP.<+> PP.text (prettyPrint . qualIdt mn $ tsIdt)              -- Identifier of chosen test suite (for run cfg).
+      ]
+
     ---------------------------------------------------------------------------
     -- ** CHANGING THE NAMES OF THESE FUNCTIONS WILL BREAK THE SYSTEM **
     --------------------------------------------------------------------------- 
@@ -598,12 +598,12 @@ execute fp = do
     printOutput ph h = go 
       where 
         go = do 
-               bs <- BS.hGetNonBlocking h (64 * 1024)
-               printLine bs 
-               ec <- getProcessExitCode ph
-               maybe go (const $ do 
-                end <- BS.hGetContents h
-                printLine end) ec
+          bs <- BS.hGetNonBlocking h (64 * 1024)
+          printLine bs 
+          ec <- getProcessExitCode ph
+          maybe go (const $ do 
+            end <- BS.hGetContents h
+            printLine end) ec
         printLine bs = unless (BS.null bs) (C.putStr bs)
 
 -- | Generate a valid filename for the benchmarking file from the filename of 

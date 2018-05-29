@@ -32,8 +32,8 @@ module AutoBench.QuickBench
   (
 
   -- * Datatypes
-    QuickOpts(..)        -- QuickBench options.
-  , GenRange(..)         -- QuickBench test data size range.
+    GenRange(..)         -- QuickBench test data size range.
+  , QuickOpts(..)        -- QuickBench options.
   -- * QuickBench top-level functions: default 'QuickOpts'
   , quickBench           -- QuickBench: unary test programs; test cases evaluated to normal form; default quick options.
   , quickBench'          -- As above but user can specify the names of test programs.
@@ -69,15 +69,23 @@ import AutoBench.Internal.Types (AnalOpts, Coord, Coord3)
 
 -- * Datatypes
 
--- | QuickBench test data size range.
+-- | Size range of test data to be generated for QuickBenching.
 -- Default is: @GenRange 0 5 100@
 data GenRange = GenRange Int Int Int 
 
 instance Default GenRange where 
   def = GenRange 0 5 100
 
--- | QuickBench options.
--- Default is:
+-- | QuickBench user options. These include:
+--
+-- * The names of test programs for plotting on graphs and to be included in
+--   tables of results;
+-- * The size range of generated test data;
+-- * Statistical analysis options;
+-- * The number of times to run each test case. An average runtime is then 
+--   calculated.
+--
+-- The default QuickBench user options are:
 -- @ 
 -- QuickOpts
 --   { _qProgs    = [ "P1", "P2"... ]
@@ -88,10 +96,10 @@ instance Default GenRange where
 -- @
 data QuickOpts = 
   QuickOpts 
-    { _qProgs    :: [String]   -- ^ Names of test programs: for plotting on graphs and tables of results etc.
+    { _qProgs    :: [String]   -- ^ Names of test programs.
     , _qGenRange :: GenRange   -- ^ Size range of generated test data.
     , _qAnalOpts :: AnalOpts   -- ^ Statistical analysis options.
-    , _qRuns     :: Int        -- ^ How many times to run each test case. An average runtime is then calculated.
+    , _qRuns     :: Int        -- ^ How many times to run each test case.
     }
 
 instance Default QuickOpts where 
@@ -216,8 +224,8 @@ quickBenchWhnf2With qOpts ps = do
 
 -- ** Generating test data 
 
--- | Run the generator on the given seed. 
--- Note size parameter here doesn't matter.
+-- | Run the generator on the given seed. Note size parameter here doesn't 
+-- matter.
 unGen' :: QCGen -> Gen a -> a
 unGen' seed gen = unGen gen seed 1 
 
@@ -232,8 +240,8 @@ genSizedBin range = liftA2 (,) <$> genSizedUn range <*> genSizedUn range
 -- ** Benchmarking 
 
 -- | Benchmark a number of unary test programs on the same test data. 
--- Test cases are evaluated to normal form.
--- Returns sets of (input size, runtime) coordinates: one for each test program.
+-- Test cases are evaluated to normal form. Returns sets of 
+-- (input size, runtime) coordinates: one for each test program.
 quickBenchNfUn 
   :: NFData b  
   => QuickOpts
@@ -294,7 +302,8 @@ quickBenchWhnfBin qOpts ps !dats = do
 -- | Execute a benchmarkable for @n@ iterations measuring the total number of
 -- CPU seconds taken. Then calculate the average.
 qBench :: Int -> Benchmarkable -> IO Double
-qBench n b = (/ fromIntegral n) . measMutatorCpuSeconds . fst <$> measure b (fromIntegral n)
+qBench n b = (/ fromIntegral n) . measMutatorCpuSeconds . 
+  fst <$> measure b (fromIntegral n)
 
 -- | Convert a 'GenRange' to a Haskell range.
 toHRange :: GenRange -> [Int]
