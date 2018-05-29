@@ -225,17 +225,17 @@ generateBenchmarkingFile fp mn inps tsIdt ts = do
   ----------------------------------------------------------------------------- 
 
   let contents = PP.vcat 
-                  [ PP.text "" 
-                  , PP.text "module Main (main) where"
-                  , PP.text ""
-                  , PP.text "import qualified AutoBench.Internal.Benchmarking"       -- Import all generation functions.
-                  , PP.text "import qualified" PP.<+> PP.text mn                     -- Import user input file.
-                  , PP.text ""
-                  , PP.text "main :: IO ()"                                          -- Generate a main function.
-                  , PP.text "main  = AutoBench.Internal.Benchmarking.runBenchmarks"  -- Run benchmarks.
-                      PP.<+> PP.char '(' PP.<> gFunc PP.<>  PP.char ')'              -- Generate benchmarks.
-                      PP.<+> PP.text (prettyPrint . qualIdt mn $ tsIdt)              -- Identifier of chosen test suite (for run cfg).
-                  ]
+                   [ PP.text "" 
+                   , PP.text "module Main (main) where"
+                   , PP.text ""
+                   , PP.text "import qualified AutoBench.Internal.Benchmarking"       -- Import all generation functions.
+                   , PP.text "import qualified" PP.<+> PP.text mn                     -- Import user input file.
+                   , PP.text ""
+                   , PP.text "main :: IO ()"                                          -- Generate a main function.
+                   , PP.text "main  = AutoBench.Internal.Benchmarking.runBenchmarks"  -- Run benchmarks.
+                       PP.<+> PP.char '(' PP.<> gFunc PP.<> PP.char ')'               -- Generate benchmarks.
+                       PP.<+> PP.text (prettyPrint . qualIdt mn $ tsIdt)              -- Identifier of chosen test suite (for run cfg).
+                   ]
   -- Write to file.
   writeFile fp (PP.render contents)
 
@@ -326,7 +326,7 @@ generateBenchmarkingFile fp mn inps tsIdt ts = do
     qualProgs = fmap (prettyPrint . qualIdt mn) (_progs ts)
     
     -- Get the identifier of User-specified test data from 'DataOpts'.
-    -- Questionable throwM error handling here/better than a partial function.
+    -- Questionable throwM error handling here? But better than a partial function.
     getManualDatIdt :: DataOpts -> IO Id
     getManualDatIdt (Manual s) = return s 
     getManualDatIdt Gen{} = 
@@ -397,9 +397,7 @@ generateBenchmarkingReport ts fp = do
 
 
       withBaselines :: [Report] -> [Report] -> Maybe ([DataSize], [(Id, DataSize)])          --  <TO-DO>: ADD MORE CHECKS
-      withBaselines [] [] = Nothing
-      withBaselines _  [] = Nothing 
-      withBaselines []  _ = Nothing 
+      withBaselines _ [] = Nothing 
       withBaselines bls nonBls = do 
         nBls <- sequence $ fmap (MP.parseMaybe parseBaseline . 
           dropWhile (/= 'I') . reportName) bls
@@ -420,33 +418,19 @@ generateBenchmarkingReport ts fp = do
            | otherwise -> Just xs
 
       convertReps :: [(Report, (Id, DataSize))] -> [(Report, DataSize)] -> BenchReport
-      convertReps nonBls bls 
-        | null bls  = 
-            BenchReport 
-              { _bProgs    = _progs ts 
-              , _bDataOpts = _dataOpts ts
-              , _bNf       = _nf ts 
-              , _bGhcFlags = _ghcFlags ts 
-              , _reports   = fmap (fmap $ uncurry toSimpleReport) .
-                  -- Group by test program's identifier.
-                  groupBy (\(_, (idt1, _)) (_, (idt2, _)) -> idt1 == idt2) .
-                  -- Sort by test program's identifier.
-                  sortBy  (\(_, (idt1, _)) (_, (idt2, _)) -> compare idt1 idt2) $ nonBls
-              , _baselines = []
-              }
-        | otherwise = 
-            BenchReport 
-              { _bProgs    = _progs ts 
-              , _bDataOpts = _dataOpts ts
-              , _bNf       = _nf ts 
-              , _bGhcFlags = _ghcFlags ts 
-              , _reports   = fmap (fmap $ uncurry toSimpleReport) .
-                  -- Group by test program's identifier.
-                  groupBy (\(_, (idt1, _)) (_, (idt2, _)) -> idt1 == idt2) .
-                  -- Sort by test program's identifier.
-                  sortBy  (\(_, (idt1, _)) (_, (idt2, _)) -> compare idt1 idt2) $ nonBls
-              , _baselines = fmap (uncurry toSimpleReport) (fmap (fmap (\size -> ("BASELINE", size))) bls)
-              }    
+      convertReps nonBls bls = 
+        BenchReport 
+          { _bProgs    = _progs ts 
+          , _bDataOpts = _dataOpts ts
+          , _bNf       = _nf ts 
+          , _bGhcFlags = _ghcFlags ts 
+          , _reports   = fmap (fmap $ uncurry toSimpleReport) .
+              -- Group by test program's identifier.
+              groupBy (\(_, (idt1, _)) (_, (idt2, _)) -> idt1 == idt2) .
+              -- Sort by test program's identifier.
+              sortBy  (\(_, (idt1, _)) (_, (idt2, _)) -> compare idt1 idt2) $ nonBls
+          , _baselines = fmap (uncurry toSimpleReport) (fmap (fmap (\size -> ("BASELINE", size))) bls)
+          }    
 
         where 
 
