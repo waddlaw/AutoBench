@@ -5,6 +5,8 @@ import AutoBench.Types
 import Data.Default 
 import Data.List
 
+import AutoBench.Internal.IO
+
 import Prelude hiding (id)
 
 
@@ -22,7 +24,7 @@ tDat :: UnaryTestData [Int]
 tDat  = take 20 $ zip [1..] $ fmap return (repeat [1])
 
 ts :: TestSuite 
-ts  = def { _dataOpts = Manual "tDat", _baseline = True }
+ts  = def { _progs = ["slowRev", "fastRev"], _dataOpts = Manual "tDat", _baseline = True }
 
 ts2 :: TestSuite 
 ts2 = def

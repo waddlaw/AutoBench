@@ -17,6 +17,7 @@ import AutoBench.Internal.Types
   , TestSuite(..)
   , UserInputs
   , defBenchRepFilename
+  , docBenchReport
   )
 import AutoBench.Internal.UserInputChecks (userInputCheck)
 import AutoBench.Internal.Utils           (filepathToModuleName)
@@ -69,9 +70,9 @@ main = do
                   execute (dropExtension benchFP)
                   putStrLn $ poorNest 5 "\8226 Executed benchmarking file \10004"                    
                   putStr $ poorNest 5 "\8226 Generating benchmarking report"                         -- (6) Generate benchmarking report.
-                  rep <- generateBenchmarkingReport ts (benchRepFilename ts)
+                  rep <- generateBenchmarkingReport mn ts (benchRepFilename ts)
                   putStrLn $ poorNest 1 "\10004"
-                  print $ _bProgs rep
+                  print $ docBenchReport rep
 
 
 

@@ -176,7 +176,9 @@ selTestSuiteOption inps = case _testSuites inps of
                   Just inp -> case reads inp :: [(Int, String)] of 
                     []         -> inpErr >> go
                     (n, _) : _ -> if n >= 1 && n <= l
-                                  then return [_testSuites inps !! (n - 1)]
+                                  then do 
+                                    liftIO $ putStrLn ""
+                                    return [_testSuites inps !! (n - 1)]
                                   else inpErr >> go
     go
  
@@ -404,8 +406,12 @@ deleteBenchmarkingFiles fBench fUser sysTmps =
 --
 -- <TO-DO>: check input size against the 'UserInputs' data structure.
 --
-generateBenchmarkingReport :: TestSuite -> FilePath -> IO BenchReport 
-generateBenchmarkingReport ts fp = do 
+generateBenchmarkingReport 
+  :: ModuleName 
+  -> TestSuite 
+  -> FilePath 
+  -> IO BenchReport 
+generateBenchmarkingReport mn ts fp = do 
   -- Check file exists.
   exists <- doesFileExist fp 
   unless exists (throwIO $ FileErr $ "Cannot locate Criterion report: " ++ fp)
@@ -441,6 +447,9 @@ generateBenchmarkingReport ts fp = do
             return $ convertReps (zip bls nBls) (zip nonBls nNonBls) 
            
     where
+      -- Qualified '_progs' list 
+      progs = sort $ fmap (prettyPrint . qualIdt mn) (_progs ts)
+
       -- The overall idea is that the titles of the Criterion reports encode 
       -- the names of test programs and the sizes of test inputs. The titles
       -- are decoded and the parsed data is checked against the settings of the 
@@ -470,10 +479,10 @@ generateBenchmarkingReport ts fp = do
                          sortBy (comparing fst) nNonBls
         -- The size range of test data for each test program.
             sizes = fmap (sort . fmap snd) nNonBlss 
-        -- Validation checks:                                          
+        -- Validation checks:                                        
         if | not (allEq $ sort (fmap snd nBls) : sizes) -> Nothing                        -- (1) Make sure same number of measurements for each program 
                                                                                           --     and all have same input sizes.
-           | not $ (sort $ fmap (fst . head) nNonBlss) == (sort $ _progs ts) -> Nothing   -- (2) Make sure test programs match those in the 'TestSuite's '_progs' list. 
+           | not $ (sort $ fmap (fst . head) nNonBlss) == progs -> Nothing                -- (2) Make sure test programs match those in the 'TestSuite's '_progs' list. 
                                                                                           -- (3) <TO-DO>: Some form of input size check against 'UserInputs' data structure.
            | otherwise -> Just (nBls, nNonBls)
 

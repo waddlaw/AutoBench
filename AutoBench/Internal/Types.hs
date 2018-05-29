@@ -65,8 +65,11 @@ module AutoBench.Internal.Types
   , InputError(..)         -- User input errors.
   -- * Helpers 
   -- ** Pretty printing
+  , docBenchReport         -- Generate a 'PP.Doc' for a 'BenchReport'.
+  , docSimpleReport        -- Generate a 'PP.Doc' for a 'SimpleReport'.
   , docTestSuite           -- Generate a 'PP.Doc' for a 'TestSuite'.
-  , docUserInputs          -- Create a 'PP.Doc' for a 'UserInputs'.
+  , docUserInputs          -- Generate a 'PP.Doc' for a 'UserInputs'.
+
   ) where
 
 import           Control.Arrow             ((&&&))
@@ -461,3 +464,52 @@ docUserInputs inps = PP.vcat $ PP.punctuate (PP.text "\n")
       ((idt : fs, "" : tys), cs, ds) -- Shouldn't happen.
     splitShowModuleElems (Class idt _, _) (fs, cs, ds) = (fs, idt : cs, ds)
     splitShowModuleElems (Data idt _, _)  (fs, cs, ds) = (fs, cs, idt : ds)
+
+-- | Pretty printing for the 'SimpleReport' data structure. 
+docSimpleReport :: SimpleReport -> PP.Doc 
+docSimpleReport sr = PP.vcat $
+  [ PP.text (_name sr)
+  , PP.nest 2 $ ppSizeRuntime (_size sr) (_runtime sr)
+  ]
+  where 
+    ppSizeRuntime (SizeUn n) d = PP.char '(' PP.<> PP.int n PP.<> PP.text ", " 
+      PP.<> PP.double d PP.<> PP.char ')'
+    ppSizeRuntime (SizeBin n1 n2) d = PP.char '(' PP.<> PP.int n1 PP.<> 
+      PP.text ", " PP.<> PP.int n2 PP.<> PP.text ", " PP.<> 
+      PP.double d PP.<> PP.char ')'
+
+-- | Full pretty printing for 'BenchReport' data structure.
+docBenchReport :: BenchReport -> PP.Doc 
+docBenchReport br = PP.vcat
+  [ PP.hcat $ (PP.text "Test programs: ") : (PP.punctuate (PP.text ", ") $
+      fmap PP.text $ _bProgs br)
+  , PP.text "Data options:" PP.<+> PP.text (show $ _bDataOpts br)
+  , PP.text "Normal form:" PP.<+> PP.text (show $ _bNf br)
+  , PP.vcat $ (PP.text "GHC flags: ") : (PP.punctuate (PP.text ", ") $
+      fmap PP.text $ _bGhcFlags br)
+  , PP.text "Reports:" PP.$$ PP.nest 2 (PP.vcat $ fmap ppTestResults $ _reports br)
+  , ppBaselines (_baselines br)
+  ]
+  where 
+
+    ppTestResults :: [SimpleReport] -> PP.Doc 
+    ppTestResults [] = PP.empty
+    ppTestResults srs = PP.vcat $ 
+      [ PP.text (_name $ head srs)
+      , PP.nest 2 $ PP.vcat $ 
+          fmap (\sr -> ppSizeRuntime (_size sr) (_runtime sr)) srs
+      ]
+
+    ppBaselines :: [SimpleReport] -> PP.Doc
+    ppBaselines []  = PP.empty
+    ppBaselines bls = PP.text "Baseline measurements:" PP.$$ (PP.nest 2 $ 
+      PP.vcat $ fmap (\bl -> ppSizeRuntime (_size bl) (_runtime bl)) bls)
+
+    ppSizeRuntime :: DataSize -> Double -> PP.Doc
+    ppSizeRuntime (SizeUn n) d = PP.char '(' PP.<> PP.int n PP.<> PP.text ", " 
+      PP.<> PP.double d PP.<> PP.char ')'
+    ppSizeRuntime (SizeBin n1 n2) d = PP.char '(' PP.<> PP.int n1 PP.<> 
+      PP.text ", " PP.<> PP.int n2 PP.<> PP.text ", " PP.<> 
+      PP.double d PP.<> PP.char ')'
+
+
