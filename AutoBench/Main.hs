@@ -31,6 +31,7 @@ import AutoBench.Internal.IO
    <TO-DO>:
    ----------------------------------------------------------------------------
    - Which system files to delete?
+   - QuickCheck semantic equality checks are missing;
 -}
 
 
@@ -93,6 +94,6 @@ main = do
     poorNest n = (replicate n ' ' ++)
       
     -- Temporary system files to delete after benchmarking.
-    tempSysFiles ts 
-      | reportFile (_critCfg ts) == Nothing = [defBenchRepFilename]
-      | otherwise = []
+    tempSysFiles ts = [] 
+     --reportFile (_critCfg ts) == Nothing = [defBenchRepFilename] ******** TO DO !!
+     -- | otherwise = []

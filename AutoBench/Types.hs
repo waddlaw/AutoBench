@@ -263,7 +263,7 @@ instance Default AnalOpts where
           , _statsSort     = (\_ _ -> EQ)                                                                         --  <TO-DO>
           , _runtimeComp   = (\_ _ -> EQ)                                                                         --  <TO-DO>
           , _runtimeOrd    = const Nothing                                                                        --  <TO-DO>
-          , _graphFP       = Just "./TimeChecked.png"  
+          , _graphFP       = Just "./AutoBenched.png"  
           , _reportFP      = Nothing                   
           , _coordsFP      = Nothing
           }

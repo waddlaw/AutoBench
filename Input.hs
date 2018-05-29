@@ -23,3 +23,6 @@ tDat  = take 20 $ zip [1..] $ fmap return (repeat [1])
 
 ts :: TestSuite 
 ts  = def { _dataOpts = Manual "tDat", _baseline = True }
+
+ts2 :: TestSuite 
+ts2 = def

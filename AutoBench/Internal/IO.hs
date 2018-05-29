@@ -1,5 +1,6 @@
 
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiWayIf #-}
 {-# OPTIONS_GHC -Wall   #-} 
 
 {-|
@@ -58,12 +59,19 @@ import           Control.Exception.Base    (throwIO)
 import           Control.Monad             (unless, void)
 import           Control.Monad.Catch       (throwM)
 import           Control.Monad.IO.Class    (MonadIO, liftIO)
+import           Criterion.IO              (readJSONReports)
 import qualified Data.ByteString           as BS
 import qualified Data.ByteString.Char8     as C
 import           Data.Char                 (toLower)
+import           Data.List                 ( groupBy, isInfixOf, partition, sort
+                                           , sortBy )
+import qualified Data.Map                  as Map
+import           Data.Ord                  (comparing)
+import qualified Data.Vector               as V
 import qualified DynFlags                  as GHC
 import qualified GHC                       as GHC
-import qualified GHC.Paths                 as GHC   
+import qualified GHC.Paths                 as GHC 
+import           Statistics.Types          (estPoint)  
 import           System.Console.Haskeline  (InputT, MonadException, getInputLine)
 import           System.Directory          ( doesFileExist, getDirectoryContents 
                                            , removeFile )
@@ -72,6 +80,8 @@ import           System.FilePath.Posix     ( dropExtension, takeBaseName
 import           System.IO                 (Handle)
 import           System.IO.Error           (isDoesNotExistError)
 import qualified Text.PrettyPrint.HughesPJ as PP
+import qualified Text.Megaparsec           as MP
+import qualified Text.Megaparsec.Char      as MP   
 
 import System.Process 
   ( ProcessHandle
@@ -82,10 +92,36 @@ import System.Process
   , std_out
   )
 
-import AutoBench.Internal.Utils          (strip)
+import Criterion.Types 
+ ( Benchmark
+ , Report
+ , anMean
+ , anOutlierVar
+ , anRegress
+ , anStdDev
+ , bench
+ , bgroup
+ , env
+ , jsonFile
+ , ovEffect
+ , ovFraction
+ , regCoeffs
+ , regResponder
+ , reportAnalysis
+ , reportFile
+ , reportName
+ , reportMeasured
+ )
+
+import AutoBench.Internal.Utils          ( Parser, allEq, integer, lexeme, strip
+                                         , symbol )
 import AutoBench.Internal.AbstractSyntax (Id, ModuleName, prettyPrint, qualIdt)
 import AutoBench.Internal.Types 
-  ( DataOpts(..)
+  ( BenchReport(..)
+  , DataOpts(..)
+  , DataSize(..)
+  , InputError(..)
+  , SimpleReport(..)
   , SystemError(..)
   , TestSuite(..)
   , UserInputs(..)
@@ -327,18 +363,167 @@ compileBenchmarkingFile benchFP userFP flags =
                                                                                   -- ** COMMENT ** 
 
 deleteBenchmarkingFiles :: FilePath -> FilePath -> [FilePath] -> IO ()
-deleteBenchmarkingFiles fout fin sysTmps = 
-  mapM_ removeIfExists (fins_ ++ fouts_ ++ sysTmps)
+deleteBenchmarkingFiles fBench fUser sysTmps = 
+  mapM_ removeIfExists (fUsers ++ fBenchs ++ sysTmps)
   where 
-    fin_    = dropExtension fin
-    fins_   = fmap (fin_ ++) exts
-    fout_   = dropExtension fout
-    fouts_  = fout : fout_ : fmap (fout_ ++ ) exts
-    exts    = [".o", ".hi"]
+    fUsers   = fmap (dropExtension fUser ++) exts
+    fBench'  = dropExtension fBench
+    fBenchs  = fBench : fBench' : fmap (fBench' ++ ) exts
+    exts     = [".o", ".hi"]
 
     removeIfExists fp = removeFile fp `catch` handleExists
       where handleExists e | isDoesNotExistError e = return ()
                            | otherwise = throwIO e
+
+
+
+
+-- <TO-DO>:  Compare with UserInputs to confirm sizes of test data
+
+genBenchmarkingReport :: TestSuite -> FilePath -> IO BenchReport 
+genBenchmarkingReport ts fp = do 
+  -- Check file exists.
+  exists <- doesFileExist fp 
+  unless exists (throwIO $ FileErr $ "Cannot locate Criterion report: " ++ fp)
+  readJSONReports fp >>= \case
+    -- Parse error.
+    Left err -> throwIO (FileErr $ "Invalid Criterion report: " ++ err)
+    -- Parsed 'ReportFileContents'.
+    Right (_, _, reps) -> 
+      let (bls, nonBls) = partition (("Baseline for" `isInfixOf`) . reportName) reps
+      in case bls of 
+        [] -> case noBaselines reps of 
+          Nothing -> throwIO $ FileErr $ "Incompatible Criterion report."
+          Just xs -> return $ convertReps (zip reps xs) []
+        _  -> case withBaselines bls nonBls of 
+          Nothing -> throwIO $ FileErr $ "Incompatible Criterion report."
+          Just (nBls, nNonBls) -> return $ convertReps (zip nonBls nNonBls) (zip bls nBls)  
+           
+    where
+
+
+      withBaselines :: [Report] -> [Report] -> Maybe ([DataSize], [(Id, DataSize)])
+      withBaselines [] [] = Nothing
+      withBaselines _  [] = Nothing 
+      withBaselines []  _ = Nothing 
+      withBaselines bls nonBls = do 
+        nBls <- sequence $ fmap (MP.parseMaybe parseBaseline . 
+          dropWhile (/= 'I') . reportName) bls
+        nNonBls <- sequence $ fmap (MP.parseMaybe parseRepName . 
+          dropWhile (/= 'I') . reportName) nonBls 
+        let nNonBlss = groupBy (\x1 x2 -> fst x1 == fst x2) $ sortBy (comparing fst) nNonBls
+            sizes = fmap (sort . fmap snd) nNonBlss                                                    --  <TO-DO>: ADD MORE CHECKS
+        if | not (allEq $ sort nBls : sizes) -> Nothing 
+           | otherwise -> Just (nBls, nNonBls)
+
+
+      noBaselines :: [Report] -> Maybe [(Id, DataSize)]
+      noBaselines [] = Nothing
+      noBaselines reps = do 
+        xs <- sequence $ fmap (MP.parseMaybe parseRepName . reportName) reps 
+        let xss = groupBy (\x1 x2 -> fst x1 == fst x2) $ sortBy (comparing fst) xs
+            sizes = fmap (sort . fmap snd) xss
+        if | not (allEq sizes) -> Nothing                                                              -- <TO-DO>: ADD MORE CHECKS
+           | otherwise -> Just xs
+
+      convertReps :: [(Report, (Id, DataSize))] -> [(Report, DataSize)] -> BenchReport
+      convertReps nonBls bls 
+        | null bls  = 
+            BenchReport 
+              { _bProgs    = _progs ts 
+              , _bDataOpts = _dataOpts ts
+              , _bNf       = _nf ts 
+              , _bGhcFlags = _ghcFlags ts 
+              , _reports   = fmap (fmap $ uncurry toSimpleReport) .
+                  -- Group by test program's identifier.
+                  groupBy (\(_, (idt1, _)) (_, (idt2, _)) -> idt1 == idt2) .
+                  -- Sort by test program's identifier.
+                  sortBy  (\(_, (idt1, _)) (_, (idt2, _)) -> compare idt1 idt2) $ nonBls
+              , _baselines = []
+              }
+        | otherwise = 
+            BenchReport 
+              { _bProgs    = _progs ts 
+              , _bDataOpts = _dataOpts ts
+              , _bNf       = _nf ts 
+              , _bGhcFlags = _ghcFlags ts 
+              , _reports   = fmap (fmap $ uncurry toSimpleReport) .
+                  -- Group by test program's identifier.
+                  groupBy (\(_, (idt1, _)) (_, (idt2, _)) -> idt1 == idt2) .
+                  -- Sort by test program's identifier.
+                  sortBy  (\(_, (idt1, _)) (_, (idt2, _)) -> compare idt1 idt2) $ nonBls
+              , _baselines = fmap (uncurry toSimpleReport) (fmap (fmap (\size -> ("BASELINE", size))) bls)
+              }    
+
+        where 
+
+         toSimpleReport :: Report -> (Id, DataSize) -> SimpleReport
+         toSimpleReport rep (idt, size) = 
+           SimpleReport 
+              { _name    = idt
+              , _size    = size
+              , _runtime = getRegressTime
+               -- Note: Criterion uses a large number of samples to calculate its statistics.
+               -- Each sample itself is a number of iterations, but then the measurements are
+               -- standardised, so length here should work(?)
+              , _samples  = V.length (reportMeasured rep)
+              , _stdDev   = estPoint   
+                              . anStdDev     
+                              . reportAnalysis 
+                              $ rep 
+              , _outVarEff = ovEffect   
+                               . anOutlierVar 
+                               . reportAnalysis 
+                               $ rep
+              , _outVarFrac = ovFraction 
+                                . anOutlierVar 
+                                . reportAnalysis 
+                                $ rep 
+              }
+           where 
+             getRegressTime = case filter (\reg -> regResponder reg == "time") (anRegress $ reportAnalysis rep) of 
+               [x] -> case estPoint <$> Map.lookup "iters" (regCoeffs x) of 
+                  Just d -> d
+                  -- Fall back to mean.
+                  Nothing -> estPoint . anMean . reportAnalysis $ rep
+               _ -> estPoint . anMean . reportAnalysis $ rep
+
+
+
+      
+      -- Parse a report's name into the corresponding test program's identifier 
+      -- and input size.
+      parseRepName :: Parser (Id, DataSize)
+      parseRepName  = do 
+        -- E.g., "Input Sizes (5, 5)/p1"
+        -- E.g., "Input Size 5/p2"
+        void $ symbol "Input Size"
+        void $ MP.anyChar
+        ds <- parseDataSize
+        void $ symbol "/"
+        idt <- MP.manyTill MP.anyChar MP.eof
+        return (idt, ds) 
+
+      -- Parse the encoded baseline size from the name of a Criterion report.
+      parseBaseline :: Parser DataSize 
+      parseBaseline = do
+        void $ symbol "Input Size"
+        void $ MP.anyChar 
+        parseDataSize
+
+      -- Parse the encoded data size from the name of a Criterion report.
+      parseDataSize :: Parser DataSize 
+      parseDataSize  = (do 
+        void $ symbol "("
+        n1 <- integer
+        void $ symbol ","
+        n2 <- integer
+        void $ symbol ")"
+        return (SizeBin n1 n2)) MP.<|> (SizeUn <$> integer)
+
+
+
+
 
 
 

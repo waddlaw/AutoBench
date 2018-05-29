@@ -60,7 +60,9 @@ module AutoBench.Internal.Benchmarking
 
 import Control.DeepSeq (NFData)
 import Criterion.Main  (defaultMainWith)
+import Data.List       (sortBy)
 import Data.Maybe      (fromMaybe)
+import Data.Ord        (comparing)
 import Test.QuickCheck (Arbitrary)
 import Criterion.Types 
   ( Benchmark
@@ -109,7 +111,7 @@ genBenchmarksGenNfUn ps ts = gen ps <$>
       | baseline = bgroup ("With Baseline")
           [ env d 
              ( \xs -> 
-                 bgroup ("Input Size: " ++ show (size :: Int))
+                 bgroup ("Input Size " ++ show (size :: Int))
                    [ bench idt $ nf prog xs
                    | (idt, prog) <- progs
                    ]
@@ -119,7 +121,7 @@ genBenchmarksGenNfUn ps ts = gen ps <$>
           ]
       | otherwise = env d 
           ( \xs -> 
-              bgroup ("Input Size: " ++ show (size :: Int))
+              bgroup ("Input Size " ++ show (size :: Int))
                 [ bench idt $ nf prog xs
                 | (idt, prog) <- progs
                 ]
@@ -141,7 +143,7 @@ genBenchmarksGenWhnfUn ps ts = gen ps <$>
     -- Generate the benchmarks.
     gen progs (size, d) = env d 
       ( \xs -> 
-          bgroup ("Input Size: " ++ show (size :: Int))
+          bgroup ("Input Size " ++ show (size :: Int))
             [ bench idt $ whnf prog xs
             | (idt, prog) <- progs
             ]
@@ -166,28 +168,28 @@ genBenchmarksGenNfBin ps ts = fmap (gen ps) testData
     gen progs ((s1, s2), d) 
       | baseline = bgroup ("With Baseline")
           [ env d 
-              ( \xs -> bgroup ("Input Sizes: (" ++ show (s1 :: Int)
-                                                ++ ", " 
-                                                ++ show (s2 :: Int)
-                                                ++ ")")
+              ( \xs -> bgroup ("Input Sizes (" ++ show (s1 :: Int)
+                                               ++ ", " 
+                                               ++ show (s2 :: Int)
+                                               ++ ")")
                   [ bench idt $ nf (uncurry prog) xs
                   | (idt, prog) <- progs 
                   ]
               )
           , env ((uncurry $ snd $ head progs) <$> d) 
-              ( bench ("Baseline for Input Size " ++ show (s1 :: Int)
-                                                 ++ ", " 
-                                                 ++ show (s2 :: Int)
-                                                 ++ ")"
+              ( bench ("Baseline for Input Sizes (" ++ show (s1 :: Int)
+                                                    ++ ", " 
+                                                    ++ show (s2 :: Int)
+                                                    ++ ")"
                       ) . nf id
               )
           ] 
 
       | otherwise = env d 
-          ( \xs -> bgroup ("Input Sizes: (" ++ show (s1 :: Int)
-                                            ++ ", " 
-                                            ++ show (s2 :: Int)
-                                            ++ ")")
+          ( \xs -> bgroup ("Input Sizes (" ++ show (s1 :: Int)
+                                           ++ ", " 
+                                           ++ show (s2 :: Int)
+                                           ++ ")")
               [ bench idt $ nf (uncurry prog) xs
               | (idt, prog) <- progs 
               ]
@@ -210,10 +212,10 @@ genBenchmarksGenWhnfBin ps ts = fmap (gen ps) testData
   where
     -- Generate the benchmarks. 
     gen progs ((s1, s2), d) = env d  
-      ( \xs -> bgroup ("Input Sizes: (" ++ show (s1 :: Int)
-                                        ++ ", " 
-                                        ++ show (s2 :: Int)
-                                        ++ ")")
+      ( \xs -> bgroup ("Input Sizes (" ++ show (s1 :: Int)
+                                       ++ ", " 
+                                       ++ show (s2 :: Int)
+                                       ++ ")")
           [ bench idt $ whnf (uncurry prog) xs
           | (idt, prog) <- progs 
           ]
@@ -229,13 +231,15 @@ genBenchmarksGenWhnfBin ps ts = fmap (gen ps) testData
 -- * Manually specified test data;
 -- * Evaluate the results of test programs to normal form;
 -- * Unary test programs.
+--
+-- Note: the user-specified test data is sorted by size.
 genBenchmarksManNfUn 
   :: (NFData a, NFData b) 
   => [(Id, a -> b)]  -- [(idt, test program)]
   -> TestSuite
   -> UnaryTestData a
   -> [Benchmark]
-genBenchmarksManNfUn ps ts = fmap (gen ps)
+genBenchmarksManNfUn ps ts = fmap (gen ps) . sortBy (comparing fst)
   where 
     -- Whether to include baseline measurements.
     baseline = _baseline ts 
@@ -245,7 +249,7 @@ genBenchmarksManNfUn ps ts = fmap (gen ps)
       | baseline = bgroup ("With Baseline")
           [ env d 
              ( \xs -> 
-                 bgroup ("Input Size: " ++ show (size :: Int))
+                 bgroup ("Input Size " ++ show (size :: Int))
                    [ bench idt $ nf prog xs
                    | (idt, prog) <- progs
                    ]
@@ -255,7 +259,7 @@ genBenchmarksManNfUn ps ts = fmap (gen ps)
           ]
       | otherwise = env d 
           ( \xs -> 
-              bgroup ("Input Size: " ++ show (size :: Int))
+              bgroup ("Input Size " ++ show (size :: Int))
                 [ bench idt $ nf prog xs
                 | (idt, prog) <- progs
                 ]
@@ -266,18 +270,20 @@ genBenchmarksManNfUn ps ts = fmap (gen ps)
 -- * Manually specified test data;
 -- * Evaluate the results of test programs to weak head normal form;
 -- * Unary test programs.
+--
+-- Note: the user-specified test data is sorted by size.
 genBenchmarksManWhnfUn 
   :: NFData a 
   => [(Id, a -> b)]  -- [(idt, test program)]
   -> TestSuite
   -> UnaryTestData a
   -> [Benchmark]
-genBenchmarksManWhnfUn ps _ = fmap (gen ps)
+genBenchmarksManWhnfUn ps _ = fmap (gen ps) . sortBy (comparing fst)
   where
     -- Generate the benchmarks.
     gen progs (size, d) = env d 
       ( \xs -> 
-          bgroup ("Input Size: " ++ show (size :: Int))
+          bgroup ("Input Size " ++ show (size :: Int))
             [ bench idt $ whnf prog xs
             | (idt, prog) <- progs
             ]
@@ -288,13 +294,16 @@ genBenchmarksManWhnfUn ps _ = fmap (gen ps)
 -- * Manually specified test data;
 -- * Evaluate the results of test programs to normal form;
 -- * Binary test programs.
+--
+-- Note: the user-specified test data is sorted by size.
 genBenchmarksManNfBin 
   :: (NFData a, NFData b, NFData c) 
   => [(Id, a -> b -> c)]  -- [(idt, test program)]
   -> TestSuite
   -> BinaryTestData a b  
   -> [Benchmark]
-genBenchmarksManNfBin ps ts = fmap (gen ps)
+genBenchmarksManNfBin ps ts = 
+  fmap (gen ps) . sortBy (comparing (\(s1, s2, _, _) -> (s1, s2)))
   where 
     -- Whether to include baseline measurements.
     baseline = _baseline ts 
@@ -303,28 +312,28 @@ genBenchmarksManNfBin ps ts = fmap (gen ps)
     gen progs (s1, s2, d1, d2) 
       | baseline = bgroup ("With Baseline")
           [ env ((,) <$> d1 <*> d2)
-              ( \xs -> bgroup ("Input Sizes: (" ++ show (s1 :: Int)
-                                                ++ ", " 
-                                                ++ show (s2 :: Int)
-                                                ++ ")")
+              ( \xs -> bgroup ("Input Sizes (" ++ show (s1 :: Int)
+                                               ++ ", " 
+                                               ++ show (s2 :: Int)
+                                               ++ ")")
                   [ bench idt $ nf (uncurry prog) xs
                   | (idt, prog) <- progs 
                   ]
               )
           , env ((snd $ head progs) <$> d1 <*> d2) 
-              ( bench ("Baseline for Input Size " ++ show (s1 :: Int)
-                                                  ++ ", " 
-                                                  ++ show (s2 :: Int)
-                                                  ++ ")"
+              ( bench ("Baseline for Input Sizes (" ++ show (s1 :: Int)
+                                                    ++ ", " 
+                                                    ++ show (s2 :: Int)
+                                                    ++ ")"
                       ) . nf id
               )
           ] 
 
       | otherwise = env ((,) <$> d1 <*> d2) 
-          ( \xs -> bgroup ("Input Sizes: (" ++ show (s1 :: Int)
-                                            ++ ", " 
-                                            ++ show (s2 :: Int)
-                                            ++ ")")
+          ( \xs -> bgroup ("Input Sizes (" ++ show (s1 :: Int)
+                                           ++ ", " 
+                                           ++ show (s2 :: Int)
+                                           ++ ")")
               [ bench idt $ nf (uncurry prog) xs
               | (idt, prog) <- progs 
               ]
@@ -335,20 +344,23 @@ genBenchmarksManNfBin ps ts = fmap (gen ps)
 -- * Manually specified test data;
 -- * Evaluate the results of test programs to weak head normal form;
 -- * Binary test programs.
+--
+-- Note: the user-specified test data is sorted by size.
 genBenchmarksManWhnfBin 
   :: (NFData a, NFData b) 
   => [(Id, a -> b -> c)] -- [(idt, test program)]  
   -> TestSuite
   -> BinaryTestData a b  
   -> [Benchmark]
-genBenchmarksManWhnfBin ps _ = fmap (gen ps)
+genBenchmarksManWhnfBin ps _ = 
+  fmap (gen ps) . sortBy (comparing (\(s1, s2, _, _) -> (s1, s2)))
   where 
     -- Generate the benchmarks.
     gen progs (s1, s2, d1, d2) = env ((,) <$> d1 <*> d2) 
-      ( \xs -> bgroup ("Input Sizes: (" ++ show (s1 :: Int)
-                                        ++ ", " 
-                                        ++ show (s2 :: Int)
-                                        ++ ")")
+      ( \xs -> bgroup ("Input Sizes (" ++ show (s1 :: Int)
+                                       ++ ", " 
+                                       ++ show (s2 :: Int)
+                                       ++ ")")
           [ bench idt $ whnf (uncurry prog) xs
           | (idt, prog) <- progs 
           ]

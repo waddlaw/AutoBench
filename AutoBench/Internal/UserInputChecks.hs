@@ -2,6 +2,7 @@
 {-# OPTIONS_GHC -Wall     #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE MultiWayIf   #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 {-|
 
@@ -69,8 +70,9 @@
 module AutoBench.Internal.UserInputChecks (userInputCheck) where 
 
 import           Control.Category    ((>>>))
-import           Data.List           ((\\), groupBy, intersect, nub, sortBy)
+import           Data.List           ((\\), groupBy, intersect, nub, sort, sortBy)
 import           Data.Ord            (comparing)
+import           Data.Typeable       (Typeable)
 import           Control.Monad       ((>=>), filterM, foldM, void)
 import           Control.Monad.Catch (catch, catchAll)
 import qualified Criterion.Types     as Criterion
@@ -236,6 +238,7 @@ catGenableFuns inps =
 --
 -- /UnaryData/ is added to the '_unaryData' list. /BinaryData/ is added to the 
 -- '_binaryDat' list.
+-- Note: Size information cannot be recorded until the dynamic checking phase.
 catTestData :: UserInputs -> UserInputs
 catTestData inps = inps { _unaryData = uns, _binaryData = bins }
   where
@@ -243,11 +246,11 @@ catTestData inps = inps { _unaryData = uns, _binaryData = bins }
 
     cat 
       :: (Id, HsType)
-      -> ([(Id, HsType)], [(Id, HsType)])
-      -> ([(Id, HsType)], [(Id, HsType)])
-    cat x@(_, ty) (us, bs) 
-      | isUnaryTestData  ty = (x : us, bs)
-      | isBinaryTestData ty = (us, x : bs)
+      -> ([(Id, HsType, [Int])], [(Id, HsType, [(Int, Int)])])
+      -> ([(Id, HsType, [Int])], [(Id, HsType, [(Int, Int)])])
+    cat (idt, ty) (us, bs) 
+      | isUnaryTestData  ty = ((idt, ty, []) : us, bs)
+      | isBinaryTestData ty = (us, (idt, ty, []) : bs)
       | otherwise           = (us, bs)
 
 -- ** Second phase
@@ -474,8 +477,8 @@ checkTestSuites inps =
     benchFuns  = _benchFuns  inps
     nfFuns     = _nfFuns     inps
     arbFuns    = _arbFuns    inps
-    unaryData  = _unaryData  inps 
-    binaryData = _binaryData inps
+    unaryData  = fmap (\(idt, ty, _) -> (idt, ty)) $ _unaryData  inps 
+    binaryData = fmap (\(idt, ty, _) -> (idt, ty)) $ _binaryData inps
 
     -- Errors:
     -- '_progs' list:
@@ -627,18 +630,18 @@ checkValidTestData mn inps = do
               }
   where 
     check 
-      :: MonadInterpreter m 
+      :: (MonadInterpreter m, Typeable [a], Ord a)
       => String
-      -> ([(Id, HsType)], [(Id, HsType, [InputError])])
-      -> (Id, HsType)
-      -> m ([(Id, HsType)], [(Id, HsType, [InputError])])
-    check qualCheckFun (vs, ivs) (idt, ty) = catchIE 
-      (do size <- interpret (qualCheckFun ++ " " ++ (prettyPrint $ qualIdt mn idt)) (as :: Int)
-          if size >= minInputs
-          then return ((idt, ty) : vs, ivs)
+      -> ([(Id, HsType, [a])], [(Id, HsType, [InputError])])
+      -> (Id, HsType, [a])
+      -> m ([(Id, HsType, [a])], [(Id, HsType, [InputError])])
+    check qualCheckFun (vs, ivs) (idt, ty, _) = catchIE 
+      (do sizes <- interpret (qualCheckFun ++ " " ++ (prettyPrint $ qualIdt mn idt)) as
+          if (length $ nub sizes) >= minInputs
+          then return ((idt, ty, sort sizes) : vs, ivs)
           else return (vs, (idt, ty, [sizeErr]) : ivs)
       ) (\e -> return (vs, (idt, ty, [DataOptsErr $ show e]) : ivs))
-    
+
     qualCheckFunUn  = "AutoBench.Internal.DynamicChecks.sizeUnaryTestData"
     qualCheckFunBin = "AutoBench.Internal.DynamicChecks.sizeBinaryTestData"
 
@@ -734,4 +737,5 @@ expandTestSuites inps =
     benchFuns = _benchFuns  inps
     nfFuns    = _nfFuns     inps
     arbFuns   = _arbFuns    inps
-    testData  = _unaryData  inps ++ _binaryData inps
+    testData  = fmap (\(idt, ty, _) -> (idt, ty)) (_unaryData inps) ++ 
+                fmap (\(idt, ty, _) -> (idt, ty)) (_binaryData inps)

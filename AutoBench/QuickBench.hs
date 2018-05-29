@@ -23,6 +23,7 @@
    ----------------------------------------------------------------------------
    <TO-DO>:
    ----------------------------------------------------------------------------
+   - QuickCheck semantic equality checks are missing;
    - 
 -}
 
@@ -81,7 +82,7 @@ instance Default GenRange where
 -- QuickOpts
 --   { _qProgs    = [ "P1", "P2"... ]
 --   , _qGenRange = GenRange 0 5 100
---   , _qAnalOpts = def                 -- (see 'AnalOpts')
+--   , _qAnalOpts = def                 -- see 'AnalOpts'.
 --   , _qRuns     = 1
 --   }
 -- @

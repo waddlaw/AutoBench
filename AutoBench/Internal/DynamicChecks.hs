@@ -37,9 +37,9 @@
   5. FullTestSuites: interpreted 'TestSuites' whose record fields are            
      all initialised;                                                            ==> kept in '_testSuites'
   6. ValidUnaryData: functions satisfying the /unaryData/ static property whose  
-     definitions are valid;                                                      ==> interpreted, checked, but only Id kept in '_unaryData'
+     definitions are valid;                                                      ==> interpreted, checked, but only size information kept in '_unaryData'
   7. ValidBinaryData: functions satisfying the /binaryData/ static property 
-     whose definitions are valid.                                                ==> interpreted, checked, but only Id kept in '_binaryData'
+     whose definitions are valid.                                                ==> interpreted, checked, but only size information in '_binaryData'
      
   User inputs that fail checks 5-7 are added to the the respective invalid
   lists, for example '_invalidTestSuites' for failing check 5.
@@ -116,9 +116,9 @@ checkInitialisedTestSuite :: TestSuite -> ()
 checkInitialisedTestSuite  = rnf
 
 -- | Dynamic check for 6. /ValidUnaryData/.
-sizeUnaryTestData :: UnaryTestData a -> Int
-sizeUnaryTestData  = length . nub . fmap fst 
+sizeUnaryTestData :: UnaryTestData a -> [Int]
+sizeUnaryTestData  = fmap fst 
 
 -- | Dynamic check for 7. /ValidBinaryData/.
-sizeBinaryTestData :: BinaryTestData a b -> Int
-sizeBinaryTestData  = length . nub . fmap (\(s1, s2, _, _) -> (s1, s2))
+sizeBinaryTestData :: BinaryTestData a b -> [(Int, Int)]
+sizeBinaryTestData  = fmap (\(s1, s2, _, _) -> (s1, s2))

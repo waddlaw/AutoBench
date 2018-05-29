@@ -49,8 +49,11 @@ module AutoBench.Internal.Types
   , UserInputs(..)         -- A data structure maintained by the system to classify user inputs.
   , initUserInputs         -- Initialise a 'UserInputs' data structure.
   -- * Benchmarking
+  , BenchReport(..)        -- A report to summarise the benchmarking phase of testing.
   , Coord                  -- (Input Size, Runtime) results as coordinates for unary test programs.
   , Coord3                 -- (Input Size, Input Size, Runtime) results as coordinates for binary test programs.
+  , DataSize(..)           -- The size of unary and binary test data.
+  , SimpleReport(..)       -- A simplified version of Criterion's 'Report'. See 'Criterion.Types.Report'.
   -- * Statistical analysis                                                                                        -- <TO-DO>
   , numPredictors          --  Number of predictors for each type of model.
   -- * Errors
@@ -64,10 +67,12 @@ module AutoBench.Internal.Types
   , docUserInputs          -- Create a 'PP.Doc' for a 'UserInputs'.
   ) where
 
+import           Control.Arrow             ((&&&))
 import           Control.Exception.Base    (Exception)
+import           Criterion.Types           (OutlierEffect)
 import           Data.List                 (sort, sortBy)
 import           Data.Ord                  (comparing)
-import           Data.Tuple.Select         (sel1)
+import           Data.Tuple.Select         (sel1, sel2)
 import qualified Text.PrettyPrint.HughesPJ as PP
 
 import           AutoBench.Internal.Utils (deggar)
@@ -187,8 +192,8 @@ data UserInputs =
    , _benchFuns          :: [(Id, HsType)]                           -- ^ Unary/binary functions whose input types are members of the NFData type class.
    , _nfFuns             :: [(Id, HsType)]                           -- ^ Unary/binary functions whose result types are members of the NFData type class.
    , _invalidData        :: [(Id, HsType, [InputError])]             -- ^ Invalid user-specified test data. 
-   , _unaryData          :: [(Id, HsType)]                           -- ^ Valid user-specified test data for unary functions.
-   , _binaryData         :: [(Id, HsType)]                           -- ^ Valid user-specified test data for binary functions.
+   , _unaryData          :: [(Id, HsType, [Int])]                    -- ^ Valid user-specified test data for unary functions /with size information/.
+   , _binaryData         :: [(Id, HsType, [(Int, Int)])]             -- ^ Valid user-specified test data for binary functions /with size information/.
    , _invalidTestSuites  :: [(Id, [InputError])]                     -- ^ Invalid test suites.
    , _testSuites         :: [(Id, TestSuite)]                        -- ^ Valid test suites.
    }
@@ -223,6 +228,42 @@ type Coord = (Double, Double)
 -- | (Input Size, Input Size, Runtime) results as coordinates for binary test 
 -- programs.        
 type Coord3 = (Double, Double, Double) 
+
+-- | The size of unary and binary test data.
+data DataSize = 
+    SizeUn Int       -- ^ The size of unary test data.
+  | SizeBin Int Int  -- ^ The size of binary test data.
+    deriving (Ord, Eq)
+
+instance Show DataSize where 
+  show (SizeUn n)      = show n 
+  show (SizeBin n1 n2) = show (n1, n2)
+
+-- | A report to summarise the benchmarking phase of testing.
+data BenchReport =
+  BenchReport 
+    {
+      _bProgs    :: [String]          -- ^ Names of all test programs.
+    , _bDataOpts :: DataOpts          -- ^ Which test data options were used.
+    , _bNf       :: Bool              -- ^ Whether test cases were evaluated to normal form.
+    , _bGhcFlags :: [String]          -- ^ Flags used when compiling the benchmarking file.
+    , _reports   :: [[SimpleReport]]  -- ^ Individual reports for each test case, per test program.
+    , _baselines :: [SimpleReport]    -- ^ Baseline measurements (will be empty if '_baseline' is set to @False@).
+    }
+
+-- | A simplified version of Criterion's 'Report' datatype, see 
+-- 'Criterion.Types.Report'.
+data SimpleReport = 
+  SimpleReport 
+   { 
+     _name       :: Id             -- ^ Name of test program.
+   , _size       :: DataSize       -- ^ Size of test data.
+   , _samples    :: Int            -- ^ Number of samples used to calculate statistics below.
+   , _runtime    :: Double         -- ^ Estimate runtime.
+   , _stdDev     :: Double         -- ^ Estimate standard deviation.
+   , _outVarEff  :: OutlierEffect  -- ^ Outlier effect. 
+   , _outVarFrac :: Double         -- ^ Outlier effect as a percentage.
+   }
 
 -- * Statistical analysis
 
@@ -305,8 +346,10 @@ docUserInputs inps = PP.vcat $ PP.punctuate (PP.text "\n")
   , PP.text "Benchmarkable functions:" PP.$$ (PP.nest 2 $ showTypeableElems     $ _benchFuns         inps)
   , PP.text "Arbitrary functions:"     PP.$$ (PP.nest 2 $ showTypeableElems     $ _arbFuns           inps)
   , PP.text "NFData functions:"        PP.$$ (PP.nest 2 $ showTypeableElems     $ _nfFuns            inps)
-  , PP.text "Unary test data:"         PP.$$ (PP.nest 2 $ showTypeableElems     $ _unaryData         inps)
-  , PP.text "Binary test data:"        PP.$$ (PP.nest 2 $ showTypeableElems     $ _binaryData        inps)
+  , PP.text "Unary test data:"         PP.$$ (PP.nest 2 $ showTypeableElems     $ 
+      fmap (sel1 &&& sel2) $ _unaryData  inps) -- Don't print sizing information.
+  , PP.text "Binary test data:"        PP.$$ (PP.nest 2 $ showTypeableElems     $ 
+      fmap (sel1 &&& sel2) $ _binaryData inps) -- Don't print sizing information.
   , PP.text "Test suites:"             PP.$$ (PP.nest 2 $ showTestSuites        $ _testSuites        inps)
 
   -- Invalids come last because they have associated 'InputError's.
