@@ -1,7 +1,8 @@
 
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE MultiWayIf #-}
-{-# OPTIONS_GHC -Wall   #-} 
+{-# LANGUAGE LambdaCase    #-}
+{-# LANGUAGE MultiWayIf    #-}
+{-# LANGUAGE TupleSections #-}
+{-# OPTIONS_GHC -Wall      #-} 
 
 {-|
 
@@ -30,7 +31,7 @@
    - generateBenchmarks error handling?
    - It would be nice for the generating benchmarking file to be nicely
      formatted;
-   - Comment: compileBenchmarkingFile, deleteBenchmarkingFiles;
+   - Add more validation to generateBenchmarkingReport;
    -
 -}
 
@@ -45,12 +46,12 @@ module AutoBench.Internal.IO
   -- * IO for benchmarking files
   , generateBenchmarkingFile            -- Generate a benchmarking file to benchmark all the test programs in a given test suite
   , compileBenchmarkingFile             -- Compile benchmarking file using zero or more user-specified compiler flags.
-  , deleteBenchmarkingFiles             -- **COMMENT**
+  , deleteBenchmarkingFiles             -- Delete any temporary files created for/during the benchmarking phase.
   -- * Helper functions
   , discoverInputFiles                  -- Discover potential input files in the working directory.
   , execute                             -- Execute a file, capturing its output to STDOUT and printing it to the command line.
   , generateBenchmarkingFilename        -- Generate a valid filename for the benchmarking file from the filename of the user input file.
-  , generateBenchmarkingReport          -- ** COMMENT **
+  , generateBenchmarkingReport          -- Generate a 'BenchReport' that summarises the benchmarking phase of testing.
   , printGoodbyeMessage                 -- Say goodbye.
 
   ) where
@@ -208,6 +209,13 @@ selTestSuiteOption inps = case _testSuites inps of
 
 -- | Generate a benchmarking file to benchmark all the test programs in a 
 -- given test suite. This includes generating/supplying necessary test data.
+--
+-- Note that the names of test programs and sizes of test inputs are encoded 
+-- into each benchmark's (i.e., test case's) title to keep track of 
+-- measurements. This allows for simple but necessary validation checks to be 
+-- performed on the JSON report file created by Criterion to ensure that test 
+-- results agree with test inputs. (The checks are done by 
+-- 'generateBenchmarkingReport'.)
 generateBenchmarkingFile
   :: FilePath       -- ^ Filepath to save benchmarking file.
   -> ModuleName     -- ^ User input file's module name. 
@@ -218,8 +226,8 @@ generateBenchmarkingFile
 generateBenchmarkingFile fp mn inps tsIdt ts = do 
   -- Generate functional call.
   gFunc <- genFunc gen nf unary
+  
   -- Generate file contents.
-
   -----------------------------------------------------------------------------
   -- ** CHANGING THE CONTENTS WILL BREAK THE SYSTEM **
   ----------------------------------------------------------------------------- 
@@ -236,14 +244,17 @@ generateBenchmarkingFile fp mn inps tsIdt ts = do
                        PP.<+> PP.char '(' PP.<> gFunc PP.<> PP.char ')'               -- Generate benchmarks.
                        PP.<+> PP.text (prettyPrint . qualIdt mn $ tsIdt)              -- Identifier of chosen test suite (for run cfg).
                    ]
-  -- Write to file.
+  -- Write contents to file.
   writeFile fp (PP.render contents)
 
   where 
     ---------------------------------------------------------------------------
     -- ** CHANGING THE NAMES OF THESE FUNCTIONS WILL BREAK THE SYSTEM **
     --------------------------------------------------------------------------- 
-     
+    -- Important note: each function below encodes the name of test programs 
+    -- and input sizes into the titles of benchmark test cases.
+    ---------------------------------------------------------------------------
+
     -- Generate benchmarking function call.
     -- genFunc gen? nf? unary?
     genFunc :: Bool -> Bool -> Bool -> IO PP.Doc
@@ -300,7 +311,7 @@ generateBenchmarkingFile fp mn inps tsIdt ts = do
         , PP.text (prettyPrint . qualIdt mn $ dat)
         ] 
 
-    -- Pretty print a (identifier, program) tuple.
+    -- Pretty print an (identifier, program) tuple.
     ppTuple :: Id -> PP.Doc
     ppTuple idt = PP.char '('
       PP.<> PP.text (show idt)
@@ -332,30 +343,40 @@ generateBenchmarkingFile fp mn inps tsIdt ts = do
     getManualDatIdt Gen{} = 
       throwM (InternalErr $ "generateBenchmarks: unexpected 'Gen' setting.")
 
-
-
-
-                                                                                  -- ** COMMENT ** 
+-- | Use GHC to compile the benchmarking file. Compile using the flags 
+-- specified in the 'TestSuite' used to generate the benchmarking file.
+-- Includes the location of the user input file as a source directory in case 
+-- it is not the working directory. Any invalid compiler flags are returned
+-- in case they affect test results.
 compileBenchmarkingFile 
-  :: FilePath             -- ^ Benchmarking filepath.
-  -> FilePath             -- ^ User input filepath.
-  -> [String]             -- ^ GHC compiler flags.
-  -> IO (Bool, [String])  -- ^ (Successful, Invalid flags).   
-compileBenchmarkingFile benchFP userFP flags = 
-  GHC.runGhc (Just GHC.libdir) $ do
+  :: FilePath     -- ^ Benchmarking filepath.
+  -> FilePath     -- ^ User input filepath.
+  -> [String]     -- ^ GHC compiler flags.
+  -> IO [String]  -- ^ Invalid compiler flags.   
+compileBenchmarkingFile benchFP userFP flags = do
+  (success, invalidFlags) <- GHC.runGhc (Just GHC.libdir) $ do
     dflags <- GHC.getSessionDynFlags
+    -- Add flags specified in 'TestSuite's '_ghcFlags' list.
     (dflags', invalidFlags, _) <- GHC.parseDynamicFlagsCmdLine dflags (GHC.noLoc <$> flags) 
-    -- Make sure location of input file is included in import paths.
+    -- Include location of input file in import paths.
     let dflags'' = dflags' { GHC.importPaths = GHC.importPaths dflags ++ [takeDirectory userFP] }
     void $ GHC.setSessionDynFlags dflags''
     target <- GHC.guessTarget benchFP Nothing
     GHC.setTargets [target]
     success <- GHC.succeeded <$> GHC.load GHC.LoadAllTargets
     return (success, fmap GHC.unLoc invalidFlags)
-
-
-                                                                                  -- ** COMMENT ** 
-
+  -- Throw an error if compilation fails.
+  unless success (throwIO $ FileErr "Compilation failed.")
+  -- Notify user of any invalid flags in case they affect test results.
+  return invalidFlags
+                                                                              
+-- | Delete any temporary files created for/during the benchmarking phase
+-- of testing, including:
+-- 
+-- * Benchmarking Haskell module;
+-- * Benchmarking binary;
+-- * *.o, *.hi files;
+-- * Temporary system files e.g., Criterion JSON report file.
 deleteBenchmarkingFiles :: FilePath -> FilePath -> [FilePath] -> IO ()
 deleteBenchmarkingFiles fBench fUser sysTmps = 
   mapM_ removeIfExists (fUsers ++ fBenchs ++ sysTmps)
@@ -369,107 +390,170 @@ deleteBenchmarkingFiles fBench fUser sysTmps =
       where handleExists e | isDoesNotExistError e = return ()
                            | otherwise = throwIO e
 
-
-
-
--- <TO-DO>:  Compare with UserInputs to confirm sizes of test data              -- ** COMMENT ** 
-
+-- | Parse a Criterion JSON report file and use the parsed '[Report]'s to 
+-- generate a 'BenchReport' that summarises the benchmarking phase of testing.
+-- The 'BenchReport' includes a 'SimpleReport' for each test case and a number 
+-- of settings taken from the 'TestSuite' used to generate the benchmarking 
+-- file initially.
+--
+-- Some background information: 
+-- When generating the benchmarking file using 'generateBenchmarkingFile',
+-- the names of test programs and input sizes are encoded into the titles of 
+-- benchmarks. The 'Report' titles are decoded here and checked against the 
+-- settings of the 'TestSuite used to generate the benchmarks initially. 
+--
+-- <TO-DO>: check input size against the 'UserInputs' data structure.
+--
 generateBenchmarkingReport :: TestSuite -> FilePath -> IO BenchReport 
 generateBenchmarkingReport ts fp = do 
   -- Check file exists.
   exists <- doesFileExist fp 
   unless exists (throwIO $ FileErr $ "Cannot locate Criterion report: " ++ fp)
+  -- Generate 'BenchReport' largely from Criterion's JSON results.
+  -- Parse Criterion JSON report.
   readJSONReports fp >>= \case
     -- Parse error.
     Left err -> throwIO (FileErr $ "Invalid Criterion report: " ++ err)
-    -- Parsed 'ReportFileContents'.
+    -- Parsed 'ReportFileContents', only care about 'Report's.
     Right (_, _, reps) -> 
+      -- Reports are organised differently depending on whether baseline 
+      -- measurements were taken so separate the baseline measurements.
       let (bls, nonBls) = partition (("Baseline for" `isInfixOf`) . reportName) reps
       in case bls of 
-        [] -> case noBaselines reps of 
+        -- If there isn't any baseline measurements, all reports are 
+        -- test program measurements and have titles such as 
+        -- Input Size 5/p1    Input Size 5/p2     Input Size 5/p3    for unary.
+        -- Input Sizes (5, 5)/p1     Input Sizes (5, 5)/p2           for binary.
+        [] -> case noBaselines reps of -- Use 'parseRepName' to parse titles to 
+                                       -- (Id, DataSize) tuples.
           Nothing -> throwIO $ FileErr $ "Incompatible Criterion report."
-          Just xs -> return $ convertReps (zip reps xs) []
+          Just xs -> return $ convertReps [] (zip reps xs)
+        -- If baseline measurements have been taken, then reports relating
+        -- to test program measurements have titles such as:
+        -- With Baseline/Input Size 5/p1 etc.
+        -- And baseline measurements have titles such as:
+        -- With Baseline/Baseline Measurement for Input Size 5.
         _  -> case withBaselines bls nonBls of 
+           -- Use 'parseRepName' to parse titles to (Id, DataSize) tuples
+           -- and 'parseBaseline' to parse baseline measurements to same format.
           Nothing -> throwIO $ FileErr $ "Incompatible Criterion report."
-          Just (nBls, nNonBls) -> return $ convertReps (zip nonBls nNonBls) (zip bls nBls)  
+          Just (nBls, nNonBls) -> 
+            return $ convertReps (zip bls nBls) (zip nonBls nNonBls) 
            
     where
+      -- The overall idea is that the titles of the Criterion reports encode 
+      -- the names of test programs and the sizes of test inputs. The titles
+      -- are decoded and the parsed data is checked against the settings of the 
+      -- 'TestSuite' used to generate the benchmarks in the first place. This is 
+      -- perhaps a little over cautious but I think it's worth it.
 
-
-      withBaselines :: [Report] -> [Report] -> Maybe ([DataSize], [(Id, DataSize)])          --  <TO-DO>: ADD MORE CHECKS
+      -- Parse the report titles of the baseline and test program measurements.
+      withBaselines 
+        :: [Report] -- Baseline measurements.
+        -> [Report] -- Test program measurements.
+        -> Maybe ([(Id, DataSize)], [(Id, DataSize)])
       withBaselines _ [] = Nothing 
       withBaselines bls nonBls = do 
+        -- Parse titles of baseline measurements. dropWhile (/= 'I') "With 
+        -- Baseline/Baseline Measurement for Input Size 5" ===> "Input Size 5", 
+        -- then can use 'parseBaseline'.
         nBls <- sequence $ fmap (MP.parseMaybe parseBaseline . 
           dropWhile (/= 'I') . reportName) bls
+        -- Parse titles of test program measurements.
+        -- dropWhile (/= 'I') "With Baseline/Input Size 5/p1" ===> "Input Size 
+        -- 5/p1", then can use 'parseRepName'.
         nNonBls <- sequence $ fmap (MP.parseMaybe parseRepName . 
           dropWhile (/= 'I') . reportName) nonBls
-        let nNonBlss = groupBy (\x1 x2 -> fst x1 == fst x2) $ sortBy (comparing fst) nNonBls
-            sizes = fmap (sort . fmap snd) nNonBlss                                           
-        if | not (allEq $ sort nBls : sizes) -> Nothing 
+        -- Group parse results relating to the same test program by grouping 
+        -- by identifier.
+        let nNonBlss = groupBy (\x1 x2 -> fst x1 == fst x2) $ 
+                         sortBy (comparing fst) nNonBls
+        -- The size range of test data for each test program.
+            sizes = fmap (sort . fmap snd) nNonBlss 
+        -- Validation checks:                                          
+        if | not (allEq $ sort (fmap snd nBls) : sizes) -> Nothing                        -- (1) Make sure same number of measurements for each program 
+                                                                                          --     and all have same input sizes.
+           | not $ (sort $ fmap (fst . head) nNonBlss) == (sort $ _progs ts) -> Nothing   -- (2) Make sure test programs match those in the 'TestSuite's '_progs' list. 
+                                                                                          -- (3) <TO-DO>: Some form of input size check against 'UserInputs' data structure.
            | otherwise -> Just (nBls, nNonBls)
 
-      noBaselines :: [Report] -> Maybe [(Id, DataSize)]                                       -- <TO-DO>: ADD MORE CHECKS
+      -- Parse the report titles of just the test program measurements.
+      noBaselines :: [Report] -> Maybe [(Id, DataSize)]                                 
       noBaselines [] = Nothing
       noBaselines reps = do
+        -- Parse titles of test program measurements.
         xs <- sequence $ fmap (MP.parseMaybe parseRepName . reportName) reps 
+        -- Group parse results relating to the same test program.
         let xss = groupBy (\x1 x2 -> fst x1 == fst x2) $ sortBy (comparing fst) xs
+        -- The size range of test data for each test program.
             sizes = fmap (sort . fmap snd) xss
-        if | not (allEq sizes) -> Nothing                                                           
+        -- Validation checks:
+        if | not (allEq sizes) -> Nothing                                                 -- (1) Make sure same number of measurements for each program 
+                                                                                          --     and all have same input sizes. 
+           | not $ (sort $ fmap (fst . head) xss) == (sort $ _progs ts) -> Nothing        -- (2) Make sure test programs match those in the 'TestSuite's '_progs' list.
+                                                                                          -- (3) <TO-DO>: Some form of input size check against 'UserInputs' data structure.                                                        
            | otherwise -> Just xs
-
-      convertReps :: [(Report, (Id, DataSize))] -> [(Report, DataSize)] -> BenchReport
-      convertReps nonBls bls = 
+ 
+      -- Convert a set of Criterion 'Report's from the same test into a 
+      -- 'BenchReport' by generating a 'SimpleReport' for each test case 
+      -- and baseline measurement. Copy over some settings from the 'TestSuite'
+      -- used to generate the benchmarks initially.
+      convertReps 
+        :: [(Report, (Id, DataSize))] -- Baseline measurements.
+        -> [(Report, (Id, DataSize))] -- Test program measurements.
+        -> BenchReport
+      convertReps bls nonBls = 
         BenchReport 
-          { _bProgs    = _progs ts 
+          { _bProgs    = _progs ts     -- Copy 'TestSuite' settings:
           , _bDataOpts = _dataOpts ts
           , _bNf       = _nf ts 
           , _bGhcFlags = _ghcFlags ts 
+          -- Generate test program 'SimpleReport's.
           , _reports   = fmap (fmap $ uncurry toSimpleReport) .
               -- Group by test program's identifier.
               groupBy (\(_, (idt1, _)) (_, (idt2, _)) -> idt1 == idt2) .
               -- Sort by test program's identifier.
               sortBy  (\(_, (idt1, _)) (_, (idt2, _)) -> compare idt1 idt2) $ nonBls
-          , _baselines = fmap (uncurry toSimpleReport) (fmap (fmap (\size -> ("BASELINE", size))) bls)
+          -- Generate 'SimpleReport's for baseline measurements.
+          , _baselines = fmap (uncurry toSimpleReport) $ sortBy (comparing snd) bls
           }    
 
         where 
 
+         -- Convert a Criterion 'Report' to a 'SimpleReport' for a given 
+         -- (test program identifier, input size).
          toSimpleReport :: Report -> (Id, DataSize) -> SimpleReport
          toSimpleReport rep (idt, size) = 
            SimpleReport 
               { _name    = idt
               , _size    = size
-              , _runtime = getRegressTime
+              , _runtime = getRegressTime -- Use the runtime predicted by linear regression, /not mean/.
+                                          -- ** But fall back on mean if something goes wrong **.
                -- Note: Criterion uses a large number of samples to calculate its statistics.
                -- Each sample itself is a number of iterations, but then the measurements are
                -- standardised, so length here should work(?)
-              , _samples  = V.length (reportMeasured rep)
-              , _stdDev   = estPoint   
-                              . anStdDev     
-                              . reportAnalysis 
-                              $ rep 
-              , _outVarEff = ovEffect   
-                               . anOutlierVar 
-                               . reportAnalysis 
-                               $ rep
-              , _outVarFrac = ovFraction 
-                                . anOutlierVar 
-                                . reportAnalysis 
-                                $ rep 
+              , _samples    = V.length (reportMeasured rep)
+              , _stdDev     = estPoint   . anStdDev     . reportAnalysis $ rep 
+              , _outVarEff  = ovEffect   . anOutlierVar . reportAnalysis $ rep
+              , _outVarFrac = ovFraction . anOutlierVar . reportAnalysis $ rep 
               }
            where 
-             getRegressTime = case filter (\reg -> regResponder reg == "time") (anRegress $ reportAnalysis rep) of 
-               [x] -> case estPoint <$> Map.lookup "iters" (regCoeffs x) of 
-                  Just d -> d
-                  -- Fall back to mean.
-                  Nothing -> estPoint . anMean . reportAnalysis $ rep
-               _ -> estPoint . anMean . reportAnalysis $ rep
+             -- Lookup the runtime predicted by linear regression.
+             getRegressTime = case filter (\reg -> regResponder reg == "time") 
+               (anRegress $ reportAnalysis rep) of 
+                 [x] -> case estPoint <$> Map.lookup "iters" (regCoeffs x) of 
+                          Just d -> d
+                          -- Fall back on mean.
+                          Nothing -> mean
+                 -- Fall back on mean.
+                 _ -> mean
 
+               where mean = estPoint . anMean . reportAnalysis $ rep
 
-
-      
-      -- Parse a report's name into the corresponding test program's identifier 
-      -- and input size.
+      -- Parser helpers to decode report titles: ------------------------------
+  
+      -- Parse a report's title into the corresponding test 
+      -- program's identifier and input size.
       parseRepName :: Parser (Id, DataSize)
       parseRepName  = do 
         -- E.g., "Input Sizes (5, 5)/p1"
@@ -482,13 +566,15 @@ generateBenchmarkingReport ts fp = do
         return (idt, ds) 
 
       -- Parse the encoded baseline size from the name of a Criterion report.
-      parseBaseline :: Parser DataSize 
+      -- E.g., Input Sizes (5, 5) or Input Size 5
+      parseBaseline :: Parser (Id, DataSize)
       parseBaseline = do
         void $ symbol "Input Size"
         void $ MP.optional (MP.letterChar)
-        parseDataSize
+        ("BASELINE",) <$> parseDataSize
 
       -- Parse the encoded data size from the name of a Criterion report.
+      -- E.g., (5, 5) or 5.
       parseDataSize :: Parser DataSize 
       parseDataSize  = (do 
         void $ symbol "("
@@ -497,15 +583,6 @@ generateBenchmarkingReport ts fp = do
         n2 <- integer
         void $ symbol ")"
         return (SizeBin n1 n2)) MP.<|> (SizeUn <$> integer)
-
-
-
-
-
-
-
-
-
 
 -- * Helper functions 
 

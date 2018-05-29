@@ -64,8 +64,7 @@ main = do
       finally (do generateBenchmarkingFile benchFP mn inps idt ts                            
                   putStrLn $ poorNest 1 "\10004"
                   putStrLn $ poorNest 5 "\8226 Compiling benchmarking file..."                       -- (4) Compile benchmarking file.
-                  (success, invalidFlags) <- compileBenchmarkingFile benchFP fp (_ghcFlags ts) 
-                  unless success (throwIO $ FileErr "Compilation failed.")
+                  invalidFlags <- compileBenchmarkingFile benchFP fp (_ghcFlags ts) 
                   printInvalidFlags invalidFlags
                   putStrLn $ poorNest 5 "\8226 Executing benchmarking file..."                       -- (5) Execute benchmarking file.
                   putStrLn ""
