@@ -420,8 +420,8 @@ checkTestSuites inps =
                        then []
                        else [dOptsWrongTyErr]
         checkValidDataOpts _ (Gen l s u) 
-          | l <= 0 || s <= 0 || u <= 0      = [dOptsParErr]     -- l, s, u > 0.
-          | (u - l) `div` s + 1 < minInputs = [dOptsSizeErr]    -- Size range >= 20.
+          | l < 0 || s <= 0 || u <= 0       = [dOptsParErr]     -- l, s, u > 0.
+          | (u - l) `div` s + 1 < minInputs = [dOptsSizeErr]    -- Size range >= 20.     -- MOVE TO ExpandValidTestSuites...
           | otherwise = []
         
         -- Valid 'AnalOpts':
@@ -466,7 +466,6 @@ checkTestSuites inps =
         checkBaseLine True False = [tsBaselineErr]
         checkBaseLine _ _ = []
 
-
         -- Check the GHC compiler flags??
         checkGhcFlags :: [String] -> [InputError]                                                    -- <TO-DO>
         checkGhcFlags  = const []
@@ -497,7 +496,7 @@ checkTestSuites inps =
     -- 'DataOpts':
     dOptsMissErr idt     = DataOptsErr $ "Specified test data is invalid or missing: '" ++ idt ++ "'."
     dOptsWrongTyErr      = DataOptsErr "The type of the specified test data is incompatible with the types of testable programs."
-    dOptsParErr          = DataOptsErr "All parameters to 'Gen' must be strictly positive." 
+    dOptsParErr          = DataOptsErr "Invalid values for 'Gen' bounds and/or step." 
     dOptsSizeErr         = DataOptsErr $ "A minimum of " ++ show minInputs ++ " distinctly sized test inputs are required."
     -- 'AnalOpts':
     aOptsModelErr        = AnalOptsErr $ "Linear regression models can have a maximum of " ++ show maxPredictors ++ " predictors."

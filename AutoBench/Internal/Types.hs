@@ -485,13 +485,19 @@ docBenchReport br = PP.vcat
       fmap PP.text $ _bProgs br)
   , PP.text "Data options:" PP.<+> PP.text (show $ _bDataOpts br)
   , PP.text "Normal form:" PP.<+> PP.text (show $ _bNf br)
-  , PP.vcat $ (PP.text "GHC flags: ") : (PP.punctuate (PP.text ", ") $
-      fmap PP.text $ _bGhcFlags br)
+  , ppGhcFlags (_bGhcFlags br)
+  , PP.text ""
   , PP.text "Reports:" PP.$$ PP.nest 2 (PP.vcat $ fmap ppTestResults $ _reports br)
   , ppBaselines (_baselines br)
   ]
   where 
-
+    -- Pretty print list of GHC flags.
+    ppGhcFlags :: [String] -> PP.Doc 
+    ppGhcFlags [] = PP.empty
+    ppGhcFlags flags = PP.vcat $ (PP.text "GHC flags: ") : 
+      (PP.punctuate (PP.text ", ") $ fmap PP.text $ flags)
+    
+    -- Pretty print 'SimpleReport's belonging to same test program.
     ppTestResults :: [SimpleReport] -> PP.Doc 
     ppTestResults [] = PP.empty
     ppTestResults srs = PP.vcat $ 
@@ -500,16 +506,16 @@ docBenchReport br = PP.vcat
           fmap (\sr -> ppSizeRuntime (_size sr) (_runtime sr)) srs
       ]
 
+    -- Pretty print baseline measurements.
     ppBaselines :: [SimpleReport] -> PP.Doc
     ppBaselines []  = PP.empty
     ppBaselines bls = PP.text "Baseline measurements:" PP.$$ (PP.nest 2 $ 
       PP.vcat $ fmap (\bl -> ppSizeRuntime (_size bl) (_runtime bl)) bls)
 
+    -- PrettyPrint (input size(s), runtime) 2- or 3-tuples.
     ppSizeRuntime :: DataSize -> Double -> PP.Doc
     ppSizeRuntime (SizeUn n) d = PP.char '(' PP.<> PP.int n PP.<> PP.text ", " 
       PP.<> PP.double d PP.<> PP.char ')'
     ppSizeRuntime (SizeBin n1 n2) d = PP.char '(' PP.<> PP.int n1 PP.<> 
       PP.text ", " PP.<> PP.int n2 PP.<> PP.text ", " PP.<> 
       PP.double d PP.<> PP.char ')'
-
-
