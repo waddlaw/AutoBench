@@ -5,8 +5,6 @@ import AutoBench.Types
 import Data.Default 
 import Data.List
 
-import AutoBench.Internal.IO
-
 import Prelude hiding (id)
 
 

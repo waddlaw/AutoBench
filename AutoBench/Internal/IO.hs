@@ -499,7 +499,7 @@ generateBenchmarkingReport mn ts fp = do
         -- Validation checks:
         if | not (allEq sizes) -> Nothing                                                 -- (1) Make sure same number of measurements for each program 
                                                                                           --     and all have same input sizes. 
-           | not $ (sort $ fmap (fst . head) xss) == (sort $ _progs ts) -> Nothing        -- (2) Make sure test programs match those in the 'TestSuite's '_progs' list.
+           | not $ (sort $ fmap (fst . head) xss) == progs -> Nothing                     -- (2) Make sure test programs match those in the 'TestSuite's '_progs' list.
                                                                                           -- (3) <TO-DO>: Some form of input size check against 'UserInputs' data structure.                                                        
            | otherwise -> Just xs
  
