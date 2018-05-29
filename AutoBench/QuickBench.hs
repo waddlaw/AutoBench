@@ -65,7 +65,8 @@ import Criterion.Types
   , whnf
   )
 
-import AutoBench.Internal.Types (AnalOpts, Coord, Coord3)
+import AutoBench.Internal.AbstractSyntax (Id)
+import AutoBench.Internal.Types          (AnalOpts, QuickReport(..))
 
 -- * Datatypes
 
@@ -96,7 +97,8 @@ instance Default GenRange where
 -- @
 data QuickOpts = 
   QuickOpts 
-    { _qProgs    :: [String]   -- ^ Names of test programs.
+    { 
+      _qProgs    :: [String]   -- ^ Names of test programs.
     , _qGenRange :: GenRange   -- ^ Size range of generated test data.
     , _qAnalOpts :: AnalOpts   -- ^ Statistical analysis options.
     , _qRuns     :: Int        -- ^ How many times to run each test case.
@@ -104,7 +106,8 @@ data QuickOpts =
 
 instance Default QuickOpts where 
   def = QuickOpts 
-          { _qProgs    = fmap (('P' :) . show) ([1..] :: [Int]) 
+          { 
+            _qProgs    = fmap (('P' :) . show) ([1..] :: [Int]) 
           , _qGenRange = def 
           , _qAnalOpts = def 
           , _qRuns     = 1
@@ -172,7 +175,7 @@ quickBenchNfWith
 quickBenchNfWith qOpts ps = do 
   seed <- newQCGen
   let !dats = unGen' seed (genSizedUn $ _qGenRange qOpts)
-  coords <- quickBenchNfUn qOpts ps dats
+  qReps <- quickBenchNfUn qOpts ps dats
   undefined
 
 -- | QuickBench a number of unary test programs using generated test data:
@@ -187,7 +190,7 @@ quickBenchWhnfWith
 quickBenchWhnfWith qOpts ps = do
   seed <- newQCGen
   let !dats = unGen' seed (genSizedUn $ _qGenRange qOpts)
-  coords <- quickBenchWhnfUn qOpts ps dats
+  qReps <- quickBenchWhnfUn qOpts ps dats
   undefined
 
 -- | QuickBench a number of binary test programs using generated test data:
@@ -202,7 +205,7 @@ quickBenchNf2With
 quickBenchNf2With qOpts ps = do 
   seed <- newQCGen
   let !dats = unGen' seed (genSizedBin $ _qGenRange qOpts)
-  coords3 <- quickBenchNfBin qOpts ps dats
+  qReps <- quickBenchNfBin qOpts ps dats
   undefined
 
 -- | QuickBench a number of binary test programs using generated test data:
@@ -217,7 +220,7 @@ quickBenchWhnf2With
 quickBenchWhnf2With qOpts ps = do 
   seed <- newQCGen
   let !dats = unGen' seed (genSizedBin $ _qGenRange qOpts)
-  coords3 <- quickBenchWhnfBin qOpts ps dats
+  qReps <- quickBenchWhnfBin qOpts ps dats
   undefined 
 
 -- * Helpers 
@@ -240,64 +243,66 @@ genSizedBin range = liftA2 (,) <$> genSizedUn range <*> genSizedUn range
 -- ** Benchmarking 
 
 -- | Benchmark a number of unary test programs on the same test data. 
--- Test cases are evaluated to normal form. Returns sets of 
--- (input size, runtime) coordinates: one for each test program.
+-- Test cases are evaluated to normal form. 
+-- Returns a list of 'QuickReport's: one for each test program.
 quickBenchNfUn 
   :: NFData b  
   => QuickOpts
   -> [(a -> b)] 
   -> [a]
-  -> IO [[Coord]]
+  -> IO [QuickReport]
 quickBenchNfUn qOpts ps !dats = do 
-  let benchs = [ fmap (nf p) dats | p <- ps ]           -- Generate benchmarkables.
-      runs   = _qRuns qOpts                             -- How many times to execute each benchmarkable?
-  times <- mapM (mapM $ qBench runs) benchs             -- Do the benchmarking.
-  return $ fmap (verifyTimes $ _qGenRange qOpts) times  -- Verify Criterion's measurements.
+  let benchs = [ fmap (nf p) dats | p <- ps ]                           -- Generate Benchmarkables.
+      runs   = _qRuns qOpts                                             -- How many times to execute each Benchmarkable?
+  times <- mapM (mapM $ qBench runs) benchs                             -- Do the benchmarking.
+  return $ zipWith (flip verifyTimesUn $ _qGenRange qOpts) names times  -- Verify Criterion's measurements and generate 'QuickReport's.
+  where names = genNames (_qProgs qOpts)
   
 -- | Benchmark a number of unary test programs on the same test data. 
 -- Test cases are evaluated to weak head normal form.
--- Returns sets of (input size, runtime) coordinates: one for each test program.
+-- Returns a list of 'QuickReport's: one for each test program.
 quickBenchWhnfUn 
   :: QuickOpts
   -> [(a -> b)] 
   -> [a]
-  -> IO [[Coord]]
+  -> IO [QuickReport]
 quickBenchWhnfUn qOpts ps !dats = do 
   let benchs = [ fmap (whnf p) dats | p <- ps ]
       runs   = _qRuns qOpts
   times <- mapM (mapM $ qBench runs) benchs
-  return $ fmap (verifyTimes $ _qGenRange qOpts) times
+  return $ zipWith (flip verifyTimesUn $ _qGenRange qOpts) names times
+  where names = genNames (_qProgs qOpts)
 
 -- | Benchmark a number of binary test programs on the same test data. 
 -- Test cases are evaluated to normal form.
--- Returns sets of (input size, input size, runtime) coordinates: one for each
--- test program.
+-- Returns a list of 'QuickReport's: one for each test program.
 quickBenchNfBin
   :: NFData c 
   => QuickOpts
   -> [(a -> b -> c)] 
   -> [(a, b)]
-  -> IO [[Coord3]]
+  -> IO [QuickReport]
 quickBenchNfBin qOpts ps !dats = do 
   let benchs = [ fmap (nf $ uncurry p) dats | p <- ps ]
       runs   = _qRuns qOpts
   times <- mapM (mapM $ qBench runs) benchs
-  return $ fmap (verifyTimes3 $ _qGenRange qOpts) times
+  return $ zipWith (flip verifyTimesBin $ _qGenRange qOpts) names times
+  where names = genNames (_qProgs qOpts)
 
 -- | Benchmark a number of binary test programs on the same test data. 
 -- Test cases are evaluated to weak head normal form.
--- Returns sets of (input size, input size, runtime) coordinates: one for each
--- test program.
+-- Returns a list of 'QuickReport's: one for each test program.
 quickBenchWhnfBin
   :: QuickOpts
   -> [(a -> b -> c)] 
   -> [(a, b)]
-  -> IO [[Coord3]]
+  -> IO [QuickReport]
 quickBenchWhnfBin qOpts ps !dats = do 
   let benchs = [ fmap (whnf $ uncurry p) dats | p <- ps ]
       runs   = _qRuns qOpts
   times <- mapM (mapM $ qBench runs) benchs
-  return $ fmap (verifyTimes3 $ _qGenRange qOpts) times
+  return $ zipWith (flip verifyTimesBin $ _qGenRange qOpts) names times
+  where names = genNames (_qProgs qOpts)
 
 -- | Execute a benchmarkable for @n@ iterations measuring the total number of
 -- CPU seconds taken. Then calculate the average.
@@ -305,21 +310,40 @@ qBench :: Int -> Benchmarkable -> IO Double
 qBench n b = (/ fromIntegral n) . measMutatorCpuSeconds . 
   fst <$> measure b (fromIntegral n)
 
--- | Convert a 'GenRange' to a Haskell range.
-toHRange :: GenRange -> [Int]
-toHRange (GenRange l s u) = [l, (l + s) .. u]
+-- ** Generating reports
 
--- | Verify Criterion measurements while producing (input size, runtime)
--- coordinates for test results relating to unary test programs.
-verifyTimes :: GenRange -> [Double] -> [Coord]
-verifyTimes range times = catMaybes $ zipWith (\s m -> fromDouble m >>= \d -> 
-  Just (fromIntegral s, d)) (toHRange range) times
+-- | Verify Criterion measurements while producing a 'QuickReport'
+-- for test results relating to unary test programs.
+verifyTimesUn :: Id -> GenRange -> [Double] -> QuickReport
+verifyTimesUn idt range times = 
+  QuickReport 
+    {
+      _qName     = idt
+    , _qRuntimes = Left $ catMaybes $ zipWith (\s m -> fromDouble m >>= \d -> 
+        Just (fromIntegral s, d)) (toHRange range) times
+    }
 
--- | Verify Criterion measurements while producing (input size, input size, 
--- runtime) coordinates for test results relating to binary test programs.
-verifyTimes3 :: GenRange -> [Double] ->  [Coord3]
-verifyTimes3 range times = catMaybes $ zipWith (\(s1, s2) m -> fromDouble m 
-  >>= \d -> Just (fromIntegral s1, fromIntegral s2, d)) sizes times
+-- | Verify Criterion measurements while producing a 'QuickReport'
+-- for test results relating to binary test programs.
+verifyTimesBin :: Id -> GenRange -> [Double] -> QuickReport
+verifyTimesBin idt range times = 
+  QuickReport 
+    {
+      _qName     = idt
+    , _qRuntimes = Right $ catMaybes $ zipWith (\(s1, s2) m -> fromDouble m 
+        >>= \d -> Just (fromIntegral s1, fromIntegral s2, d)) sizes times
+    }
   where 
     sizes  = (,) <$> hRange <*> hRange
     hRange = toHRange range
+
+-- ** Misc.
+
+-- | Generate an infinite number of test program names.
+genNames :: [String] -> [String]
+genNames ns = ns ++ fmap (('P' :) . show) ([l..] :: [Int])
+  where l = length ns + 1
+
+-- | Convert a 'GenRange' to a Haskell range.
+toHRange :: GenRange -> [Int]
+toHRange (GenRange l s u) = [l, (l + s) .. u]

@@ -54,6 +54,8 @@ module AutoBench.Internal.Types
   , Coord3                 -- (Input Size, Input Size, Runtime) results as coordinates for binary test programs.
   , DataSize(..)           -- The size of unary and binary test data.
   , SimpleReport(..)       -- A simplified version of Criterion's 'Report'. See 'Criterion.Types.Report'.
+  -- ** QuickBench
+  , QuickReport(..)        -- A report to summarise the QuickBench phase of testing.
   -- * Statistical analysis                                                                                        -- <TO-DO>
   , numPredictors          --  Number of predictors for each type of model.
   -- * Errors
@@ -264,6 +266,17 @@ data SimpleReport =
    , _outVarEff  :: OutlierEffect  -- ^ Outlier effect. 
    , _outVarFrac :: Double         -- ^ Outlier effect as a percentage.
    }
+
+-- ** QuickBench 
+
+-- | A report to summarise the QuickBench phase of testing. For both unary and 
+-- binary test programs (using 'Coord' or 'Coord3').
+data QuickReport = 
+  QuickReport 
+    {
+      _qName     :: Id                      -- ^ Name of test program.
+    , _qRuntimes :: Either [Coord] [Coord3] -- ^ [(Input size(s), mean runtime)].
+    }
 
 -- * Statistical analysis
 

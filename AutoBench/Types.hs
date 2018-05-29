@@ -93,7 +93,8 @@ instance NFData Criterion.Config
 -- ensure test suites are fully defined.
 data TestSuite = 
   TestSuite
-    {  _progs    :: [Id]             -- ^ Identifiers of programs in the input file to test: note all programs
+    {  
+      _progs    :: [Id]              -- ^ Identifiers of programs in the input file to test: note all programs
                                      --   in the file will be considered if this list is empty.
     , _dataOpts :: DataOpts          -- ^ Test data options ('DataOpts').
     , _analOpts :: AnalOpts          -- ^ Statistical analysis options ('AnalOpts').
@@ -105,7 +106,8 @@ data TestSuite =
 
 instance Default TestSuite where 
   def = TestSuite
-          { _progs    = []                         -- All programs in the test file will be considered for test purposes.           
+          { 
+            _progs    = []                         -- All programs in the test file will be considered for test purposes.           
           , _dataOpts = def                        -- See 'DataOpts'. 
           , _analOpts = def                        -- See 'AnalOpts'.        
           , _critCfg  = Criterion.defaultConfig    -- See 'Criterion.Main.Options.defaultConfig'
@@ -238,9 +240,9 @@ data AnalOpts =
     , _cvTrain       :: Double                                          -- ^ Percentage of data set to use for cross-validation 
                                                                         --   training; the rest is used for validation.
     -- Model comparison:
-    , _topModels     :: Int                                             -- ^ The top n models to review.
+    , _topModels     :: Int                                             -- ^ The top @n@ models to review.
     , _statsFilt     :: Stats -> Bool                                   -- ^ Function to discard models that \"do not\" fit a given data set.
-    , _statsSort     :: Stats -> Stats -> Ordering                      -- ^ Function to select a model that \"best fits\" a given data set.
+    , _statsSort     :: Stats -> Stats -> Ordering                      -- ^ Function rank models according to how they fit a given data set.
     -- Calculating efficiency results:
     , _runtimeComp   :: Double -> Double -> Ordering                    -- ^ Function to compare runtimes of test programs.
     , _runtimeOrd    :: [Ordering] -> Maybe (Ordering, Double)          -- ^ Function to calculate an efficiency ordering from ordered runtimes.
