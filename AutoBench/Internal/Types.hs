@@ -49,6 +49,8 @@ module AutoBench.Internal.Types
   , UserInputs(..)         -- A data structure maintained by the system to classify user inputs.
   , initUserInputs         -- Initialise a 'UserInputs' data structure.
   -- * Benchmarking
+  , Coord                  -- (Input Size, Runtime) results as coordinates for unary test programs.
+  , Coord3                 -- (Input Size, Input Size, Runtime) results as coordinates for binary test programs.
   -- * Statistical analysis                                                                                        -- <TO-DO>
   , numPredictors          --  Number of predictors for each type of model.
   -- * Errors
@@ -214,6 +216,13 @@ initUserInputs xs =
     }
 
 -- * Benchmarking
+
+-- | (Input Size, Runtime) results as coordinates for unary test programs.
+type Coord = (Double, Double)
+
+-- | (Input Size, Input Size, Runtime) results as coordinates for binary test 
+-- programs.        
+type Coord3 = (Double, Double, Double) 
 
 -- * Statistical analysis
 
