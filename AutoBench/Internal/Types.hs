@@ -296,7 +296,9 @@ numPredictors Exp{}         = 2
 -- support the ordering.
 type Improvement = (Id, Ordering, Id, Double)
 
--- | Fitting statistics calculated for each iteration of cross-validation.
+-- | Fitting statistics calculated for regression models per each iteration of
+-- cross-validation. Cumulative fitting statistics are produced by combining 
+-- 'CVStats' from all iterations, for example, PMSE and PMAE. See 'Stats'. 
 data CVStats = 
   CVStats 
    { 

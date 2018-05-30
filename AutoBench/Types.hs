@@ -39,6 +39,7 @@ module AutoBench.Types
   -- * Statistical analysis
   , LinearType(..)         -- Functions used as models for regression analysis.
   , Stats(..)              -- Fitting statistics used to compare regression models.
+
   ) where
 
 import           Control.DeepSeq                  (NFData)
@@ -55,7 +56,7 @@ import AutoBench.Internal.AbstractSyntax (Id)
 import AutoBench.Internal.Utils          (bySide, subNum, superNum)
 
 
--- To be able to DeepSeq CR.Config add NFData instances:
+-- To be able to 'rnf' 'TestSuite's.
 instance NFData Criterion.Verbosity
 instance NFData Criterion.Config
 
@@ -71,12 +72,55 @@ instance NFData Criterion.Config
 -- suites in the same file according to some testing context, whether it be 
 -- analysing the performance of the same programs subject to different levels 
 -- of optimisation, or comparing different implementations under the same
--- test conditions. Another advantage is that if one or more test suites in an 
--- input file are erroneous, other, valid test suites in the same file can be 
--- executed nonetheless.
+-- test conditions. Another advantage is that if one or more test suites in a 
+-- user input file are erroneous, other, valid test suites in the same file can 
+-- be executed nonetheless.
 --
--- Test suites contain a significant number of user options and settings. As 
--- such, the system provides the following defaults,
+-- Test suites are constructed as follows:
+--
+-- * '_progs': the so-called \'progs\' list contains the names of the programs 
+--   to be tested. Each program in the list must be defined in the same
+--   file as the 'TestSuite'. All programs should have the same type, and that
+--   type must be compatible with the remainder of the 'TestSuite's settings. 
+--   For example, if @_nf = True@, then the result type of test programs must 
+--   be a member of the 'NFData' type class. If @_dataOpts = Gen ...@, then 
+--   the input type of test programs must be a member of the 'Arbitrary' type 
+--   class. Users can specify an empty \'progs\' list, in which case all 
+--   programs in the input file will be considered for testing: zero or more 
+--   test suites will be generated with non-empty \'progs\' list satisfying the 
+--   remainder of the 'TestSuite's settings. (The system effectively 'fills'
+--   in the details on behalf of users.)
+-- * '_dataOpts': the data options ('DataOpts') specify which test data to 
+--   use. Users have two options: provide their own test data (@Manual "..."@) 
+--   or have the system generate it (@Gen ...@). See 'DataOpts' for more 
+--   information. Again, the types of the test programs must be compatible with 
+--   this setting, for example @Gen ...@ requires the input types of test 
+--   programs be members of the 'Arbitrary' type class.
+-- * '_analOpts': a large number of user options for statistical analysis. 
+--   These options include: which types of functions to use as models for 
+--   regression analysis (when approximating the time complexity of each 
+--   test function); functions to calculate improvement results, functions 
+--   to filter and compare regression models based on fitting 'Stats' produced 
+--   by the system. See 'AnalOpts' for more information.
+-- * '_critCfg': Criterion's configuration. When benchmarks are executed by 
+--   Criterion, this configuration is used. This allows users to configure
+--   Criterion as if it was being used directly. Note: the default 
+--   configuration works just fine.
+-- * '_baseline': whether the system should generate baseline measurements.
+--   These measure the time spent evaluating the /results/ of test programs
+--   to normal form. The baseline setting can only be used in conjunction 
+--   with the '_nf' setting.
+-- * '_nf': whether test cases should be evaluated to normal form (@True@) or 
+--   weak head normal form (@False@). Typically test cases should be evaluated
+--   to normal form to ensure the true cost of applying each test program is 
+--   reflected in runtime measurements.
+-- * '_ghcFlags': any GHC compiler flags to use when compiling benchmarking 
+--   files. One obvious use case is to add optimisation flags, e.g., -O2/O3.
+--
+-- All 'TestSuite' options and settings are carefully validated. All errors will 
+-- be reported to users and invalid 'TestSuite's cannot be run by the system.
+-- 
+-- The system provides the following default 'TestSuite':
 --
 -- @ TestSuite
 --     { _progs    = []                                     -- All programs in the test file will be considered for test purposes.
@@ -88,8 +132,6 @@ instance NFData Criterion.Config
 --     , _ghcFlags = []                                     -- No optimisation, i.e., -O0.
 --     }
 -- @
---
--- that users can override.
 --
 -- Important note: the most basic check that the system performs on every test
 -- suite is to ensure that each of its record fields are initialised: please
@@ -428,6 +470,8 @@ instance Show LinearType where
 -- compare models when deciding which model best fits a given data set.
 -- Users can provide their own functions in their 'AnalOpts' to filter and 
 -- compare models according to these 'Stats': see '_statsFilt' and _statsSort'.
+-- Default sorting and comparison functions are 'defaultStatsFilt' and 
+-- 'defaultStatsSort', respectively.
 data Stats = 
   Stats 
    {
