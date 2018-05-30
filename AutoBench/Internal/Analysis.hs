@@ -29,6 +29,7 @@
 module AutoBench.Internal.Analysis where 
 
 
+import Data.Default (def)
 import Data.Either
 import Data.List 
 
@@ -39,11 +40,16 @@ import AutoBench.Internal.Utils
 
 
 
-type Improvement = (Id, Ordering, Id, Double)
 
 
-analyseWith :: TestReport -> AnalOpts -> IO () 
-analyseWith tr aOpts = do 
+
+-- * Top-level 
+
+analyse :: TestReport -> IO ()
+analyse  = analyseWith def
+
+analyseWith :: AnalOpts -> TestReport -> IO () 
+analyseWith aOpts tr = do 
   let errs = checkAnalOpts
   if notNull errs
   then do 
@@ -100,6 +106,13 @@ analyseWith tr aOpts = do
 
 
 
+
+
+
+
+
+
+-- * Improvement results 
 
 -- | Calculate efficiency improvements by comparing the runtimes of test 
 -- programs pointwise.
@@ -169,13 +182,6 @@ calculateImprovements srs aOpts                                                 
     matchCoords3 ((s1, s2, t1) : cs1) ((s1', s2', t2) : cs2)
       | s1 == s1' && s2 == s2' = (t1, t2) : matchCoords3 cs1 cs2 
       | otherwise = matchCoords3 cs1 cs2 
-
-
-
-
-
-
-
 
 -- * Helpers 
 

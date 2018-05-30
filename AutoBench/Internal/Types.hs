@@ -59,7 +59,9 @@ module AutoBench.Internal.Types
   , TestReport(..)         -- A report to summarise the system's testing phase.
   , QuickReport(..)        -- A report to summarise the QuickBench phase of testing.
   -- * Statistical analysis                                                                                        -- <TO-DO>
-  , numPredictors          --  Number of predictors for each type of model.
+  , Improvement            -- An efficiency improvement is an ordering between two test programs and a rating
+                           -- 0 <= d <= 1 that corresponds to the percentage of test cases that support the ordering.
+  , numPredictors          -- Number of predictors for each type of model.
   -- * Errors
   -- ** System errors
   , SystemError(..)        -- System errors.
@@ -284,6 +286,11 @@ numPredictors (Poly      k) = k + 1
 numPredictors (Log     _ k) = k + 1 
 numPredictors (PolyLog _ k) = k + 1 
 numPredictors Exp{}         = 2
+
+-- | An efficiency improvement is an ordering between two test programs and a 
+-- rating 0 <= d <= 1 that corresponds to the percentage of test cases that
+-- support the ordering.
+type Improvement = (Id, Ordering, Id, Double)
 
 -- * Errors 
 
