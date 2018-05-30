@@ -66,10 +66,11 @@ analyseWith aOpts tr = do
 
   where 
    
-    -- Valid 'AnalOpts':
+    -- Valid 'AnalOpts':                                                             -- <TO-DO>: Merge this with static checks
     -- Ensure the linear models have <= maximum number of allowed 
     -- predictors. Check the '_cvIters', '_cvTrain', and '_topModels' values 
     -- are in the correct range.
+
     checkAnalOpts :: [InputError]
     checkAnalOpts  =
       checkModels (_linearModels aOpts) 
