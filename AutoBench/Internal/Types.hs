@@ -115,23 +115,6 @@ defBenchRepFilename  = "autobench_tmp.json"
 
 -- ** Statistical analysis options
 
-{-
-instance Show LinearType where 
-  show (Poly      0) = "constant"
-  show (Poly      1) = "linear"
-  show (Poly      2) = "quadratic"
-  show (Poly      3) = "cubic"
-  show (Poly      4) = "quartic"
-  show (Poly      5) = "quintic"
-  show (Poly      6) = "sextic"
-  show (Poly      7) = "septic"
-  show (Poly      8) = "octic"
-  show (Poly      9) = "nonic"
-  show (Poly      n) = "n" ++ superNum n
-  show (Log     b n) = "log" ++ subNum b ++ superNum n ++ "n"
-  show (PolyLog b n) = "n" ++ superNum n ++ "log" ++ subNum b ++ superNum n ++ "n"
-  show (Exp       n) = show n ++ "\x207F"-}
-
 -- | Maximum number of predictors for models to be used for regression analysis.
 --
 -- > maxPredictors = 10

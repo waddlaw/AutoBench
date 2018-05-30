@@ -452,8 +452,8 @@ checkTestSuites inps =
         
         -- Valid 'AnalOpts':
         -- Ensure the linear models have <= maximum number of allowed 
-        -- predictors. Check the '_cvIters' and '_cvTrain' values are 
-        -- in the correct range.
+        -- predictors. Check the '_cvIters', '_cvTrain', and '_topModels' values 
+        -- are in the correct range.
         checkValidAnalOpts :: AnalOpts -> [InputError]
         checkValidAnalOpts aOpts = 
           checkModels (_linearModels aOpts) 
@@ -472,12 +472,12 @@ checkTestSuites inps =
               | n >= minCVIters && n <= maxCVIters = []
               | otherwise = [aOptsCVItersErr]
             
-            -- 0.5 <= '_cvTrain' 0.8
+            -- 0.5 <= '_cvTrain' 0.8.
             checkCVTrain n 
               | n >= minCVTrain && n <= maxCVTrain = []
               | otherwise = [aOptsCVTrainErr]
 
-            -- 'topModels' strictly positive
+            -- 'topModels' strictly positive.
             checkTopModels n 
               | n > 0 = []
               | otherwise = [aOptsTopModelsErr]

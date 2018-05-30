@@ -12,13 +12,8 @@ import           System.Console.Haskeline     (defaultSettings, runInputT)
 import           System.FilePath.Posix        (dropExtension)
 import qualified Text.PrettyPrint.HughesPJ    as PP
 
-import AutoBench.Internal.Types          
-  ( DataOpts(..)
-  , TestSuite(..)
-  , UserInputs
-  , defBenchRepFilename
-  , docTestReport
-  )
+
+import AutoBench.Internal.Analysis        (analyseWith)
 import AutoBench.Internal.UserInputChecks (qCheckTestPrograms, userInputCheck)
 import AutoBench.Internal.Utils           (filepathToModuleName)
 import AutoBench.Internal.IO              
@@ -31,6 +26,13 @@ import AutoBench.Internal.IO
   , printGoodbyeMessage
   , selTestSuiteOption 
   )
+import AutoBench.Internal.Types          
+  ( DataOpts(..)
+  , TestSuite(..)
+  , UserInputs
+  , defBenchRepFilename
+  )
+
 
 {-
    ----------------------------------------------------------------------------
@@ -77,7 +79,9 @@ main = do
                   putStr $ poorNest 5 "\8226 Generating test report"                                 -- (7) Generate test report.
                   testRep <- generateTestReport mn ts (benchRepFilename ts) eql
                   putStrLn $ poorNest 1 "\10004"
-                  print $ docTestReport testRep
+                  
+
+                  analyseWith testRep (_analOpts ts)
 
 
 
