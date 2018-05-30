@@ -60,7 +60,7 @@
    ----------------------------------------------------------------------------
    <TO-DO>:
    ----------------------------------------------------------------------------
-   - qCheckUn, qCheckBin: why is the 'Show' instance necessary?
+   -
 -}
 
 module AutoBench.Internal.DynamicChecks
@@ -138,12 +138,12 @@ qCheckUn :: (Arbitrary a, Eq b) => [a -> b] -> Bool
 qCheckUn ps = unsafePerformIO $ do                              -- I'm not sure whether hint can handle @IO Bool@?
   tDats <- sample' arbitrary                                    -- Generate some inputs.
   isSuccess <$> quickCheckWithResult stdArgs { chatty = False } -- Turn off QuickCheck output.
-    (allEq [ p tDat | p <- ps, tDat <- tDats ])                 -- Check whether test programs give same results.
+    (and [ allEq [ p tDat | p <- ps ] | tDat <- tDats ])        -- Check whether test programs give same results.
 
 -- | Check whether test programs are semantically equal using QuickCheck.
 -- For binary test programs.
-qCheckBin :: (Arbitrary a, Arbitrary b, Eq c)  => [a -> b -> c] -> Bool 
+qCheckBin :: (Arbitrary a, Arbitrary b, Eq c) => [a -> b -> c] -> Bool 
 qCheckBin ps = unsafePerformIO $ do   
   tDats <- sample' arbitrary                                    -- Generate pairs of inputs.
   isSuccess <$> quickCheckWithResult stdArgs { chatty = False } 
-    (allEq [ p tDat1 tDat2 | p <- ps, (tDat1, tDat2) <- tDats ])                  
+    (and [ allEq [ p tDat1 tDat2 | p <- ps ] | (tDat1, tDat2) <- tDats ])                  
