@@ -29,16 +29,16 @@ module AutoBench.Types
 
   -- * User inputs
   -- ** Test suites
-    TestSuite(..)          -- Test suites are AutoBench's principle user input datatype.
+    TestSuite(..)                       -- Test suites are AutoBench's principle user input datatype.
   -- ** Test data options
-  , UnaryTestData          -- User-specified test data for unary test programs.
-  , BinaryTestData         -- User-specified test data for binary test programs.
-  , DataOpts(..)           -- Test data options.
+  , UnaryTestData                       -- User-specified test data for unary test programs.
+  , BinaryTestData                      -- User-specified test data for binary test programs.
+  , DataOpts(..)                        -- Test data options.
   -- ** Statistical analysis options
-  , AnalOpts(..)           -- Statistical analysis options.
+  , AnalOpts(..)                        -- Statistical analysis options.
   -- * Statistical analysis
-  , LinearType(..)         -- Functions used as models for regression analysis.
-  , Stats(..)              -- Fitting statistics used to compare regression models.
+  , LinearType(..)                      -- Functions used as models for regression analysis.
+  , Stats(..)                           -- Fitting statistics used to compare regression models.
 
   ) where
 
@@ -94,31 +94,38 @@ instance NFData Criterion.Config
 --   use. Users have two options: provide their own test data (@Manual "..."@) 
 --   or have the system generate it (@Gen ...@). See 'DataOpts' for more 
 --   information. Again, the types of the test programs must be compatible with 
---   this setting, for example @Gen ...@ requires the input types of test 
+--   this setting, for example, @Gen ...@ requires the input types of test 
 --   programs be members of the 'Arbitrary' type class.
 -- * '_analOpts': a large number of user options for statistical analysis. 
 --   These options include: which types of functions to use as models for 
 --   regression analysis (when approximating the time complexity of each 
---   test function); functions to calculate improvement results, functions 
+--   test program); functions to calculate improvement results, functions 
 --   to filter and compare regression models based on fitting 'Stats' produced 
 --   by the system. See 'AnalOpts' for more information.
 -- * '_critCfg': Criterion's configuration. When benchmarks are executed by 
 --   Criterion, this configuration is used. This allows users to configure
 --   Criterion as if it was being used directly. Note: the default 
---   configuration works just fine.
--- * '_baseline': whether the system should generate baseline measurements.
+--   configuration works just fine and this option is mainly for users
+--   who wish to generate Criterion reports as well AutoBench reports.
+-- * '_baseline': whether the system should produce baseline measurements.
 --   These measure the time spent evaluating the /results/ of test programs
---   to normal form. The baseline setting can only be used in conjunction 
---   with the '_nf' setting.
+--   to normal form. This can be useful if the runtimes of test programs
+--   look odd. For example, if the identity function is tested on lists of 
+--   integers and test cases are evaluated to normal form, the system will 
+--   approximate @id@ as linear. However, it clearly has constant time 
+--   complexity. The linear factor comes from the time spent normalising each 
+--   result list. This can be seen using baseline measurements. Note: the 
+--   baseline setting can only be used in conjunction with the '_nf' setting.
 -- * '_nf': whether test cases should be evaluated to normal form (@True@) or 
 --   weak head normal form (@False@). Typically test cases should be evaluated
---   to normal form to ensure the true cost of applying each test program is 
+--   to normal form to ensure the full cost of applying each test program is 
 --   reflected in runtime measurements.
 -- * '_ghcFlags': any GHC compiler flags to use when compiling benchmarking 
 --   files. One obvious use case is to add optimisation flags, e.g., -O2/O3.
+--   Note: invalid flags are ignored but displayed to users as warnings.
 --
--- All 'TestSuite' options and settings are carefully validated. All errors will 
--- be reported to users and invalid 'TestSuite's cannot be run by the system.
+-- All 'TestSuite' options and settings are carefully validated. All errors are 
+-- reported to users and invalid 'TestSuite's cannot be run by the system.
 -- 
 -- The system provides the following default 'TestSuite':
 --
@@ -151,7 +158,7 @@ data TestSuite =
 
 instance NFData TestSuite 
 
-instance Default TestSuite where 
+instance Default TestSuite where
   def = TestSuite
           { 
             _progs    = []                         -- All programs in the test file will be considered for test purposes.           
@@ -162,6 +169,20 @@ instance Default TestSuite where
           , _nf       = True                       -- Evaluate test cases to normal form.
           , _ghcFlags = []                         -- No optimisation, i.e., -O0. 
           }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 -- ** Test data options
 
