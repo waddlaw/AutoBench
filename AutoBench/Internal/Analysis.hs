@@ -30,13 +30,30 @@ module AutoBench.Internal.Analysis where
 
 
 import Data.Default (def)
-import Data.Either
-import Data.List 
+import Data.Either  (partitionEithers)
+import Data.List    (sort)
 
-import AutoBench.Internal.AbstractSyntax
-import AutoBench.Internal.Types 
-import AutoBench.Internal.Utils
+import AutoBench.Internal.AbstractSyntax (Id)    
+import AutoBench.Internal.Utils (allEq, notNull, uniqPairs)
 
+import AutoBench.Internal.Types  
+  ( AnalOpts(..)
+  , BenchReport(..)
+  , Coord
+  , Coord3
+  , DataSize(..)
+  , Improvement
+  , InputError(..)
+  , LinearType
+  , SimpleReport(..)
+  , TestReport(..)
+  , maxCVIters
+  , maxCVTrain
+  , maxPredictors
+  , minCVIters
+  , minCVTrain
+  , numPredictors
+  )   
 
 
 
@@ -70,7 +87,7 @@ analyseWith aOpts tr = do
     -- Ensure the linear models have <= maximum number of allowed 
     -- predictors. Check the '_cvIters', '_cvTrain', and '_topModels' values 
     -- are in the correct range.
-    checkAnalOpts :: [InputError]                                                          -- <TO-DO>: Merge this with static checks
+    checkAnalOpts :: [InputError]                                                          -- <TO-DO>: Merge this with static checks.
     checkAnalOpts  =
       checkModels (_linearModels aOpts) 
         ++ checkCVIters   (_cvIters   aOpts) 
