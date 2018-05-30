@@ -28,14 +28,12 @@
 
 module AutoBench.Internal.Analysis where 
 
-
 import Data.Default (def)
 import Data.Either  (partitionEithers)
 import Data.List    (sort)
 
 import AutoBench.Internal.AbstractSyntax (Id)    
-import AutoBench.Internal.Utils (allEq, notNull, uniqPairs)
-
+import AutoBench.Internal.Utils          (allEq, notNull, uniqPairs)
 import AutoBench.Internal.Types  
   ( AnalOpts(..)
   , BenchReport(..)

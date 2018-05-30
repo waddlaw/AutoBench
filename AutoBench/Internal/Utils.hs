@@ -201,16 +201,14 @@ clArgsParser  = CLArgs <$> OPTS.info
 -- | Put a list of multi-line 'PP.Doc's side by side and output as a 'String'.
 bySide :: [PP.Doc] -> String -> String
 bySide [] _   = ""
-bySide xs sep = unlines 
-                 . foldr1 side 
-                 . fmap (deggar . lines . PP.render) 
-                 $ xs
-   where 
-        side s1 s2   = fmap (intercalate sep) . padded $
-                        padLeft s1 (pad s1) <*> padRight s2 (pad s2)
-        pad s        = replicate (length $ head s) ' '
-        padLeft  s p = (:) <$> s :- p
-        padRight s p = (:) <$> s :- p <*> pure []
+bySide xs sep = 
+  unlines . foldr1 side . fmap (deggar . lines . PP.render) $ xs
+  where 
+    side s1 s2   = fmap (intercalate sep) . padded $
+                     padLeft s1 (pad s1) <*> padRight s2 (pad s2)
+    pad s        = replicate (length $ head s) ' '
+    padLeft  s p = (:) <$> s :- p
+    padRight s p = (:) <$> s :- p <*> pure []
 
 -- * Misc.
 
