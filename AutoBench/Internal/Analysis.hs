@@ -28,7 +28,9 @@
 
 module AutoBench.Internal.Analysis where 
 
-import Data.Either 
+
+import Data.Either
+import Data.List 
 
 import AutoBench.Internal.AbstractSyntax
 import AutoBench.Internal.Types 
@@ -102,10 +104,10 @@ analyseWith tr aOpts = do
 -- | Calculate efficiency improvements by comparing the runtimes of test 
 -- programs pointwise.
 calculateImprovements :: [[SimpleReport]] -> AnalOpts -> [Improvement]
-calculateImprovements srs aOpts
-  -- Basic validation checks:                                                   -- <TO-DO>: add more checks.
-  | any null srs                  = []   -- Shouldn't happen.
-  | not (allEq $ fmap length srs) = []   -- Shouldn't happen.
+calculateImprovements srs aOpts                                                  -- Basic validation checks:
+  | any null srs = []                                                            -- Make sure no list of simple reports is empty.  
+  | not (allEq $ fmap length srs) = []                                           -- Make sure all lists are the same length.
+  | not (checkCoords srCoords $ length $ head srs) = []                          -- Make sure all lists of coords are the same form and the expected length.
   | otherwise = concatMap (uncurry calculateImprovement) (uniqPairs $ 
       zip srNames srCoords)
 
@@ -130,17 +132,25 @@ calculateImprovements srs aOpts
       | otherwise = case (_improv aOpts) toCompare of 
           Nothing       -> []
           Just (ord, d) -> [(idt1, ord, idt2, d)]
-      where toCompare = matchCoords cs1 cs2
+      where toCompare = matchCoords (sort cs1) (sort cs2)
     calculateImprovement (idt1, Right cs1) (idt2, Right cs2) -- Binary against binary.
       -- If all coordinates didn't match, then can't generate improvements.
       | length toCompare < length cs1 = []
       | otherwise = case (_improv aOpts) toCompare of 
           Nothing       -> []
           Just (ord, d) -> [(idt1, ord, idt2, d)]
-      where toCompare = matchCoords3 cs1 cs2 
+      where toCompare = matchCoords3 (sort cs1) (sort cs2) 
     calculateImprovement _ _ = [] -- Shouldn't happen.
 
     -- Helpers
+
+    -- Check coords are all of the same form (i.e., all 'Coord' or
+    -- all 'Coord3') and the same, expected length @n@.
+    checkCoords :: [Either [Coord] [Coord3]] -> Int -> Bool 
+    checkCoords css n = case partitionEithers css of
+      ([], c3s) -> allEq (n : fmap length c3s)
+      (cs, [])  -> allEq (n : fmap length cs)
+      _         -> False  
     
     -- Make sure coordinates to compare have the same size information. This 
     -- should always be the case because of how they are generated, but better 
