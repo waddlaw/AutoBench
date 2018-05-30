@@ -324,12 +324,12 @@ checkTestSuites inps =
       in      
            -- '_progs' list is not empty:
            (if notNull ps 
-           then progsMiss ps'                                       -- Missing programs in '_progs' list?
-                  ++ progsDupes ps                                  -- Duplicate programs in '_progs' list?                
-                  ++ progsTypes ps'                                 -- Same types in '_progs' list?
-                  ++ progsBench ps''                                -- Benchmarkable in '_progs' list?
-                  ++ (if _nf ts then progsNf  ps'' else [])        -- NF-able is '_progs' list?
-                  ++ (if gen    then progsArb ps'' else [])        -- Gen-able is '_progs' list?
+           then progsMiss ps'                                -- Missing programs in '_progs' list?
+                  ++ progsDupes ps                           -- Duplicate programs in '_progs' list?                
+                  ++ progsTypes ps'                          -- Same types in '_progs' list?
+                  ++ progsBench ps''                         -- Benchmarkable in '_progs' list?
+                  ++ (if _nf ts then progsNf  ps'' else [])  -- NF-able is '_progs' list?
+                  ++ (if gen    then progsArb ps'' else [])  -- Gen-able is '_progs' list?
            else [])
            -- '_prog' list is empty:
            ++ (if null ps                                    -- Check all functions in input file if '_progs' list is empty:
@@ -338,7 +338,7 @@ checkTestSuites inps =
                      (fmap fst arbFuns)                      -- Gen-able.
                      (fmap fst benchFuns)                    -- Benchmarkable.
               else [])           
-           ++ checkValidDataOpts tyInps (_dataOpts ts)       -- Valid 'DataOpts'.
+           ++ checkValidDataOpts ps'' tyInps (_dataOpts ts)  -- Valid 'DataOpts'.
            ++ checkValidAnalOpts (_analOpts ts)              -- Valid 'AnalOpts'.
            ++ checkCritCfg (_critCfg ts)                     -- Valid Criterion configuration?? <TO-DO>
            ++ checkBaseLine (_baseline ts) (_nf ts)          -- Valid baseline option?
@@ -407,10 +407,8 @@ checkTestSuites inps =
         -- Validate 'DataOpts':
         -- If the 'Manual' option is selected, ensure the test data is present, 
         -- and has the correct type w.r.t. the input types of testable programs.
-        -- If the 'Gen' option is selected, make sure the size range is
-        -- valid and specifies a sufficient number of test inputs.
-        checkValidDataOpts :: [HsType] -> DataOpts -> [InputError]
-        checkValidDataOpts tyInps (Manual idt) =
+        checkValidDataOpts :: [Id] -> [HsType] -> DataOpts -> [InputError]
+        checkValidDataOpts _ tyInps (Manual idt) =
           -- Find specified test data in 'UserInputs' data structure:
           case lookup idt (unaryData ++ binaryData) of
             -- Missing:
@@ -419,9 +417,30 @@ checkTestSuites inps =
             Just ty -> if testDataTyFunInps ty `elem` tyInps 
                        then []
                        else [dOptsWrongTyErr]
-        checkValidDataOpts _ (Gen l s u) 
-          | l < 0 || s <= 0 || u <= 0       = [dOptsParErr]     -- l, s, u > 0.
-          | (u - l) `div` s + 1 < minInputs = [dOptsSizeErr]    -- Size range >= 20.     -- MOVE TO ExpandValidTestSuites...
+        
+        -- If the 'Gen' option is selected, make sure the size range parameters
+        -- @l s u@ are valid. If the 'TestSuite's '_progs' list is empty, then 
+        -- the system /cannot/ determine whether the size range is valid because
+        -- it depends if it is being used for unary or binary test programs, 
+        -- this is checked at a later stage in 'expandTestSuites'. If the 
+        -- '_progs' list is populated, then can check: lookup whether the 
+        -- test programs in the list are unary or binary and calculate 
+        -- from there.
+        checkValidDataOpts ps _ (Gen l s u) 
+          | l < 0 || s <= 0 || u <= 0 = [dOptsParErr]     -- l >= 0, s > 0, u > 0.
+          | notNull ps = case lookup (head ps) unaryFuns of  
+          -- Just check the head because if different types in '_progs' list 
+          -- then a different error will occur elsewhere.
+              -- Given size range is for unary test programs.
+              Just{} 
+                | (u - l) `div` s + 1 < minInputs -> [dOptsSizeErr]   -- Size range >= minInputs.
+                | otherwise -> []
+              Nothing -> case lookup (head ps) binaryFuns of
+                -- Given size range is for binary test programs.
+                Just{} 
+                  | ((u - l) `div` s + 1) ^ (2 :: Int) < minInputs -> [dOptsSizeErr] -- (Size range)^2 >= minInputs.
+                  | otherwise -> []
+                Nothing -> [dOptsMissGenErr $ head ps]
           | otherwise = []
         
         -- Valid 'AnalOpts':
@@ -481,12 +500,12 @@ checkTestSuites inps =
 
     -- Errors:
     -- '_progs' list:
-    progsMissErr diff    = TestSuiteErr $ "Cannot locate programs specified in the '_progs' list: " ++ show diff ++ "."
+    progsMissErr  diff   = TestSuiteErr $ "Cannot locate programs specified in the '_progs' list: " ++ show diff ++ "."
     progsDupesErr        = TestSuiteErr "One or more duplicate programs specified in the '_progs' list."
     progsTypesErr        = TestSuiteErr "Programs specified in the '_progs' list have different types."
     progsBenchErr diff   = TestSuiteErr $ "One or more programs specified in the '_progs' list cannot be benchmarked: " ++ show diff ++ "."
-    progsNfErr diff      = TestSuiteErr $ "The results of one or more benchmarkable programs specified in the '_progs' list cannot be evaluated to normal form:" ++ show diff ++ "."
-    progsArbErr diff     = TestSuiteErr $ "Test data cannot be generated for one or more benchmarkable programs specified in the '_progs' list: " ++ show diff ++ "."
+    progsNfErr    diff   = TestSuiteErr $ "The results of one or more benchmarkable programs specified in the '_progs' list cannot be evaluated to normal form:" ++ show diff ++ "."
+    progsArbErr   diff   = TestSuiteErr $ "Test data cannot be generated for one or more benchmarkable programs specified in the '_progs' list: " ++ show diff ++ "."
     -- Other 'TestSuite' errors:
     checkAllNFArbErr     = TestSuiteErr "There are no benchmarkable programs specified in the input file whereby their results can be evaluated to normal and for which test data can be generated." 
     checkAllNfErr        = TestSuiteErr "The results of all benchmarkable programs specified in the input file cannot be evaluated to normal form."
@@ -494,7 +513,8 @@ checkTestSuites inps =
     checkAllBenchErr     = TestSuiteErr "None of the programs in the input file can be benchmarked."
     tsBaselineErr        = TestSuiteErr "The baseline option can only be used when test cases are being fully evaluated."
     -- 'DataOpts':
-    dOptsMissErr idt     = DataOptsErr $ "Specified test data is invalid or missing: '" ++ idt ++ "'."
+    dOptsMissErr    idt  = DataOptsErr $ "Specified test data is invalid or missing: '" ++ idt ++ "'."
+    dOptsMissGenErr idt  = DataOptsErr $ "Cannot determine the size range of generated test data due to missing test programs specified in the '_progs' list: " ++ idt ++ "."
     dOptsWrongTyErr      = DataOptsErr "The type of the specified test data is incompatible with the types of testable programs."
     dOptsParErr          = DataOptsErr "Invalid values for 'Gen' bounds and/or step." 
     dOptsSizeErr         = DataOptsErr $ "A minimum of " ++ show minInputs ++ " distinctly sized test inputs are required."
@@ -658,36 +678,63 @@ extractUserInputs fp =
 catchIE :: MonadInterpreter m => m a -> (InterpreterError -> m a) -> m a
 catchIE  = catch
 
--- Expand valid test suites input by the user which have empty '_progs' lists. 
+-- Expand valid test suites input by the user that have empty '_progs' lists. 
 --           
 -- Background:                              
 -- Users can provide empty '_progs' lists in their test suites to instruct the 
 -- system to generate all valid options based on the remainder of the test 
 -- suite's settings. In practice, this means the system has to generate 
--- one or more test suites for every test suite of this form.
+-- zero or more test suites for every test suite of this form.
 --
--- The main complication is ensuring that, when the '_progs' list is populated,
--- the test programs selected must be compatible with user-specified test data,
--- if applicable. If users have chosen to generate test data automatically,
--- then this isn't an issue.
+-- The main complication is ensuring that, when the '_progs' list is populated
+-- in the expansion, the test programs selected must be compatible with 
+-- user-specified test data, if applicable. In addition, if the user has opted 
+-- for test data to be generated automatically, then the size range must be 
+-- checked depending on whether the test programs are unary or binary.
 expandTestSuites :: UserInputs -> UserInputs
 expandTestSuites inps = 
-  inps { _testSuites = concatMap (uncurry expandTestSuite) (_testSuites inps) }
+  let (valids, invalids) = foldr expand ([], []) (_testSuites inps)
+  in inps { _testSuites        = valids
+          , _invalidTestSuites = _invalidTestSuites inps ++ invalids 
+          }
   where 
-    expandTestSuite :: Id -> TestSuite -> [(Id, TestSuite)]
-    expandTestSuite idt ts 
+    -- The system may generate one or more valid test suites or an invalid test 
+    -- suite if expansion is not possible due to a 'DataOpts' error.
+    expand 
+      :: (Id, TestSuite) 
+      -> ([(Id, TestSuite)], [(Id, [InputError])])
+      -> ([(Id, TestSuite)], [(Id, [InputError])])
+    expand (idt, ts) (valids, errs) 
       -- If '_progs' list is populated, don't expand.
-      | notNull (_progs ts) = [(idt, ts)]
-      -- In this case we need to expand test suites because the '_progs'
-      -- list is empty. The only complication is to ensure the type of 
-      -- user-specified test data matches the programs added 
-      -- to the '_progs' list. To do this we use 'matchWithTestData'.
-      | _nf ts && gen = genTestSuites $ fmap (fmap fst) benchNfArbFunsGpd                      -- nf and gen benchmarkable: no manual match.
-      | _nf ts        = genTestSuites $ matchWithTestData (_dataOpts ts) benchNfFunsGpd        -- nf benchmarkable:         manual match.
-      | gen           = genTestSuites $ fmap (fmap fst) benchArbFunsGpd                        -- gen benchmarkable:        no manual match.
-      | otherwise     = genTestSuites $ matchWithTestData (_dataOpts ts) benchFunsGpd          -- All benchmarkable:        manual match.
-
+      | notNull (_progs ts) = ((idt, ts) : valids, errs)
+      
+      -- If '_progs' list is empty, need to expand:
+      
+      | _nf ts && gen = case genTestSuites $                                               -- Nf, Gen, and Benchmarkable: size range match.
+          matchWithGenSize (_dataOpts ts) True benchNfArbUnFunsGpd ++
+          matchWithGenSize (_dataOpts ts) False benchNfArbBinFunsGpd of 
+            []  -> (valids, (idt, [dOptsSizeErr]) : errs)
+            tss -> (tss ++ valids, errs)
+      | _nf ts = case genTestSuites $ matchWithTestData (_dataOpts ts)                     -- Nf and Benchmarkable: manual match.
+          benchNfFunsGpd of 
+            []  -> (valids, (idt, [dOptsWrongTyErr]) : errs)
+            tss -> (tss ++ valids, errs) 
+      | gen = case genTestSuites $                                                         -- Gen and Benchmarkable: gen size range match.
+          matchWithGenSize (_dataOpts ts) True benchArbUnFunsGpd ++
+          matchWithGenSize (_dataOpts ts) False benchArbBinFunsGpd of 
+            []  -> (valids, (idt, [dOptsWrongTyErr]) : errs)
+            tss -> (tss ++ valids, errs)
+      | otherwise = case genTestSuites $ matchWithTestData (_dataOpts ts)                  -- All Benchmarkable: manual match.
+          benchFunsGpd of 
+            []  -> (valids, (idt, [dOptsWrongTyErr]) : errs)
+            tss -> (tss ++ valids, errs)
       where 
+
+        -- Whether the test suite requires generated test data.
+        gen = case _dataOpts ts of  
+          Gen{}    -> True
+          Manual{} -> False
+
         -- For each /new/ '_progs' list, replicate the test suite's prior 
         -- settings. This is how we perform the expansion. 
         -- At the end every test suite will have a populated '_progs' list.
@@ -695,7 +742,7 @@ expandTestSuites inps =
         genTestSuites  = fmap (\idts -> 
           ( idt
           , TestSuite 
-              { _progs    = idts          -- Add a new '_progs' list.
+              { _progs    = idts  -- Add a new '_progs' list.
               -- Everything else remains the same.
               , _dataOpts = _dataOpts ts 
               , _analOpts = _analOpts ts
@@ -706,14 +753,18 @@ expandTestSuites inps =
               }
           ))
 
-        -- Whether the test suite requires generated test data.
-        gen = case _dataOpts ts of 
-          Manual{} -> False 
-          Gen{}    -> True
+        -- Match the Gen size range with the minimum input requirements of unary
+        -- and binary test programs. 
+        matchWithGenSize :: DataOpts -> Bool -> [[(Id, HsType)]] -> [[Id]]
+        matchWithGenSize Manual{} _ _ = []
+        matchWithGenSize (Gen l s u) True validFuns  -- True for unary test programs.
+          | (u - l) `div` s + 1 < minInputs = []
+          | otherwise = fmap (fmap fst) validFuns
+        matchWithGenSize (Gen l s u) False validFuns -- False for binary test programs.
+          | ((u - l) `div` s + 1) ^ (2 :: Int) < minInputs = []
+          | otherwise = fmap (fmap fst) validFuns
 
         -- Match the /input type/ of each function with the type of test data.
-        -- At this point no errors should occur because validation has already 
-        -- been performed.
         matchWithTestData :: DataOpts -> [[(Id, HsType)]] -> [[Id]]
         matchWithTestData Gen{} _ = [] -- Shouldn't happen.
         matchWithTestData (Manual s) validFuns = case lookup s testData of
@@ -721,20 +772,30 @@ expandTestSuites inps =
             Just ty -> fmap (fmap fst) $ filter (\xs -> match (snd $ head xs) ty) validFuns
           where match fTy dTy = tyFunInps fTy == testDataTyFunInps dTy
 
+        -- Data options errors:
+        dOptsSizeErr    = DataOptsErr $ "A minimum of " ++ show minInputs ++ " distinctly sized test inputs are required."
+        dOptsWrongTyErr = DataOptsErr "The type of the specified test data is incompatible with the types of testable programs."
+
     -- Groupings by type: to match against the type of user-specified test data.
-    benchArbFunsGpd   = groupBy (\x1 x2 -> snd x1 == snd x2) $ sortBy (comparing snd) benchArbFuns
-    benchNfFunsGpd    = groupBy (\x1 x2 -> snd x1 == snd x2) $ sortBy (comparing snd) benchNfFuns
-    benchNfArbFunsGpd = groupBy (\x1 x2 -> snd x1 == snd x2) $ sortBy (comparing snd) benchNfArbFuns
-    benchFunsGpd      = groupBy (\x1 x2 -> snd x1 == snd x2) $ sortBy (comparing snd) benchFuns
+    benchNfArbUnFunsGpd  = groupBy (\x1 x2 -> snd x1 == snd x2) $ sortBy (comparing snd) benchNfArbUnFuns
+    benchNfArbBinFunsGpd = groupBy (\x1 x2 -> snd x1 == snd x2) $ sortBy (comparing snd) benchNfArbBinFuns
+    benchArbUnFunsGpd    = groupBy (\x1 x2 -> snd x1 == snd x2) $ sortBy (comparing snd) benchArbUnFuns
+    benchArbBinFunsGpd   = groupBy (\x1 x2 -> snd x1 == snd x2) $ sortBy (comparing snd) benchArbBinFuns
+    benchNfFunsGpd       = groupBy (\x1 x2 -> snd x1 == snd x2) $ sortBy (comparing snd) benchNfFuns
+    benchFunsGpd         = groupBy (\x1 x2 -> snd x1 == snd x2) $ sortBy (comparing snd) benchFuns
 
     -- Cross-referencing from the 'UserInputs':
-    benchArbFuns   = benchFuns `intersect` arbFuns
-    benchNfFuns    = benchFuns `intersect` nfFuns
-    benchNfArbFuns = benchFuns `intersect` nfFuns `intersect` arbFuns
-
+    benchNfArbUnFuns  = benchFuns `intersect` nfFuns `intersect` arbFuns `intersect` unaryFuns
+    benchNfArbBinFuns = benchFuns `intersect` nfFuns `intersect` arbFuns `intersect` binaryFuns
+    benchArbUnFuns    = benchFuns `intersect` arbFuns `intersect` unaryFuns
+    benchArbBinFuns   = benchFuns `intersect` arbFuns `intersect` binaryFuns
+    benchNfFuns       = benchFuns `intersect` nfFuns
+    
     -- Projections from 'UserInputs':
-    benchFuns = _benchFuns  inps
-    nfFuns    = _nfFuns     inps
-    arbFuns   = _arbFuns    inps
-    testData  = fmap (\(idt, ty, _) -> (idt, ty)) (_unaryData inps) ++ 
-                fmap (\(idt, ty, _) -> (idt, ty)) (_binaryData inps)
+    benchFuns  = _benchFuns  inps
+    nfFuns     = _nfFuns     inps
+    arbFuns    = _arbFuns    inps
+    unaryFuns  = _unaryFuns inps 
+    binaryFuns = _binaryFuns inps 
+    testData   = fmap (\(idt, ty, _) -> (idt, ty)) (_unaryData inps) ++ 
+                 fmap (\(idt, ty, _) -> (idt, ty)) (_binaryData inps)
