@@ -75,8 +75,8 @@ module AutoBench.Internal.DynamicChecks
   , sizeUnaryTestData               -- Dynamic check for 6. /ValidUnaryData/.
   , sizeBinaryTestData              -- Dynamic check for 7. /ValidBinaryData/.
   -- ** QuickCheck testing
-  , qCheckUn                        -- Check whether test programs are semantically equal using QuickCheck. For unary test programs.
-  , qCheckBin                       -- Check whether test programs are semantically equal using QuickCheck. For binary test programs.
+  , quickCheckUn                    -- Check whether test programs are semantically equal using QuickCheck. For unary test programs.
+  , quickCheckBin                   -- Check whether test programs are semantically equal using QuickCheck. For binary test programs.
   
   ) where 
 
@@ -134,16 +134,16 @@ sizeBinaryTestData  = fmap (\(s1, s2, _, _) -> (s1, s2))
 
 -- | Check whether test programs are semantically equal using QuickCheck.
 -- For unary test programs.
-qCheckUn :: (Arbitrary a, Eq b) => [a -> b] -> Bool
-qCheckUn ps = unsafePerformIO $ do                              -- I'm not sure whether hint can handle @IO Bool@?
+quickCheckUn :: (Arbitrary a, Eq b) => [a -> b] -> Bool
+quickCheckUn ps = unsafePerformIO $ do                          -- I'm not sure whether hint can handle @IO Bool@?
   tDats <- sample' arbitrary                                    -- Generate some inputs.
   isSuccess <$> quickCheckWithResult stdArgs { chatty = False } -- Turn off QuickCheck output.
     (and [ allEq [ p tDat | p <- ps ] | tDat <- tDats ])        -- Check whether test programs give same results.
 
 -- | Check whether test programs are semantically equal using QuickCheck.
 -- For binary test programs.
-qCheckBin :: (Arbitrary a, Arbitrary b, Eq c) => [a -> b -> c] -> Bool 
-qCheckBin ps = unsafePerformIO $ do   
+quickCheckBin :: (Arbitrary a, Arbitrary b, Eq c) => [a -> b -> c] -> Bool 
+quickCheckBin ps = unsafePerformIO $ do   
   tDats <- sample' arbitrary                                    -- Generate pairs of inputs.
   isSuccess <$> quickCheckWithResult stdArgs { chatty = False } 
     (and [ allEq [ p tDat1 tDat2 | p <- ps ] | (tDat1, tDat2) <- tDats ])                  

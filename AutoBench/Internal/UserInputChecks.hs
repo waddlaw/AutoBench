@@ -837,8 +837,8 @@ qCheckTestPrograms fp ps inps = do
       | otherwise = "False" -- Shouldn't happen at this stage due to prior validation checks.
 
     -- *** Don't edit these function names ***
-    qCheckUn  = PP.text "AutoBench.Internal.DynamicChecks.qCheckUn"
-    qCheckBin = PP.text "AutoBench.Internal.DynamicChecks.qCheckBin"
+    qCheckUn  = PP.text "AutoBench.Internal.DynamicChecks.quickCheckUn"
+    qCheckBin = PP.text "AutoBench.Internal.DynamicChecks.quickCheckBin"
 
     -- Pretty print a comma-separated list.
     ppList :: [PP.Doc] -> PP.Doc

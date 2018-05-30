@@ -53,9 +53,11 @@ import Control.DeepSeq        (NFData(..))
 import Criterion.Measurement  (measure)
 import Data.Default           (Default(..))
 import Data.Maybe             (catMaybes)
-import Test.QuickCheck        (Arbitrary(..), resize)
-import Test.QuickCheck.Gen    (Gen, unGen)
+import Test.QuickCheck        ( Arbitrary(..), Args(..), quickCheckWithResult 
+                              , resize, stdArgs )
+import Test.QuickCheck.Gen    (Gen, sample', unGen)
 import Test.QuickCheck.Random (QCGen, newQCGen)
+import Test.QuickCheck.Test   (isSuccess)
 
 import Criterion.Types        
   ( Benchmarkable
@@ -67,6 +69,7 @@ import Criterion.Types
 
 import AutoBench.Internal.AbstractSyntax (Id)
 import AutoBench.Internal.Types          (AnalOpts, QuickReport(..))
+import AutoBench.Internal.Utils          (allEq)
 
 -- * Datatypes
 
@@ -336,6 +339,24 @@ verifyTimesBin idt range times =
   where 
     sizes  = (,) <$> hRange <*> hRange
     hRange = toHRange range
+
+-- ** QuickCheck testing
+
+-- | Check whether test programs are semantically equal using QuickCheck.
+-- For unary test programs.
+quickCheckUn :: (Arbitrary a, Eq b) => [a -> b] -> IO Bool
+quickCheckUn ps = do                                             
+  tDats <- sample' arbitrary                                    -- Generate some inputs.
+  isSuccess <$> quickCheckWithResult stdArgs { chatty = False } -- Turn off QuickCheck output.
+    (and [ allEq [ p tDat | p <- ps ] | tDat <- tDats ])        -- Check whether test programs give same results.
+
+-- | Check whether test programs are semantically equal using QuickCheck.
+-- For binary test programs.
+quickCheckBin :: (Arbitrary a, Arbitrary b, Eq c) => [a -> b -> c] -> IO Bool 
+quickCheckBin ps = do
+  tDats <- sample' arbitrary                                    -- Generate pairs of inputs.
+  isSuccess <$> quickCheckWithResult stdArgs { chatty = False } 
+    (and [ allEq [ p tDat1 tDat2 | p <- ps ] | (tDat1, tDat2) <- tDats ])  
 
 -- ** Misc.
 
