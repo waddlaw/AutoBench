@@ -67,15 +67,22 @@
    -
 -}
 
-module AutoBench.Internal.UserInputChecks (userInputCheck) where 
+module AutoBench.Internal.UserInputChecks 
+  ( 
+    userInputCheck        -- Parse, validate and classify user inputs.
+  , qCheckTestPrograms    -- Check whether test programs are semantically equal using QuickCheck.
 
-import           Control.Category    ((>>>))
-import           Data.List           ((\\), groupBy, intersect, nub, sort, sortBy)
-import           Data.Ord            (comparing)
-import           Data.Typeable       (Typeable)
-import           Control.Monad       ((>=>), filterM, foldM, void)
-import           Control.Monad.Catch (catch, catchAll)
-import qualified Criterion.Types     as Criterion
+  ) where 
+
+import           Control.Category          ((>>>))
+import           Control.Monad             ((>=>), filterM, foldM, void)
+import           Control.Monad.Catch       (catch, catchAll)
+import qualified Criterion.Types           as Criterion
+import           Data.List                 ( (\\), groupBy, intersect, nub, sort
+                                           , sortBy )
+import           Data.Ord                  (comparing)
+import           Data.Typeable             (Typeable)
+import qualified Text.PrettyPrint.HughesPJ as PP
 
 import Language.Haskell.Interpreter 
   (InterpreterError
@@ -135,7 +142,7 @@ import AutoBench.Internal.Utils (allEq, filepathToModuleName, notNull)
 
 -- * Top-level 
 
--- | Top level function for parsing, validating and classifying user inputs.     -- <TO-DO> 
+-- | Parse, validate and classify user inputs.
 userInputCheck :: MonadInterpreter m => FilePath -> m UserInputs 
 userInputCheck fp  = do 
   let mn = filepathToModuleName fp
@@ -799,3 +806,45 @@ expandTestSuites inps =
     binaryFuns = _binaryFuns inps 
     testData   = fmap (\(idt, ty, _) -> (idt, ty)) (_unaryData inps) ++ 
                  fmap (\(idt, ty, _) -> (idt, ty)) (_binaryData inps)
+
+-- ** QuickCheck testing 
+
+-- | Check whether test programs are semantically equal using QuickCheck.
+-- Note: this check is only available for 'TestSuite's that use generated test 
+-- data.
+qCheckTestPrograms 
+  :: MonadInterpreter m 
+  => FilePath   -- User input file.
+  -> [String]   -- Names of test programs.
+  -> UserInputs -- User inputs data structure (for cross-referencing).
+  -> m Bool 
+qCheckTestPrograms _ [] _ = return False
+qCheckTestPrograms fp ps inps = do 
+  let mn  = filepathToModuleName fp
+      ps' = fmap (prettyPrint . qualIdt mn) ps -- Qualify the programs with module name to avoid ambiguity.
+  -- Load the user input file with dynamic check helper module.
+  loadFileSetTopLevelModuleWithHelpers fp ["AutoBench.Internal.DynamicChecks"]
+  catchIE ((interpret $ qCheck ps') (as :: Bool))
+  -- If anything goes wrong, just assume the programs aren't semantically equal.
+          (const $ return False) 
+  where 
+    qCheck ps'
+    -- Check whether the test programs are unary or binary by 
+    -- cross-referencing the 'UserInputs' data structure.
+    -- Construct the appropriate function call to do the checking.
+      | (head ps) `elem` unaryFuns  = PP.render $ qCheckUn  PP.<+> ppList (fmap PP.text ps') -- Unary test programs.
+      | (head ps) `elem` binaryFuns = PP.render $ qCheckBin PP.<+> ppList (fmap PP.text ps') -- Binary test programs.
+      | otherwise = "False" -- Shouldn't happen at this stage due to prior validation checks.
+
+    -- *** Don't edit these function names ***
+    qCheckUn  = PP.text "AutoBench.Internal.DynamicChecks.qCheckUn"
+    qCheckBin = PP.text "AutoBench.Internal.DynamicChecks.qCheckBin"
+
+    -- Pretty print a comma-separated list.
+    ppList :: [PP.Doc] -> PP.Doc
+    ppList docs = PP.hcat $ 
+      PP.char '[' : (PP.punctuate (PP.text ", ") docs) ++ [PP.char ']']
+
+    -- Projections: names of unary/binary functions in user input file.
+    unaryFuns  = fmap fst $ _unaryFuns  inps
+    binaryFuns = fmap fst $ _binaryFuns inps

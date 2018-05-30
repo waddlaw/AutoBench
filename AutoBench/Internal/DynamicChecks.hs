@@ -60,7 +60,7 @@
    ----------------------------------------------------------------------------
    <TO-DO>:
    ----------------------------------------------------------------------------
-   - 
+   - qCheckUn, qCheckBin: why is the 'Show' instance necessary?
 -}
 
 module AutoBench.Internal.DynamicChecks
@@ -74,13 +74,20 @@ module AutoBench.Internal.DynamicChecks
   , checkInitialisedTestSuite       -- Dynamic check for 5. /FullTestSuites/.
   , sizeUnaryTestData               -- Dynamic check for 6. /ValidUnaryData/.
   , sizeBinaryTestData              -- Dynamic check for 7. /ValidBinaryData/.
+  -- ** QuickCheck testing
+  , qCheckUn                        -- Check whether test programs are semantically equal using QuickCheck. For unary test programs.
+  , qCheckBin                       -- Check whether test programs are semantically equal using QuickCheck. For binary test programs.
   
   ) where 
 
-import Control.DeepSeq (NFData, rnf)
-import Data.List       (nub)
-import Test.QuickCheck (Arbitrary)
+import Control.DeepSeq      (NFData, rnf)
+import System.IO.Unsafe     (unsafePerformIO)
+import Test.QuickCheck      ( Arbitrary, Args(..), arbitrary 
+                            , quickCheckWithResult, stdArgs )
+import Test.QuickCheck.Gen  (sample')
+import Test.QuickCheck.Test (isSuccess)
 
+import AutoBench.Internal.Utils (allEq)
 import AutoBench.Internal.Types 
   ( BinaryTestData
   , TestSuite(..)
@@ -122,3 +129,21 @@ sizeUnaryTestData  = fmap fst
 -- | Dynamic check for 7. /ValidBinaryData/.
 sizeBinaryTestData :: BinaryTestData a b -> [(Int, Int)]
 sizeBinaryTestData  = fmap (\(s1, s2, _, _) -> (s1, s2))
+
+-- * QuickCheck testing
+
+-- | Check whether test programs are semantically equal using QuickCheck.
+-- For unary test programs.
+qCheckUn :: (Arbitrary a, Eq b) => [a -> b] -> Bool
+qCheckUn ps = unsafePerformIO $ do                              -- I'm not sure whether hint can handle @IO Bool@?
+  tDats <- sample' arbitrary                                    -- Generate some inputs.
+  isSuccess <$> quickCheckWithResult stdArgs { chatty = False } -- Turn off QuickCheck output.
+    (allEq [ p tDat | p <- ps, tDat <- tDats ])                 -- Check whether test programs give same results.
+
+-- | Check whether test programs are semantically equal using QuickCheck.
+-- For binary test programs.
+qCheckBin :: (Arbitrary a, Arbitrary b, Eq c)  => [a -> b -> c] -> Bool 
+qCheckBin ps = unsafePerformIO $ do   
+  tDats <- sample' arbitrary                                    -- Generate pairs of inputs.
+  isSuccess <$> quickCheckWithResult stdArgs { chatty = False } 
+    (allEq [ p tDat1 tDat2 | p <- ps, (tDat1, tDat2) <- tDats ])                  

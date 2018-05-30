@@ -13,13 +13,14 @@ import           System.FilePath.Posix        (dropExtension)
 import qualified Text.PrettyPrint.HughesPJ    as PP
 
 import AutoBench.Internal.Types          
-  ( BenchReport(..)
+  ( DataOpts(..)
+  , TestReport(..)
   , TestSuite(..)
   , UserInputs
   , defBenchRepFilename
   , docBenchReport
   )
-import AutoBench.Internal.UserInputChecks (userInputCheck)
+import AutoBench.Internal.UserInputChecks (qCheckTestPrograms, userInputCheck)
 import AutoBench.Internal.Utils           (filepathToModuleName)
 import AutoBench.Internal.IO              
   ( compileBenchmarkingFile
@@ -58,21 +59,27 @@ main = do
   (runInputT defaultSettings $ selTestSuiteOption inps) >>= \case                                    -- (2) Select test suite.
     [(idt, ts)] -> do 
       putStrLn $ poorNest 2 $ "\9656 Running test suite \ESC[3m" ++ idt ++ "\ESC[0m:"      
+      putStr   $ poorNest 5 $ "\8226 QuickChecking test programs"
+      eql <- qCheck fp ts inps                                                                       -- (3) Check whether test programs are semantically
+      if eql                                                                                         --     equal using QuickCheck, if applicable.
+      then putStrLn $ poorNest 1 "\10004"
+      else putStrLn $ poorNest 1 "\10007"                                                            
       putStr   $ poorNest 5 $ "\8226 Generating benchmarking file"  
-      benchFP <- generateBenchmarkingFilename fp                                                     -- (3) Generate benchmarking file.
-      finally (do generateBenchmarkingFile benchFP mn inps idt ts                            
+      benchFP <- generateBenchmarkingFilename fp                                                     -- (4) Generate benchmarking file.
+      finally (do generateBenchmarkingFile benchFP mn inps idt ts                        
                   putStrLn $ poorNest 1 "\10004"
-                  putStrLn $ poorNest 5 "\8226 Compiling benchmarking file..."                       -- (4) Compile benchmarking file.
+                  putStrLn $ poorNest 5 "\8226 Compiling benchmarking file..."                       -- (5) Compile benchmarking file.
                   invalidFlags <- compileBenchmarkingFile benchFP fp (_ghcFlags ts) 
                   printInvalidFlags invalidFlags
-                  putStrLn $ poorNest 5 "\8226 Executing benchmarking file..."                       -- (5) Execute benchmarking file.
+                  putStrLn $ poorNest 5 "\8226 Executing benchmarking file..."                       -- (6) Execute benchmarking file.
                   putStrLn ""
                   execute (dropExtension benchFP)
                   putStrLn $ poorNest 5 "\8226 Executed benchmarking file \10004"                    
-                  putStr $ poorNest 5 "\8226 Generating benchmarking report"                         -- (6) Generate benchmarking report.
-                  rep <- generateBenchmarkingReport mn ts (benchRepFilename ts)
+                  putStr $ poorNest 5 "\8226 Generating test report"                                 -- (7) Generate benchmarking and test report.
+                  benchRep <- generateBenchmarkingReport mn ts (benchRepFilename ts)
+                  let testRep = TestReport { _br = benchRep, _eql = eql }                            
                   putStrLn $ poorNest 1 "\10004"
-                  print $ docBenchReport rep
+                  print $ docBenchReport benchRep
 
 
 
@@ -89,6 +96,14 @@ main = do
     processUserInputFile :: FilePath -> IO UserInputs
     processUserInputFile  = 
       (either throwIO return =<<) . runInterpreter . userInputCheck
+
+    qCheck :: FilePath -> TestSuite -> UserInputs -> IO Bool 
+    qCheck fp ts inps = case (_dataOpts ts) of 
+      Gen{} -> (either throwIO return =<<) . runInterpreter $ 
+        qCheckTestPrograms fp (_progs ts) inps
+      -- Can't check test programs using manual test data.
+      Manual{} -> return False
+
 
     printInvalidFlags :: [String] -> IO () 
     printInvalidFlags [] = do

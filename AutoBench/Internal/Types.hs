@@ -55,6 +55,8 @@ module AutoBench.Internal.Types
   , DataSize(..)           -- The size of unary and binary test data.
   , SimpleReport(..)       -- A simplified version of Criterion's 'Report'. See 'Criterion.Types.Report'.
   -- ** QuickBench
+  -- * Test results 
+  , TestReport(..)         -- A report to summarise the system's testing phase.
   , QuickReport(..)        -- A report to summarise the QuickBench phase of testing.
   -- * Statistical analysis                                                                                        -- <TO-DO>
   , numPredictors          --  Number of predictors for each type of model.
@@ -279,6 +281,16 @@ data QuickReport =
     {
       _qName     :: Id                      -- ^ Name of test program.
     , _qRuntimes :: Either [Coord] [Coord3] -- ^ [(Input size(s), mean runtime)].
+    }
+
+-- * Test results 
+
+-- | A report to summarise the system's testing phase.
+data TestReport = 
+  TestReport 
+    {
+      _br  :: BenchReport  -- ^ Benchmarking report.
+    , _eql :: Bool         -- ^ Whether test programs are semantically equal according to QuickCheck testing.
     }
 
 -- * Statistical analysis

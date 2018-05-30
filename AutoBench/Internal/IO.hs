@@ -407,9 +407,9 @@ deleteBenchmarkingFiles fBench fUser sysTmps =
 -- <TO-DO>: check input size against the 'UserInputs' data structure.
 --
 generateBenchmarkingReport 
-  :: ModuleName 
-  -> TestSuite 
-  -> FilePath 
+  :: ModuleName -- Module name of user input file. 
+  -> TestSuite  -- TestSuite used to generate benchmarking file.
+  -> FilePath   -- Filepath of Criterion's JSON report.
   -> IO BenchReport 
 generateBenchmarkingReport mn ts fp = do 
   -- Check file exists.
