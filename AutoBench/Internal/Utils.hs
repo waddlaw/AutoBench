@@ -27,7 +27,6 @@ module AutoBench.Internal.Utils
 
   -- * AutoBench specific
     filepathToModuleName -- Convert a filepath to a module name.
-  , genIdts              -- Generate identifiers for unnamed test programs.
   -- * Lists 
   , notNull              -- not . null.
   , allEq                -- Check whether all elements in a list are equal.
@@ -48,6 +47,8 @@ module AutoBench.Internal.Utils
   -- ** Command line parsing
   , CLArgs(..)           -- Command line arguments.
   , clArgsParser         -- Options parser for command line arguments.
+  -- * Pretty printing
+  , bySide               -- Put a list of multi-line 'PP.Doc's side by side and output as a 'String'.
   -- * Misc 
   , Padme(..)            -- Padded lists.
   , (.*)                 -- Generalised function composition.
@@ -57,7 +58,8 @@ module AutoBench.Internal.Utils
 
 import           Control.Applicative          ((<*>))
 import           Data.Char                    (isSpace, toUpper)
-import           Data.List                    (dropWhileEnd, tails, transpose)
+import           Data.List                    ( dropWhileEnd, intercalate
+                                              , tails, transpose )
 import           Data.Monoid                  ((<>))
 import           Data.Void                    (Void)
 import           Language.Haskell.Interpreter (ModuleName)
@@ -65,7 +67,8 @@ import qualified Options.Applicative          as OPTS
 import           System.FilePath.Posix        (isValid, makeValid, takeBaseName) 
 import qualified Text.Megaparsec              as MP
 import qualified Text.Megaparsec.Char         as MP 
-import qualified Text.Megaparsec.Char.Lexer   as L 
+import qualified Text.Megaparsec.Char.Lexer   as L
+import qualified Text.PrettyPrint.HughesPJ    as PP
 
 
 -- * AutoBench specific
@@ -75,12 +78,6 @@ import qualified Text.Megaparsec.Char.Lexer   as L
 -- > fpTfilePathToModuleNameoModuleName "some/filepath/Input.hs" = "Input"
 filepathToModuleName :: FilePath -> ModuleName
 filepathToModuleName fp = let (c : cs) = takeBaseName fp in toUpper c : cs
-
--- | Generate identifier for unnamed test programs.
---
--- > genIdts = ["P1", "P2", "P3", ...]
-genIdts :: [String]
-genIdts  = fmap (\n -> 'P' : show (n :: Int)) [1..]
 
 -- * Lists 
 
@@ -197,6 +194,23 @@ clArgsParser  = CLArgs <$> OPTS.info
       | isValid s' = return s'
       | otherwise  = OPTS.readerError ("Invalid filepath: " ++ show s)
       where s' = makeValid s
+
+
+-- * Pretty printing 
+
+-- | Put a list of multi-line 'PP.Doc's side by side and output as a 'String'.
+bySide :: [PP.Doc] -> String -> String
+bySide [] _   = ""
+bySide xs sep = unlines 
+                 . foldr1 side 
+                 . fmap (deggar . lines . PP.render) 
+                 $ xs
+   where 
+        side s1 s2   = fmap (intercalate sep) . padded $
+                        padLeft s1 (pad s1) <*> padRight s2 (pad s2)
+        pad s        = replicate (length $ head s) ' '
+        padLeft  s p = (:) <$> s :- p
+        padRight s p = (:) <$> s :- p <*> pure []
 
 -- * Misc.
 

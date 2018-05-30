@@ -69,22 +69,25 @@ module AutoBench.Internal.Types
   , InputError(..)         -- User input errors.
   -- * Helpers 
   -- ** Pretty printing
+  , docImprovement         -- Generate a 'PP.Doc' for an 'Improvement'.
   , docSimpleReport        -- Generate a 'PP.Doc' for a 'SimpleReport'.
   , docTestReport          -- Generate a 'PP.Doc' for a 'TestReport'.
   , docTestSuite           -- Generate a 'PP.Doc' for a 'TestSuite'.
   , docUserInputs          -- Generate a 'PP.Doc' for a 'UserInputs'.
+  , showImprovements       -- Pretty printing for a list of 'Improvement's.
 
   ) where
 
 import           Control.Arrow             ((&&&))
 import           Control.Exception.Base    (Exception)
 import           Criterion.Types           (OutlierEffect)
-import           Data.List                 (sort, sortBy)
+import           Data.List                 (sort, sortBy, transpose)
 import           Data.Ord                  (comparing)
 import           Data.Tuple.Select         (sel1, sel2)
+import           Text.Printf               (printf)
 import qualified Text.PrettyPrint.HughesPJ as PP
 
-import           AutoBench.Internal.Utils (deggar)
+import           AutoBench.Internal.Utils ((.*), bySide, deggar)
 import           AutoBench.Types  -- Re-export.
 
 import AutoBench.Internal.AbstractSyntax 
@@ -342,6 +345,31 @@ instance Exception InputError
 
 -- ** Pretty printing 
 
+-- | Pretty printing for 'Improvement's.
+docImprovement :: Bool -> Improvement -> PP.Doc 
+docImprovement  = PP.hsep .* docImprovement'
+
+-- | Pretty printing helper for 'Improvement's.
+docImprovement' :: Bool -> Improvement -> [PP.Doc] 
+docImprovement' b (idt1, LT, idt2, d) = docImprovement' b (idt2, GT, idt1, d)
+docImprovement' True  (idt1, EQ, idt2, d) = 
+  [ PP.text idt1, PP.text "\8804\8805", PP.text idt2
+  , PP.char '(' PP.<> (PP.text $ printf "%.2f" d) PP.<> PP.char ')' ]
+docImprovement' False (idt1, EQ, idt2, d) =  
+  [ PP.text idt1, PP.text "\8818\8819", PP.text idt2
+  , PP.char '(' PP.<> (PP.text $ printf "%.2f" d) PP.<> PP.char ')' ]
+docImprovement' True  (idt1, GT, idt2, d) = 
+  [ PP.text idt1, PP.text "\8805", PP.text idt2
+  , PP.char '(' PP.<> (PP.text $ printf "%.2f" d) PP.<> PP.char ')' ]
+docImprovement' False (idt1, GT, idt2, d) = 
+  [ PP.text idt1, PP.text "\8819", PP.text idt2
+  , PP.char '(' PP.<> (PP.text $ printf "%.2f" d) PP.<> PP.char ')' ]
+
+-- | Pretty printing for a list of 'Improvement's.
+showImprovements :: Bool -> [Improvement] -> String 
+showImprovements b imps = bySide (fmap PP.vcat $ transpose docImps) " "
+  where docImps = fmap (docImprovement' b) imps
+
 -- | Simplified pretty printing for the 'TestSuite' data structure.
 -- Note: prints test programs and 'DataOpts' only.
 docTestSuite :: TestSuite -> PP.Doc                                                                        
@@ -373,8 +401,8 @@ docUserInputs inps = PP.vcat $ PP.punctuate (PP.text "\n")
   , PP.text "Invalid test data:"       PP.$$ (PP.nest 2 $ showInvalidData       $ _invalidData       inps)
   , PP.text "Invalid test suites:"     PP.$$ (PP.nest 2 $ showInvalidTestSuites $ _invalidTestSuites inps)
   ]
+  
   where 
-
     -- Pretty printing for @[(ModuleElem, Maybe TypeString)]@.
     showElems :: [(ModuleElem, Maybe TypeString)] -> PP.Doc 
     showElems [] = PP.text "N/A"
