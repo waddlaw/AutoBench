@@ -497,6 +497,7 @@ docTestReport tr = PP.vcat
       fmap PP.text $ _tProgs tr)
   , PP.text "Data options:" PP.<+> PP.text (show $ _tDataOpts tr)
   , PP.text "Normal form:" PP.<+> PP.text (show $ _tNf tr)
+  , PP.text "Semantically equal" PP.<+> PP.text (show $ _eql tr)
   , ppGhcFlags (_tGhcFlags tr)
   , PP.text ""
   , docBenchReport (_br tr)
@@ -516,8 +517,8 @@ docBenchReport br = PP.vcat
   [ PP.text "Reports:" PP.$$ PP.nest 2 (PP.vcat $ fmap ppTestResults $ _reports br)
   , ppBaselines (_baselines br)
   ]
+  
   where 
-    
     -- Pretty print 'SimpleReport's belonging to same test program.
     ppTestResults :: [SimpleReport] -> PP.Doc 
     ppTestResults [] = PP.empty
