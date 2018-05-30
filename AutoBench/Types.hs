@@ -6,14 +6,31 @@
 {-|
 
   Module      : AutoBench.Types
-  Description : User datatypes and associated helper functions\/defaults.
+  Description : User input datatypes and associated helper functions and 
+                defaults.
   Copyright   : (c) 2018 Martin Handley
   License     : BSD-style
   Maintainer  : martin.handley@nottingham.ac.uk
   Stability   : Experimental
   Portability : GHC
 
-  This module defines datatypes to be used in user input files.
+  This module defines user input datatypes:
+
+  * Test suites: 'TestSuite's;
+  * Manual test data: 'UnaryTestData', 'BinaryTestData';
+  * Test data options: 'DataOpts';
+  * Statistical analysis options: 'AnalOpts'.
+
+  These are to be included in user input files to customise the functionality
+  of the system.
+
+  This module also defines datatypes used for statistical analysis:
+
+  * Regression models: 'LinearTypes';
+  * Fitting statistics: 'Stats'.
+
+  Users should be aware of these datatypes should they wish to provide
+  custom 'AnalOpts'. 
 
 -}
 
@@ -169,6 +186,12 @@ instance Default TestSuite where
           , _nf       = True                       -- Evaluate test cases to normal form.
           , _ghcFlags = []                         -- No optimisation, i.e., -O0. 
           }
+
+
+
+
+
+
 
 
 
