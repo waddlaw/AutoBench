@@ -37,21 +37,22 @@ module AutoBench.Types
   -- ** Statistical analysis options
   , AnalOpts(..)           -- Statistical analysis options.
   -- * Statistical analysis
-  , LinearType(..)                                                                                      -- <TO-DO>
-  , Stats(..)                                                                                           -- <TO-DO>
-
+  , LinearType(..)         -- Functions used as models for regression analysis.
+  , Stats(..)              -- Fitting statistics used to compare regression models.
   ) where
 
 import           Control.DeepSeq                  (NFData)
 import qualified Criterion.Types                  as Criterion
 import qualified Criterion.Main                   as Criterion
 import           Data.Default                     (Default(..))
-import           Data.List                        (genericLength)
+import           Data.List                        (genericLength, transpose)
 import           GHC.Generics                     (Generic)
 import           Numeric.MathFunctions.Comparison (relativeError)
+import qualified Text.PrettyPrint.HughesPJ        as PP
+import           Text.Printf                      (printf)
 
 import AutoBench.Internal.AbstractSyntax (Id)
-import AutoBench.Internal.Utils          (subNum, superNum)
+import AutoBench.Internal.Utils          (bySide, subNum, superNum)
 
 
 -- To be able to DeepSeq CR.Config add NFData instances:
@@ -323,7 +324,6 @@ instance Default AnalOpts where
           , _coordsFP     = Nothing
           }
 
-
 defaultStatsFilt :: Stats -> Bool 
 defaultStatsFilt  = undefined
 
@@ -424,4 +424,35 @@ instance Show LinearType where
   show (PolyLog b n) = "n" ++ superNum n ++ "log" ++ subNum b ++ superNum n ++ "n"
   show (Exp       n) = show n ++ "\x207F"
 
-data Stats = Stats {} 
+-- | The system provides a number of fitting statistics that can be used to 
+-- compare models when deciding which model best fits a given data set.
+-- Users can provide their own functions in their 'AnalOpts' to filter and 
+-- compare models according to these 'Stats': see '_statsFilt' and _statsSort'.
+data Stats = 
+  Stats 
+   {
+     _p_mse    :: Double   -- ^ Predicted mean squared error.
+   , _p_mae    :: Double   -- ^ Predicated mean absolute error.
+   , _ss_tot   :: Double   -- ^ Total sum of squares.
+   , _p_ss_res :: Double   -- ^ Predicted residual sum of squares.
+   , _r2       :: Double   -- ^ Coefficient of Determination.
+   , _a_r2     :: Double   -- ^ Adjusted Coefficient of Determination.
+   , _p_r2     :: Double   -- ^ Predicted Coefficient of Determination.
+   , _bic      :: Double   -- ^ Bayesian Information Criterion.
+   , _aic      :: Double   -- ^ Akaike’s Information Criterion.
+   , _cp       :: Double   -- ^ Mallows' Cp Statistic.
+   } deriving Eq
+
+instance Show Stats where 
+  show sts = flip bySide " " $ fmap PP.vcat $ transpose  
+    [ [ PP.text "PMSE",          PP.char '=', PP.text $ printf ".4g" (_p_mse    sts) ] 
+    , [ PP.text "PMAE",          PP.char '=', PP.text $ printf ".4g" (_p_mae    sts) ]
+    , [ PP.text "SST",           PP.char '=', PP.text $ printf ".4g" (_ss_tot   sts) ]
+    , [ PP.text "PRESS",         PP.char '=', PP.text $ printf ".4g" (_p_ss_res sts) ]
+    , [ PP.text "R\x00B2",       PP.char '=', PP.text $ printf ".4g" (_r2       sts) ]
+    , [ PP.text "Adj. R\x00B2",  PP.char '=', PP.text $ printf ".4g" (_a_r2     sts) ]
+    , [ PP.text "Pred. R\x00B2", PP.char '=', PP.text $ printf ".4g" (_p_r2     sts) ]
+    , [ PP.text "BIC",           PP.char '=', PP.text $ printf ".4g" (_bic      sts) ]
+    , [ PP.text "AIC",           PP.char '=', PP.text $ printf ".4g" (_aic      sts) ]
+    , [ PP.text "CP",            PP.char '=', PP.text $ printf ".4g" (_cp       sts) ]
+    ]

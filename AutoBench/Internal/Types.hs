@@ -58,7 +58,8 @@ module AutoBench.Internal.Types
   -- * Test results 
   , TestReport(..)         -- A report to summarise the system's testing phase.
   , QuickReport(..)        -- A report to summarise the QuickBench phase of testing.
-  -- * Statistical analysis                                                                                        -- <TO-DO>
+  -- * Statistical analysis                                                                                     
+  , CVStats(..)            -- Fitting statistics calculated for regression models per each iteration of cross-validation.
   , Improvement            -- An efficiency improvement is an ordering between two test programs and a rating
                            -- 0 <= d <= 1 that corresponds to the percentage of test cases that support the ordering.
   , numPredictors          -- Number of predictors for each type of model.
@@ -294,6 +295,28 @@ numPredictors Exp{}         = 2
 -- rating 0 <= d <= 1 that corresponds to the percentage of test cases that
 -- support the ordering.
 type Improvement = (Id, Ordering, Id, Double)
+
+-- | Fitting statistics calculated for each iteration of cross-validation.
+data CVStats = 
+  CVStats 
+   { 
+     _cv_mse    :: Double   -- ^ Mean squared error.
+   , _cv_mae    :: Double   -- ^ Mean absolute error.
+   , _cv_ss_tot :: Double   -- ^ Total sum of squares.
+   , _cv_ss_res :: Double   -- ^ Residual sum of squares.
+   } deriving Eq
+
+instance Show CVStats where 
+  show cvSts = flip bySide " " $ fmap PP.vcat $ transpose  
+    [ [ PP.text "MSE", PP.char '=', PP.text $ printf ".4g" (_cv_mse    cvSts) ] 
+    , [ PP.text "MAE", PP.char '=', PP.text $ printf ".4g" (_cv_mae    cvSts) ]
+    , [ PP.text "SST", PP.char '=', PP.text $ printf ".4g" (_cv_ss_tot cvSts) ]
+    , [ PP.text "SSR", PP.char '=', PP.text $ printf ".4g" (_cv_ss_res cvSts) ]
+    ]
+
+
+
+
 
 -- * Errors 
 
