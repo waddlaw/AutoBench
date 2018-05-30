@@ -32,7 +32,7 @@ ts2 = def { _dataOpts = Gen 0 5 20 }
 -}
 
 ts3 :: TestSuite 
-ts3 = def { _dataOpts = Manual "tDat", _baseline = True, _progs = [] }
+ts3 = def { _dataOpts = Gen 0 5 20, _progs = ["const", "const2"] }
 
 ts :: TestSuite 
 ts = def

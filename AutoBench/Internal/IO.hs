@@ -463,11 +463,13 @@ generateBenchmarkingReport mn ts fp = do
         -> Maybe ([(Id, DataSize)], [(Id, DataSize)])
       withBaselines _ [] = Nothing 
       withBaselines bls nonBls = do 
+
         -- Parse titles of baseline measurements. dropWhile (/= 'I') "With 
         -- Baseline/Baseline Measurement for Input Size 5" ===> "Input Size 5", 
         -- then can use 'parseBaseline'.
         nBls <- sequence $ fmap (MP.parseMaybe parseBaseline . 
           dropWhile (/= 'I') . reportName) bls
+
         -- Parse titles of test program measurements.
         -- dropWhile (/= 'I') "With Baseline/Input Size 5/p1" ===> "Input Size 
         -- 5/p1", then can use 'parseRepName'.
@@ -475,6 +477,7 @@ generateBenchmarkingReport mn ts fp = do
           dropWhile (/= 'I') . reportName) nonBls
         -- Group parse results relating to the same test program by grouping 
         -- by identifier.
+
         let nNonBlss = groupBy (\x1 x2 -> fst x1 == fst x2) $ 
                          sortBy (comparing fst) nNonBls
         -- The size range of test data for each test program.
@@ -567,8 +570,8 @@ generateBenchmarkingReport mn ts fp = do
       parseRepName  = do 
         -- E.g., "Input Sizes (5, 5)/p1"
         -- E.g., "Input Size 5/p2"
-        void $ symbol "Input Size"
-        void $ MP.optional (MP.letterChar)
+        void $ (symbol "Input Sizes") MP.<|> (symbol "Input Size")
+        --void $ MP.optional (MP.letterChar)
         ds <- parseDataSize
         void $ symbol "/"
         idt <- MP.manyTill MP.anyChar MP.eof
@@ -578,8 +581,8 @@ generateBenchmarkingReport mn ts fp = do
       -- E.g., Input Sizes (5, 5) or Input Size 5
       parseBaseline :: Parser (Id, DataSize)
       parseBaseline = do
-        void $ symbol "Input Size"
-        void $ MP.optional (MP.letterChar)
+        void $ (symbol "Input Sizes") MP.<|> (symbol "Input Size")
+        --void $ MP.optional (MP.letterChar)
         ("BASELINE",) <$> parseDataSize
 
       -- Parse the encoded data size from the name of a Criterion report.
