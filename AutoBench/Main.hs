@@ -14,11 +14,10 @@ import qualified Text.PrettyPrint.HughesPJ    as PP
 
 import AutoBench.Internal.Types          
   ( DataOpts(..)
-  , TestReport(..)
   , TestSuite(..)
   , UserInputs
   , defBenchRepFilename
-  , docBenchReport
+  , docTestReport
   )
 import AutoBench.Internal.UserInputChecks (qCheckTestPrograms, userInputCheck)
 import AutoBench.Internal.Utils           (filepathToModuleName)
@@ -28,7 +27,7 @@ import AutoBench.Internal.IO
   , execute
   , generateBenchmarkingFilename 
   , generateBenchmarkingFile
-  , generateBenchmarkingReport
+  , generateTestReport
   , printGoodbyeMessage
   , selTestSuiteOption 
   )
@@ -75,11 +74,10 @@ main = do
                   putStrLn ""
                   execute (dropExtension benchFP)
                   putStrLn $ poorNest 5 "\8226 Executed benchmarking file \10004"                    
-                  putStr $ poorNest 5 "\8226 Generating test report"                                 -- (7) Generate benchmarking and test report.
-                  benchRep <- generateBenchmarkingReport mn ts (benchRepFilename ts)
-                  let testRep = TestReport { _br = benchRep, _eql = eql }                            
+                  putStr $ poorNest 5 "\8226 Generating test report"                                 -- (7) Generate test report.
+                  testRep <- generateTestReport mn ts (benchRepFilename ts) eql
                   putStrLn $ poorNest 1 "\10004"
-                  print $ docBenchReport benchRep
+                  print $ docTestReport testRep
 
 
 

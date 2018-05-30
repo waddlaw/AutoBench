@@ -67,8 +67,8 @@ module AutoBench.Internal.Types
   , InputError(..)         -- User input errors.
   -- * Helpers 
   -- ** Pretty printing
-  , docBenchReport         -- Generate a 'PP.Doc' for a 'BenchReport'.
   , docSimpleReport        -- Generate a 'PP.Doc' for a 'SimpleReport'.
+  , docTestReport          -- Generate a 'PP.Doc' for a 'TestReport'.
   , docTestSuite           -- Generate a 'PP.Doc' for a 'TestSuite'.
   , docUserInputs          -- Generate a 'PP.Doc' for a 'UserInputs'.
 
@@ -250,11 +250,7 @@ instance Show DataSize where
 data BenchReport =
   BenchReport 
     {
-      _bProgs    :: [String]          -- ^ Names of all test programs.
-    , _bDataOpts :: DataOpts          -- ^ Which test data options were used.
-    , _bNf       :: Bool              -- ^ Whether test cases were evaluated to normal form.
-    , _bGhcFlags :: [String]          -- ^ Flags used when compiling the benchmarking file.
-    , _reports   :: [[SimpleReport]]  -- ^ Individual reports for each test case, per test program.
+      _reports   :: [[SimpleReport]]  -- ^ Individual reports for each test case, per test program.
     , _baselines :: [SimpleReport]    -- ^ Baseline measurements (will be empty if '_baseline' is set to @False@).
     }
 
@@ -289,8 +285,12 @@ data QuickReport =
 data TestReport = 
   TestReport 
     {
-      _br  :: BenchReport  -- ^ Benchmarking report.
-    , _eql :: Bool         -- ^ Whether test programs are semantically equal according to QuickCheck testing.
+      _tProgs    :: [String]          -- ^ Names of all test programs.
+    , _tDataOpts :: DataOpts          -- ^ Which test data options were used.
+    , _tNf       :: Bool              -- ^ Whether test cases were evaluated to normal form.
+    , _tGhcFlags :: [String]          -- ^ Flags used when compiling the benchmarking file.
+    , _eql       :: Bool              -- ^ Whether test programs are semantically equal according to QuickCheck testing.
+    , _br        :: BenchReport       -- ^ Benchmarking report.
     }
 
 -- * Statistical analysis
@@ -490,24 +490,33 @@ docSimpleReport sr = PP.vcat $
       PP.text ", " PP.<> PP.int n2 PP.<> PP.text ", " PP.<> 
       PP.double d PP.<> PP.char ')'
 
--- | Full pretty printing for 'BenchReport' data structure.
-docBenchReport :: BenchReport -> PP.Doc 
-docBenchReport br = PP.vcat
+-- | Full pretty printing for 'TestReport' data structure.
+docTestReport :: TestReport -> PP.Doc
+docTestReport tr = PP.vcat 
   [ PP.hcat $ (PP.text "Test programs: ") : (PP.punctuate (PP.text ", ") $
-      fmap PP.text $ _bProgs br)
-  , PP.text "Data options:" PP.<+> PP.text (show $ _bDataOpts br)
-  , PP.text "Normal form:" PP.<+> PP.text (show $ _bNf br)
-  , ppGhcFlags (_bGhcFlags br)
+      fmap PP.text $ _tProgs tr)
+  , PP.text "Data options:" PP.<+> PP.text (show $ _tDataOpts tr)
+  , PP.text "Normal form:" PP.<+> PP.text (show $ _tNf tr)
+  , ppGhcFlags (_tGhcFlags tr)
   , PP.text ""
-  , PP.text "Reports:" PP.$$ PP.nest 2 (PP.vcat $ fmap ppTestResults $ _reports br)
-  , ppBaselines (_baselines br)
+  , docBenchReport (_br tr)
   ]
+
   where 
     -- Pretty print list of GHC flags.
     ppGhcFlags :: [String] -> PP.Doc 
     ppGhcFlags [] = PP.empty
     ppGhcFlags flags = PP.vcat $ (PP.text "GHC flags: ") : 
       (PP.punctuate (PP.text ", ") $ fmap PP.text $ flags)
+
+
+-- | Full pretty printing for 'BenchReport' data structure.
+docBenchReport :: BenchReport -> PP.Doc 
+docBenchReport br = PP.vcat
+  [ PP.text "Reports:" PP.$$ PP.nest 2 (PP.vcat $ fmap ppTestResults $ _reports br)
+  , ppBaselines (_baselines br)
+  ]
+  where 
     
     -- Pretty print 'SimpleReport's belonging to same test program.
     ppTestResults :: [SimpleReport] -> PP.Doc 

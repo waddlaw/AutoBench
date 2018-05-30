@@ -45,7 +45,7 @@ module AutoBench.Internal.IO
                                         -- data structure /using this function/.
   -- * IO for benchmarking files
   , generateBenchmarkingFile            -- Generate a benchmarking file to benchmark all the test programs in a given test suite
-  , generateBenchmarkingReport          -- Generate a 'BenchReport' that summarises the benchmarking phase of testing.
+  , generateTestReport                  -- Generate a 'TestReport' that summarises the system's testing phase.
   , compileBenchmarkingFile             -- Compile benchmarking file using zero or more user-specified compiler flags.
   , deleteBenchmarkingFiles             -- Delete any temporary files created for/during the benchmarking phase.
   -- * Helper functions
@@ -118,6 +118,7 @@ import AutoBench.Internal.Types
   , InputError(..)
   , SimpleReport(..)
   , SystemError(..)
+  , TestReport(..)
   , TestSuite(..)
   , UserInputs(..)
   , docTestSuite
@@ -392,11 +393,33 @@ deleteBenchmarkingFiles fBench fUser sysTmps =
       where handleExists e | isDoesNotExistError e = return ()
                            | otherwise = throwIO e
 
+-- | Generate a test report to summarise the system's testing phase. This 
+-- includes parsing the JSON benchmark report file created by Criterion
+-- in order to generate a 'BenchReport': see 'generateBenchmarkingReport'.
+generateTestReport
+  :: ModuleName -- Module name of user input file. 
+  -> TestSuite  -- TestSuite used to generate benchmarking file.
+  -> FilePath   -- Filepath of Criterion's JSON report.
+  -> Bool       -- Whether test programs are semantically equal according to QuickCheck testing.
+  -> IO TestReport 
+generateTestReport mn ts fp eql = do 
+  -- Generate benchmarking report.
+  benchRep <- generateBenchmarkingReport mn ts fp
+  return TestReport 
+           { -- Copy 'TestSuite' settings:
+             _tProgs    = _progs ts    
+           , _tDataOpts = _dataOpts ts
+           , _tNf       = _nf ts 
+           , _tGhcFlags = _ghcFlags ts 
+             -- Other test results:
+           , _eql       = eql 
+           , _br        = benchRep
+           } 
+
 -- | Parse a Criterion JSON report file and use the parsed '[Report]'s to 
 -- generate a 'BenchReport' that summarises the benchmarking phase of testing.
--- The 'BenchReport' includes a 'SimpleReport' for each test case and a number 
--- of settings taken from the 'TestSuite' used to generate the benchmarking 
--- file initially.
+-- The 'BenchReport' includes a 'SimpleReport' for each test case and baseline 
+-- measurements, if applicable.
 --
 -- Some background information: 
 -- When generating the benchmarking file using 'generateBenchmarkingFile',
@@ -516,12 +539,8 @@ generateBenchmarkingReport mn ts fp = do
         -> BenchReport
       convertReps bls nonBls = 
         BenchReport 
-          { _bProgs    = _progs ts     -- Copy 'TestSuite' settings:
-          , _bDataOpts = _dataOpts ts
-          , _bNf       = _nf ts 
-          , _bGhcFlags = _ghcFlags ts 
-          -- Generate test program 'SimpleReport's.
-          , _reports   = fmap (fmap $ uncurry toSimpleReport) .
+          { -- Generate test program 'SimpleReport's.
+            _reports = fmap (fmap $ uncurry toSimpleReport) .
               -- Group by test program's identifier.
               groupBy (\(_, (idt1, _)) (_, (idt2, _)) -> idt1 == idt2) .
               -- Sort by test program's identifier.
