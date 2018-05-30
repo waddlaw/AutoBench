@@ -379,9 +379,8 @@ docTestSuite ts = PP.vcat
   , PP.text $ show $ _dataOpts ts
   ]
 
--- | Full pretty printing for the 'UserInputs' data structure. 
--- Note: prints all fields; invalids are printed last. 
--- NB. always print in alphabetical order.                                                
+-- | Pretty printing for the 'UserInputs' data structure. 
+-- Prints all fields; invalids are printed last.                                               
 docUserInputs :: UserInputs -> PP.Doc 
 docUserInputs inps = PP.vcat $ PP.punctuate (PP.text "\n")
   [ PP.text "All module elements:"     PP.$$ (PP.nest 2 $ showElems             $ _allElems          inps)
@@ -395,7 +394,6 @@ docUserInputs inps = PP.vcat $ PP.punctuate (PP.text "\n")
   , PP.text "Unary test data:"         PP.$$ (PP.nest 2 $ showTypeableElems     $ fmap (sel1 &&& sel2) $ _unaryData  inps) -- Don't print sizing information.
   , PP.text "Binary test data:"        PP.$$ (PP.nest 2 $ showTypeableElems     $ fmap (sel1 &&& sel2) $ _binaryData inps) -- Don't print sizing information.
   , PP.text "Test suites:"             PP.$$ (PP.nest 2 $ showTestSuites        $ _testSuites        inps)
-
   -- Invalids come last because they have 'InputError's.
   , PP.text "Invalid module elements:" PP.$$ (PP.nest 2 $ showElems             $ _invalidElems      inps) 
   , PP.text "Invalid test data:"       PP.$$ (PP.nest 2 $ showInvalidData       $ _invalidData       inps)
@@ -431,7 +429,7 @@ docUserInputs inps = PP.vcat $ PP.punctuate (PP.text "\n")
                        zipWith (\idt ty -> idt ++ " :: " ++ ty) (deggar fs) tys
                    ]
 
-    -- Pretty printing for @[(Id, HsType)]@..
+    -- Pretty printing for @[(Id, HsType)]@.
     showTypeableElems :: [(Id, HsType)] -> PP.Doc
     showTypeableElems [] = PP.text "N/A"
     showTypeableElems xs = PP.vcat $ fmap PP.text $ sort $ 
@@ -451,7 +449,7 @@ docUserInputs inps = PP.vcat $ PP.punctuate (PP.text "\n")
           ]
 
     -- Invalids, need additional nesting for input errors: --------------------
-    -- Don't forget to sort alphabetically. 
+    -- Note: don't forget to sort alphabetically. 
 
     showInvalidData :: [(Id, HsType, [InputError])] -> PP.Doc
     showInvalidData [] = PP.text "N/A"
@@ -480,8 +478,8 @@ docUserInputs inps = PP.vcat $ PP.punctuate (PP.text "\n")
     -- Helpers:
 
     -- Split the 'ModuleElem's to display 'Fun' types by the side of 'Fun' 
-    -- identifiers.
-    -- (The 'Class' and 'Data' 'ModuleElem's don't have typing information.)
+    -- identifiers. (The 'Class' and 'Data' 'ModuleElem's don't have typing 
+    -- information.)
     splitShowModuleElems 
       :: (ModuleElem, Maybe TypeString)
       -> (([String], [String]), [String], [String]) 
@@ -529,7 +527,7 @@ docTestReport tr = PP.vcat
       (PP.punctuate (PP.text ", ") $ fmap PP.text $ flags)
 
 
--- | Full pretty printing for 'BenchReport' data structure.
+-- | Pretty printing for 'BenchReport' data structure.
 docBenchReport :: BenchReport -> PP.Doc 
 docBenchReport br = PP.vcat
   [ PP.text "Reports:" PP.$$ PP.nest 2 (PP.vcat $ fmap ppTestResults $ _reports br)

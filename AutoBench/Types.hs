@@ -36,7 +36,6 @@ module AutoBench.Types
   , DataOpts(..)           -- Test data options.
   -- ** Statistical analysis options
   , AnalOpts(..)           -- Statistical analysis options.
-  -- * Benchmarking
   -- * Statistical analysis
   , LinearType(..)                                                                                      -- <TO-DO>
   , Stats(..)                                                                                           -- <TO-DO>
@@ -85,7 +84,7 @@ instance NFData Criterion.Config
 --     , _critCfg  = Criterion.Main.Options.defaultConfig   -- See 'Criterion.Main.Options.defaultConfig'
 --     , _baseline = False                                  -- No baseline measurements.
 --     , _nf       = True                                   -- Evaluate test cases to normal form.
---     , _ghcFlags = []                                     --/No optimisation, i.e., -O0.
+--     , _ghcFlags = []                                     -- No optimisation, i.e., -O0.
 --     }
 -- @
 --
@@ -107,6 +106,8 @@ data TestSuite =
     , _ghcFlags :: [String]          -- ^ GHC compiler flags used when compiling files compiling benchmarks.
     } deriving (Generic)
 
+instance NFData TestSuite 
+
 instance Default TestSuite where 
   def = TestSuite
           { 
@@ -118,8 +119,6 @@ instance Default TestSuite where
           , _nf       = True                       -- Evaluate test cases to normal form.
           , _ghcFlags = []                         -- No optimisation, i.e., -O0. 
           }
-  
-instance NFData TestSuite 
 
 -- ** Test data options
 
@@ -231,7 +230,58 @@ instance Show DataOpts where
 instance Default DataOpts where 
   def = Gen 5 5 100
 
--- | User options for statistical analysis.                                                                  -- ** NEEDS COMMENTS ** 
+-- ** Statistical analysis options                                                  -- ** NEEDS COMMENTS ** 
+
+-- | The system provides a number of user options for statistical analysis, 
+-- including:
+--
+-- * Which types of functions ('LinearType's) to consider for regression 
+--   analysis. See 'LinearType'. Note that 'LinearType's can have at most @10@ 
+--   predictors, for example, @Poly 9@ is the maximum polynomial supported;                    
+-- * The number of iterations of Monte Carlo cross-validation to perform.
+--   @100 <= x <= 500@;
+-- * The percentage of test data to use as training data for cross-validation.
+--   @0.5 <= x <= 0.8@;
+-- * The number of models to review when selecting the best fitting model
+--   from the results of regression analysis. @n > 0@. Note that @n = 1@ means 
+--   the system will pick its top-ranked model on behalf of users without
+--   offering to review other options;
+-- * A function to discard models that \"do not\" fit a given data set based on 
+--   the fitting statistics produced by the system. See 'Stats'.
+-- * A function to rank models according to how they fit a given data set 
+--   based on the fitting statistics produced by the system. See 'Stats';
+-- * A function to calculate improvement results by comparing the runtimes 
+--   of two test programs pointwise.
+--
+-- The system can produce a number of performance results, including:
+--
+-- * A PNG graph of runtime measurements with complexity estimates plotted as 
+--   lines of best fit;
+-- * A CSV performance report;
+-- * A CSV of (input size(s), runtime) coordinates for each test program.
+--
+-- The default options are as follows:
+--
+-- @
+-- AnalOpts
+--   {
+--     _linearModels = [ Poly 0, Poly 1, Poly 2, Poly 3, Poly 4  
+--                     , Log 2 1, Log 2 2
+--                     , PolyLog 2 1
+--                     , Exp 2 
+--                     ]
+--   , _cvIters    = 100
+--   , _cvTrain    = 0.7
+--   , _topModels  = 1
+--   , _statsFilt  = defaultStatsFilt           -- See 'defaultStatsFilt'.                                                            
+--   , _statsSort  = defaultStatsSort           -- See 'defaultStatsSort'.                                 
+--   , _improv     = defaultImprov              -- See 'defaultImprov'.                                                    
+--   , _graphFP    = Just "./AutoBenched.png"   -- This is always a .png.
+--   , _reportFP   = Nothing                    -- This is a .csv.            
+--   , _coordsFP   = Nothing                    -- This is a .csv.
+--   }
+-- @
+-- 
 data AnalOpts = 
   AnalOpts
     { 
@@ -241,16 +291,18 @@ data AnalOpts =
     -- Cross-validation:
     , _cvIters       :: Int                                              -- ^ Number of cross-validation iterations.
     , _cvTrain       :: Double                                           -- ^ Percentage of data set to use for cross-validation 
-                                                                         --   training; the rest is used for validation.
+                                                                         --   training. The rest is used for validation.
     -- Model comparison:
-    , _topModels     :: Int                                              -- ^ The top @n@ models to review.
+    , _topModels     :: Int                                              -- ^ The top @n@ ranked models to review when selecting the best fitting model.
     , _statsFilt     :: Stats -> Bool                                    -- ^ Function to discard models that \"do not\" fit a given data set.
-    , _statsSort     :: Stats -> Stats -> Ordering                       -- ^ Function rank models according to how they fit a given data set.
+    , _statsSort     :: Stats -> Stats -> Ordering                       -- ^ Function to rank models according to how they fit a given data set.
+    
     -- Calculating efficiency results:
-    , _improv        :: [(Double, Double)] -> Maybe (Ordering, Double)   -- ^ Function to calculate improvement results by comparing runtimes pointwise.
+    , _improv        :: [(Double, Double)] -> Maybe (Ordering, Double)   -- ^ Function to calculate improvement results by comparing the runtimes 
+                                                                         --   of two test programs pointwise.
     -- Results generated by the system:
-    , _graphFP       :: Maybe FilePath                                   -- ^ Graph of runtime results.
-    , _reportFP      :: Maybe FilePath                                   -- ^ Report of results.
+    , _graphFP       :: Maybe FilePath                                   -- ^ PNG graph of runtime results.
+    , _reportFP      :: Maybe FilePath                                   -- ^ CSV report of results.
     , _coordsFP      :: Maybe FilePath                                   -- ^ CSV of (input size(s), runtime) coordinates.
     } deriving (Generic)
 
@@ -259,71 +311,99 @@ instance NFData AnalOpts
 instance Default AnalOpts where
   def = AnalOpts
           {
-            _linearModels = fmap Poly [0..4] ++ [ Log 2 1, Log 2 2, PolyLog 2 1, Exp 2 ]
+            _linearModels = fmap Poly [0..4] ++ [Log 2 1, Log 2 2, PolyLog 2 1, Exp 2]
           , _cvIters      = 100
           , _cvTrain      = 0.7
           , _topModels    = 1
-          , _statsFilt    = const True                                                                           --  <TO-DO>
-          , _statsSort    = (\_ _ -> EQ)                                                                         --  <TO-DO>
+          , _statsFilt    = defaultStatsFilt                                                                   
+          , _statsSort    = defaultStatsSort                                                                    
           , _improv       = defaultImprov                                                              
           , _graphFP      = Just "./AutoBenched.png"  
           , _reportFP     = Nothing                   
           , _coordsFP     = Nothing
           }
 
--- | Default way to generate improvement results by comparing the runtimes                              -- ** NEEDS COMMENTING **
--- of two test programs pointwise.
+
+defaultStatsFilt :: Stats -> Bool 
+defaultStatsFilt  = undefined
+
+defaultStatsSort :: Stats -> Stats -> Ordering
+defaultStatsSort = undefined
+
+-- | The default way to generate improvement results by comparing the runtimes
+-- of two test programs /pointwise/.
+-- 
+-- It works as follows:
+--
+-- * First the relative error of each pair of runtimes is calculated,
+--   if 95% or more pairs have relative error <= 0.15, then the system 
+--   concludes the test programs are cost-equivalent (i.e., have roughly the 
+--   same runtime efficiency).
+-- * If not, the system 'compare's each pair of runtimes, e.g., @(d1, d2) 
+--   ===> d1 `compare` d2@. If 95% of pairs are @LT@ or @GT@, then that 
+--   ordering is chosen.
+-- * If not, /no/ improvement result is generated.
 defaultImprov :: [(Double, Double)] -> Maybe (Ordering, Double)
 defaultImprov ds 
-  | eqsPct >= 0.95 = Just (EQ, eqsPct)
-  | ltsPct >= 0.95 = Just (LT, ltsPct)
-  | gtsPct >= 0.95 = Just (GT, gtsPct)
-  | otherwise      = Nothing
+  | eqsPct >= 0.95 = Just (EQ, eqsPct) -- 95% or more test cases have relative error <= 0.15?
+  | ltsPct >= 0.95 = Just (LT, ltsPct) -- 95% or more test cases 'LT'?
+  | gtsPct >= 0.95 = Just (GT, gtsPct) -- 95% or more test cases 'GT'?
+  | otherwise      = Nothing           -- No improvement result.
 
   where 
+    -- Calculate total for EQ.
     eqs = filter (<= 0.15) $ fmap (uncurry relativeError) ds
+    -- For each pair of runtime measurements (d1, d2), calculate d1 `compare` d2.
+    -- Then calculate total for LT and GT.
     (lts, gts) = foldr f (0, 0) $ fmap (uncurry compare) ds
-    
-    eqsPct = genericLength eqs / genericLength ds
-    ltsPct = (fromIntegral lts / genericLength ds) :: Double 
-    gtsPct = (fromIntegral gts / genericLength ds) :: Double
-    
+  
+    -- Totalling function for LT and GT.
     f :: Ordering -> (Int, Int) -> (Int, Int)
     f EQ (lt, gt) = (lt    , gt)
     f LT (lt, gt) = (lt + 1, gt)
     f GT (lt, gt) = (lt    , gt + 1)
 
+    -- Percentages for EQ, LT, GT.
+    eqsPct = genericLength eqs / genericLength ds
+    ltsPct = (fromIntegral lts / genericLength ds) :: Double 
+    gtsPct = (fromIntegral gts / genericLength ds) :: Double
 
 
 
 
--- * Benchmarking
+
+
+
+
+
+
+
 
 -- * Statistical analysis
 
 -- | The system approximates the time complexity of test programs by 
--- measuring their runtimes on test data of increasing size. Runtime 
--- measurements and input sizes are then given as (x, y)-coordinates
+-- measuring their runtimes on test data of increasing size. Input sizes 
+-- and runtime measurements are then given as (x, y)-coordinates
 -- (x = size, y = runtime). Regression analysis (ridge regression) is used to 
 -- fit various models (i.e., different types of functions: constant, linear, 
 -- quadratic etc.) to the (x, y)-coordinates. Models are then compared to 
 -- determine which has the best fit. The equation of the best fitting model is 
 -- used as an approximation of time complexity. 
 --
--- The 'LinearType' datatype describes which linear functions can be used as 
+-- The 'LinearType' datatype describes linear functions that are used as 
 -- models. The system currently supports the following types of functions:
 --
--- * Poly 0 (constant)     := a_0 
--- * Poly 1 (linear)       := a_0 + a_1 * x^2      
--- * Poly n                := a_0 + a_1 * x^1 + a_2 * x^2 + .. + a_n * x^n 
--- * Log  b n              := a_0 + a_1 * log_b^1(x) + a_2 * log_b^2(x) + .. + a_n * log_b^n(x)
--- * PolyLog b n           := a_0 + a_1 * x^1 * log_b^1(x) + a_2 * x^2 * log_b^2(x) + .. + a_n * x^n * log_b^n(x) 
--- * Exp n                 := a_0 + n^x
+-- * Poly 0 (constant)   :=   a_0 
+-- * Poly 1 (linear)     :=   a_0 + a_1 * x^2      
+-- * Poly n              :=   a_0 + a_1 * x^1 + a_2 * x^2 + .. + a_n * x^n 
+-- * Log  b n            :=   a_0 + a_1 * log_b^1(x) + a_2 * log_b^2(x) + .. + a_n * log_b^n(x)
+-- * PolyLog b n         :=   a_0 + a_1 * x^1 * log_b^1(x) + a_2 * x^2 * log_b^2(x) + .. + a_n * x^n * log_b^n(x) 
+-- * Exp n               :=   a_0 + n^x
 data LinearType = 
     Poly    Int        -- ^ Polynomial functions (Poly 0 = constant, Poly 1 = linear).
   | Log     Int Int    -- ^ Logarithmic functions.
   | PolyLog Int Int    -- ^ Polylogarithmic functions.     
-  | Exp     Int        -- ^ Exponential function.
+  | Exp     Int        -- ^ Exponential functions.
     deriving (Eq, Generic)
 
 instance NFData LinearType
