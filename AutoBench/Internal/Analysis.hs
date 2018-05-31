@@ -60,6 +60,9 @@ import AutoBench.Internal.Types
   , SimpleResults(..)
   , Stats(..)
   , TestReport(..)
+  , QuickAnalysis(..)
+  , QuickReport(..)
+  , QuickResults(..)
   , maxPredictors
   , numPredictors
   , simpleReportsToCoords
@@ -69,12 +72,26 @@ import AutoBench.Internal.Types
 
 
 
--- * Top-level 
+-- * QuickBench Top-level 
+
+quickAnalyse :: [QuickReport] -> IO ()                                                                -- <TO-DO> ** COMMENT **
+quickAnalyse  = quickAnalyseWith def
+
+quickAnalyseWith :: AnalOpts -> [QuickReport] -> IO ()                                                -- <TO-DO> ** COMMENT **
+quickAnalyseWith aOpts qrs -- Don't check 'QuickReport's because users can't manipulate them.
+  | notNull aOptsErrs = do  
+      putStrLn "Cannot analyse results due to one or more errors:"
+      mapM_ print aOptsErrs
+  | otherwise = undefined
+  where 
+    -- Validate the 'AnalOpts'.
+    aOptsErrs = validateAnalOpts aOpts
+    quickAnly = quickAnalysis aOpts qrs
+
+-- * AutoBench Top-level 
 
 analyse :: TestReport -> IO ()                                                                        -- <TO-DO> ** COMMENT **
 analyse  = analyseWith def
-
-
 
 analyseWith :: AnalOpts -> TestReport -> IO ()                                                        -- <TO-DO> ** COMMENT **
 analyseWith aOpts tr 
@@ -82,8 +99,6 @@ analyseWith aOpts tr
       putStrLn "Cannot analyse results due to one or more errors:"
       mapM_ print (aOptsErrs ++ trErrs)   
   | otherwise = undefined
-
-    
 
   where 
     -- Validate the 'AnalOpts'.
@@ -93,6 +108,40 @@ analyseWith aOpts tr
     -- Results of statistical analysis on benchmarking results.
     analyRep  = calculateAnalysisReport aOpts tr
 
+-- * QuickBench Analysis
+
+quickAnalysis :: AnalOpts -> [QuickReport] -> QuickAnalysis
+quickAnalysis aOpts qrs = 
+  QuickAnalysis
+    {
+      _qAnlys =  quickResults aOpts qrs                              -- A set of quick results ('QuickResults') for each test program.
+    , _qImps  =  catMaybes $ fmap (uncurry $ calculateImprovements   -- A set of improvements.
+        (_improv aOpts)) (uniqPairs $ zip names coords)
+    }
+  where 
+    -- Names of test programs 
+    names = fmap _qName qrs
+    -- (Input size(s), runtime) coordinates. 
+    coords = fmap _qRuntimes qrs
+
+-- | Perform statistical analysis on the benchmarking results (i.e., runtime 
+-- measurements of test programs) in the given @[QuickReport]@ and produce an
+-- analysis report ('QuickResults') /for each test program/.
+quickResults :: AnalOpts -> [QuickReport] -> [QuickResults]
+quickResults aOpts = fmap quickResult
+  where 
+    quickResult :: QuickReport -> QuickResults 
+    quickResult qr = 
+      QuickResults 
+        {
+          _qrIdt  = _qName qr
+        , _qrRaws = coords
+        , _qrFits = catMaybes $ fitCoords aOpts coords
+        }
+      where coords = _qRuntimes qr
+
+-- * AutoBench Analysis 
+
 -- | Perform statistical analysis on the benchmarking results (i.e., runtime 
 -- measurements of test programs) in the given 'TestReport' and produce an 
 -- 'AnalysisReport' to summarise the overall analysis phase.
@@ -101,8 +150,16 @@ calculateAnalysisReport aOpts tr =
   AnalysisReport
     {
       _anlys = calculateSimpleResults aOpts tr                     -- A set of simple results ('SimpleResults') for each test program.
-    , _imps  = calculateImprovements (_reports $ _br tr) aOpts     -- A set of improvements.
+    , _imps  = catMaybes $ fmap (uncurry $ calculateImprovements   -- A set of improvements.
+        (_improv aOpts)) (uniqPairs $ zip srNames srCoords)  
     }
+  where 
+    -- SimpleReports.
+    srs = _reports (_br tr)
+    -- Names of test programs from 'SimpleReport's.
+    srNames  = fmap (_name . head) srs           
+    -- (Input size(s), runtime) coordinates.         
+    srCoords = zipWith simpleReportsToCoords srNames srs
 
 -- | Perform statistical analysis on the benchmarking results (i.e., runtime 
 -- measurements of test programs) in the given 'TestReport' and produce an
@@ -127,24 +184,12 @@ calculateSimpleResults aOpts tr =
         , _srStdDev        = stdDev
         , _srAvgOutVarEff  = avgOutVarEff
         , _srAvgPutVarFrac = avgOutVarFrac
-        , _srFits          = catMaybes fits
+        , _srFits          = catMaybes $ fitCoords aOpts coords
         }
       where 
         coords = simpleReportsToCoords idt srs
         (stdDev, avgOutVarFrac, avgOutVarEff) = 
           fromMaybe (0, 0, Unaffected) (simpleReportSummary srs)                              -- <TO-DO> error handling: fromMaybe crap_if_error ...
-        fits = case coords of                                                                 
-          -- Only perform regression analysis on 'Coord's.
-          Left{}  -> let Left cs = coords          
-            in fmap ( ( candidateFit 
-                          fitRidgeRegress           -- Use ridge regression to fit.
-                          (_cvTrain aOpts)          -- Train/evaluate data split.
-                          (_cvIters aOpts)          -- Number of cross-validation iterations.  
-                          cs                        -- Data set.
-                      ) . generateLinearCandidate   -- 'LinearType' -> 'LinearCandidate'.
-                    ) (_linearModels aOpts)         -- Fit all models in 'AnalOpts'.
-          -- Don't perform regression analysis on 'Coord3's.          
-          Right{} -> [] 
 
     -- Provide an overall summary of the simple statistics taken from 
     -- Criterion's 'Report's relating to the /same/ test program:
@@ -169,65 +214,6 @@ calculateSimpleResults aOpts tr =
           | avgOutVarFrac < 0.1  = Slight
           | avgOutVarFrac < 0.5  = Moderate
           | otherwise            = Severe
-
--- * Improvement results 
-
--- | Calculate efficiency improvements by comparing the runtimes of test 
--- programs pointwise.
-calculateImprovements :: [[SimpleReport]] -> AnalOpts -> [Improvement]
-calculateImprovements srs aOpts = 
-  concatMap (uncurry calculateImprovement) (uniqPairs $ zip srNames srCoords)
-
-  where 
-    -- Names of test programs from 'SimpleReport's.
-    srNames  = fmap (_name . head) srs           
-    -- (Input size(s), runtime) coordinates.         
-    srCoords = zipWith simpleReportsToCoords srNames srs  
-
-    -- Compare the runtimes of two test programs pointwise. Only compare
-    -- unary against unary and binary against binary.
-    -- Also match the coordinates to ensure that the sizing information for
-    -- each runtime measurement is the same (it should be by the construction
-    -- of the list, but better to check).
-    calculateImprovement
-     :: (Id, Either [Coord] [Coord3]) 
-     -> (Id, Either [Coord] [Coord3])
-     -> [Improvement]
-    calculateImprovement (idt1, Left cs1) (idt2, Left cs2) -- Unary against unary.
-      -- If all coordinates didn't match, then can't generate improvements.
-      | length toCompare < length cs1 = [] 
-      | otherwise = case (_improv aOpts) toCompare of 
-          Nothing       -> []
-          Just (ord, d) -> [(idt1, ord, idt2, d)]
-      where toCompare = matchCoords (sort cs1) (sort cs2)
-    calculateImprovement (idt1, Right cs1) (idt2, Right cs2) -- Binary against binary.
-      -- If all coordinates didn't match, then can't generate improvements.
-      | length toCompare < length cs1 = []
-      | otherwise = case (_improv aOpts) toCompare of 
-          Nothing       -> []
-          Just (ord, d) -> [(idt1, ord, idt2, d)]
-      where toCompare = matchCoords3 (sort cs1) (sort cs2) 
-    calculateImprovement _ _ = [] -- Shouldn't happen.
-
-    -- Helpers
-    
-    -- Make sure coordinates to compare have the same size information. This 
-    -- should always be the case because of how they are generated, but better 
-    -- to check.
-    matchCoords :: [Coord] -> [Coord] -> [(Double, Double)]
-    matchCoords [] _  = []
-    matchCoords _  [] = []
-    matchCoords ((s1, t1) : cs1) ((s1', t2) : cs2)
-      | s1 == s1' = (t1, t2) : matchCoords cs1 cs2 
-      | otherwise = matchCoords cs1 cs2 
-
-    -- As above but for 'Coord3'.
-    matchCoords3 :: [Coord3] -> [Coord3] -> [(Double, Double)]
-    matchCoords3 [] _  = []
-    matchCoords3 _  [] = []
-    matchCoords3 ((s1, s2, t1) : cs1) ((s1', s2', t2) : cs2)
-      | s1 == s1' && s2 == s2' = (t1, t2) : matchCoords3 cs1 cs2 
-      | otherwise = matchCoords3 cs1 cs2 
 
 -- * Linear fitting
 
@@ -396,3 +382,60 @@ shuffle x =
    i <- randomRIO (0, length x - 1)
    r <- shuffle (take i x ++ drop (i + 1) x)
    return (x !! i : r)
+
+-- | Compare the runtimes of two test programs, given as a list of 
+-- xy-coordinates, pointwise to generate improvement results. Only compare 
+-- results relating to test programs of the same airty. (Note: this should 
+-- always be the case when used in practice).
+calculateImprovements
+ :: ([(Double, Double)] -> Maybe (Ordering, Double)) 
+ -> (Id, Either [Coord] [Coord3]) 
+ -> (Id, Either [Coord] [Coord3])
+ -> Maybe Improvement
+calculateImprovements improv (idt1, Left cs1) (idt2, Left cs2) -- Unary against unary.
+  -- If all coordinates didn't match, then can't generate improvements.
+  | length toCompare < length cs1 = Nothing 
+  | otherwise = case improv toCompare of 
+      Nothing       -> Nothing
+      Just (ord, d) -> Just (idt1, ord, idt2, d)
+  where toCompare = matchCoords (sort cs1) (sort cs2)
+calculateImprovements improv (idt1, Right cs1) (idt2, Right cs2) -- Binary against binary.
+  -- If all coordinates didn't match, then can't generate improvements.
+  | length toCompare < length cs1 = Nothing
+  | otherwise = case improv toCompare of 
+      Nothing       -> Nothing
+      Just (ord, d) -> Just (idt1, ord, idt2, d)
+  where toCompare = matchCoords3 (sort cs1) (sort cs2) 
+calculateImprovements _ _ _ = Nothing -- Shouldn't happen.
+
+-- | Make sure coordinates to compare when generating improvement results have 
+-- the same size information. (Note: this should always be the case because of 
+-- how they are generated, but better to check.)
+matchCoords :: [Coord] -> [Coord] -> [(Double, Double)]
+matchCoords [] _  = []
+matchCoords _  [] = []
+matchCoords ((s1, t1) : cs1) ((s1', t2) : cs2)
+  | s1 == s1' = (t1, t2) : matchCoords cs1 cs2 
+  | otherwise = matchCoords cs1 cs2 
+
+-- | Make sure coordinates to compare when generating improvement results have 
+-- the same size information. (Note: this should always be the case because of 
+-- how they are generated, but better to check.)
+matchCoords3 :: [Coord3] -> [Coord3] -> [(Double, Double)]
+matchCoords3 [] _  = []
+matchCoords3 _  [] = []
+matchCoords3 ((s1, s2, t1) : cs1) ((s1', s2', t2) : cs2)
+  | s1 == s1' && s2 == s2' = (t1, t2) : matchCoords3 cs1 cs2 
+  | otherwise = matchCoords3 cs1 cs2 
+
+ 
+fitCoords :: AnalOpts -> Either [Coord] [Coord3] -> [Maybe LinearFit]                               -- <TO-DO>: comment
+fitCoords _ Right{} = []
+fitCoords aOpts (Left coords) = 
+  fmap ( ( candidateFit 
+             fitRidgeRegress           -- Use ridge regression to fit.
+             (_cvTrain aOpts)          -- Train/evaluate data split.
+             (_cvIters aOpts)          -- Number of cross-validation iterations.  
+             coords                    -- Data set.
+         ) . generateLinearCandidate   -- 'LinearType' -> 'LinearCandidate'.
+       ) (_linearModels aOpts)         -- Fit all models in 'AnalOpts'.

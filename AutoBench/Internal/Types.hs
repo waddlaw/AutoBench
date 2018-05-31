@@ -52,9 +52,9 @@ module AutoBench.Internal.Types
   , Coord3                 -- (Input Size, Input Size, Runtime) results as coordinates for binary test programs.
   , DataSize(..)           -- The size of unary and binary test data.
   , SimpleReport(..)       -- A simplified version of Criterion's 'Report'. See 'Criterion.Types.Report'.
-  -- ** QuickBench
   -- * Test results 
   , TestReport(..)         -- A report to summarise the system's testing phase.
+  -- ** QuickBench
   , QuickReport(..)        -- A report to summarise the QuickBench phase of testing.
   -- * Statistical analysis 
   , AnalysisReport(..)     -- A report to summarise the system's analysis phase.                                                                                 
@@ -68,6 +68,9 @@ module AutoBench.Internal.Types
   , numPredictors          -- Number of predictors for each type of model.
   , simpleReportToCoord    -- Convert a 'SimpleReport' to a (input size(s), runtime) coordinate, i.e., 'Coord' or 'Coord3'.
   , simpleReportsToCoords  -- Convert a list of 'SimpleReport' to a (input size(s), runtime) coordinate, i.e., 'Coord' or 'Coord3'.
+  -- ** QuickBench
+  , QuickAnalysis(..)      -- A report to summarise the system's analysis phase for QuickBenching.
+  , QuickResults(..)       -- Simple statical analysis results for each test program for QuickBenching.
   -- * Errors
   -- ** System errors
   , SystemError(..)        -- System errors.
@@ -266,17 +269,6 @@ data SimpleReport =
    , _outVarFrac :: Double          -- ^ Outlier effect as a percentage.
    }
 
--- ** QuickBench 
-
--- | A report to summarise the QuickBench phase of testing. For both unary and 
--- binary test programs (using 'Coord' or 'Coord3').
-data QuickReport = 
-  QuickReport 
-    {
-      _qName     :: Id                        -- ^ Name of test program.
-    , _qRuntimes :: Either [Coord] [Coord3]   -- ^ [(Input size(s), mean runtime)].
-    }
-
 -- * Test results 
 
 -- | A report to summarise the system's testing phase.
@@ -289,6 +281,17 @@ data TestReport =
     , _tGhcFlags :: [String]          -- ^ Flags used when compiling the benchmarking file.
     , _eql       :: Bool              -- ^ Whether test programs are semantically equal according to QuickCheck testing.
     , _br        :: BenchReport       -- ^ Benchmarking report.
+    }
+
+-- ** QuickBench 
+
+data Quick
+-- | A report to summarise the QuickBench testing phase.
+data QuickReport = 
+  QuickReport 
+    {
+      _qName     :: Id                        -- ^ Name of test program.
+    , _qRuntimes :: Either [Coord] [Coord3]   -- ^ [(Input size(s), mean runtime)].
     }
 
 -- * Statistical analysis
@@ -329,7 +332,6 @@ data CVStats =
    , _cv_ss_tot :: Double   -- ^ Total sum of squares.
    , _cv_ss_res :: Double   -- ^ Residual sum of squares.
    } deriving Eq
-
 
 instance Show CVStats where 
   show cvSts = flip bySide " " $ fmap PP.vcat $ transpose  
@@ -410,6 +412,26 @@ simpleReportToCoord :: SimpleReport -> Either Coord Coord3
 simpleReportToCoord sr = case _size sr of 
   SizeUn n      -> Left  (fromIntegral n, _runtime sr)
   SizeBin n1 n2 -> Right (fromIntegral n1, fromIntegral n2, _runtime sr)
+
+
+-- ** QuickBench 
+
+-- | A report to summarise the system's analysis phase for QuickBenching.
+data QuickAnalysis = 
+  QuickAnalysis
+    {
+      _qAnlys :: [QuickResults]    -- ^ Quick results per test program.   
+    , _qImps  :: [Improvement]     -- ^ Improvement results.
+    }
+
+-- | Simple statical analysis results for each test program for QuickBenching.
+data QuickResults = 
+  QuickResults 
+   {
+     _qrIdt   :: Id                           -- ^ Name of test program.
+   , _qrRaws  :: Either [Coord] [Coord3]      -- ^ Raw input size/runtime results.
+   , _qrFits  :: [LinearFit]                  -- ^ Fitting statistics for each candidate model.
+   }
 
 -- * Errors 
 
