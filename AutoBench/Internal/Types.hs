@@ -22,10 +22,8 @@
    <TO-DO>:
    ----------------------------------------------------------------------------
    - 'DataOpts' Discover setting;
-   - Split Types into InternalTypes and Types;
    - Make AnalOpts in TestSuite a maybe type? In case users don't want to 
      analyse right away;
-   - Comment docTestSuite, docUserInputs;
    - 
 -}
 
@@ -62,6 +60,8 @@ module AutoBench.Internal.Types
   , CVStats(..)            -- Fitting statistics calculated for regression models per each iteration of cross-validation.
   , Improvement            -- An efficiency improvement is an ordering between two test programs and a rating
                            -- 0 <= d <= 1 that corresponds to the percentage of test cases that support the ordering.
+  , LinearCandidate(..)    -- The details of a regression model necessary to fit it to a given dataset.
+  , LinearFit(..)          -- A regression model's fitting statistics and helper functions: predicting y-coordinates, pretty printing.
   , numPredictors          -- Number of predictors for each type of model.
   -- * Errors
   -- ** System errors
@@ -85,9 +85,12 @@ import           Criterion.Types           (OutlierEffect)
 import           Data.List                 (sort, sortBy, transpose)
 import           Data.Ord                  (comparing)
 import           Data.Tuple.Select         (sel1, sel2)
+import           Numeric.LinearAlgebra     (Vector)
 import           Text.Printf               (printf)
 import qualified Text.PrettyPrint.HughesPJ as PP
 
+
+import qualified AutoBench.Internal.Expr  as E
 import           AutoBench.Internal.Utils ((.*), bySide, deggar)
 import           AutoBench.Types  -- Re-export.
 
@@ -308,6 +311,7 @@ data CVStats =
    , _cv_ss_res :: Double   -- ^ Residual sum of squares.
    } deriving Eq
 
+
 instance Show CVStats where 
   show cvSts = flip bySide " " $ fmap PP.vcat $ transpose  
     [ [ PP.text "MSE", PP.char '=', PP.text $ printf ".4g" (_cv_mse    cvSts) ] 
@@ -316,9 +320,51 @@ instance Show CVStats where
     , [ PP.text "SSR", PP.char '=', PP.text $ printf ".4g" (_cv_ss_res cvSts) ]
     ]
 
+-- | Expressions with 'Double' literals.
+type Exp = E.Expr Double
 
+-- | Each 'LinearType' gives rise to a 'LinearCandidate' that is then fitted to 
+-- a given data set generating a 'LinearFit'. Unlike a 'LinearType', which
+-- just describes a particular regression model, a 'LinearCandidate' 
+-- encompasses the required information to fit a model to a given data set. 
+-- For example, it includes '_fxs' to transforms the raw x-coordinates 
+-- of the dataset before fitting the model, and '_fyhat' which can be used to 
+-- generate y-coordinates predicted by the model once it has been fit.
+--
+-- For example, if fitting a 'Log b 1' model, '_fxs' will transform each 
+-- x-coordinate in the data set to log_b(x) before fitting. Then the linear 
+-- relationship between the /resulting/ xy-coordinates corresponds to a 
+-- logarithmic relationship between the /initial/ xy-coordinates.
+--
+-- When the coefficients of a model are determined by regression analysis, 
+-- the corresponding 'LinearCandidate' gives rise to a 'LinearFit'.
+data LinearCandidate = 
+  LinearCandidate 
+   { 
+     _lct    :: LinearType                                         -- ^ The model.
+   , _fxs    :: Vector Double -> Vector Double                     -- ^ A function to transform x-coords before fitting.
+   , _fex    :: Vector Double -> Exp                               -- ^ A function to generate the model's equation as an 'Exp'.
+   , _fyhat  :: Vector Double -> Vector Double -> Vector Double    -- ^ A function to generate model's predicted y-coords.
+   }
 
-
+-- | When a 'LinearCandidate' is fitted to a given data set and its coefficients
+-- determined by regression analysis, a 'LinearFit' is generated. 
+-- A 'LinearFit' primarily includes the fitting statistics ('Stats') of the 
+-- model to be used to compare it against other models also fitted to the same 
+-- data set. In order to be able to plot a 'LinearFit' on a results graph 
+-- as a line of best fit, the '_yhat' function generates y-coordinates 
+-- predicted by the model for a given set of x-coordinates. To pretty print the 
+-- 'LinearFit', the '_ex' function generates an 'Exp' expression for the model's
+-- equation that has a pretty printing function.
+data LinearFit =
+  LinearFit 
+   { 
+     _lft  :: LinearType                       -- ^ The model.
+   , _cfs  :: Vector Double                    -- ^ The coefficients of the model.
+   , _ex   :: Exp                              -- ^ The model's equation as an 'Exp'.
+   , _yhat :: Vector Double -> Vector Double   -- ^ A function to generate the model's predicted y-coords for a given set of x-coords.
+   , _sts  :: Stats                            -- ^ Fitting statistics.
+   }
 
 -- * Errors 
 
