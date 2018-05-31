@@ -81,16 +81,16 @@ analyseWith aOpts tr = do
     putStrLn "Cannot analyse results due to one or more 'AnalOpts' errors:"
     mapM_ print errs
   else do 
-    -- Calculate the efficiency improvement results by comparing 
-    -- the runtimes of test programs pointwise.
-    let improvs = calculateImprovements (_reports $ _br tr) aOpts
-    error $ show improvs
+    
+
 
     undefined
 
 
   where 
-   
+    -- Results of statistical analysis on benchmarking results.
+    analyRep = calculateAnalysisReport aOpts tr
+
     -- Valid 'AnalOpts':                                                                             
     -- Ensure the linear models have <= maximum number of allowed 
     -- predictors. Check the '_cvIters', '_cvTrain', and '_topModels' values 
@@ -130,21 +130,19 @@ analyseWith aOpts tr = do
     aOptsTopModelsErr = AnalOptsErr $ "The number of models to review must be strictly positive."
 
 
-
-
-
-
-
-
-
-
-calculateAnalysisReport :: AnalOpts -> TestReport -> AnalysisReport                                                                        -- <TO-DO> ** COMMENT **
+-- | Perform statistical analysis on the benchmarking results (i.e., runtime 
+-- measurements of test programs) in the given 'TestReport' and produce an 
+-- 'AnalysisReport' to summarise the analysis results.
+calculateAnalysisReport :: AnalOpts -> TestReport -> AnalysisReport                                                                      
 calculateAnalysisReport aOpts tr = 
   AnalysisReport
     {
-      _anlys = calculateSimpleResults aOpts tr
-    , _imps  = calculateImprovements (_reports $ _br tr) aOpts
+      _anlys = calculateSimpleResults aOpts tr                     -- A set of simple results ('SimpleResults') for each test program.
+    , _imps  = calculateImprovements (_reports $ _br tr) aOpts     -- A set of improvements.
     }
+
+
+
 
 
 calculateSimpleResults :: AnalOpts -> TestReport -> [SimpleResults]                                                                        -- <TO-DO> ** COMMENT **
@@ -169,9 +167,10 @@ calculateSimpleResults aOpts tr =
       where 
         coords = simpleReportsToCoords idt srs
         (stdDev, avgOutVarFrac, avgOutVarEff) = 
-          fromMaybe (0, 0, Unaffected) (simpleReportSummary srs)                              -- <TO-DO> error handling.
-        fits = case coords of                                                                 -- <TO-DO> error handling.
-          Left{}  -> let Left cs = coords                                                     -- <TO-DO> error handling.           
+          fromMaybe (0, 0, Unaffected) (simpleReportSummary srs)                              -- <TO-DO> error handling: fromMaybe crap_if_error ...
+        fits = case coords of                                                                 
+          -- Only perform regression analysis on 'Coord's.
+          Left{}  -> let Left cs = coords          
             in fmap ( ( candidateFit 
                           fitRidgeRegress           -- Use ridge regression to fit.
                           (_cvTrain aOpts)          -- Train/evaluate data split.
@@ -179,9 +178,16 @@ calculateSimpleResults aOpts tr =
                           cs                        -- Data set.
                       ) . generateLinearCandidate   -- 'LinearType' -> 'LinearCandidate'.
                     ) (_linearModels aOpts)         -- Fit all models in 'AnalOpts'.
-          Right{} -> []
+          -- Don't perform regression analysis on 'Coord3's.          
+          Right{} -> [] 
 
-    simpleReportSummary                                                                        -- <TO-DO> ** COMMENT **
+    -- Provide an overall summary of the simple statistics taken from 
+    -- Criterion's 'Report's relating to the /same/ test program:
+    -- 
+    -- * Standard deviation of all test cases;
+    -- * Average effect of outliers on variance (percentage);
+    -- * Average effect of outliers on variance ('OutlierEffect').
+    simpleReportSummary                                                                      
       :: [SimpleReport] 
       -> Maybe (Double, Double, OutlierEffect)
     simpleReportSummary []  = Nothing
@@ -198,25 +204,6 @@ calculateSimpleResults aOpts tr =
           | avgOutVarFrac < 0.1  = Slight
           | avgOutVarFrac < 0.5  = Moderate
           | otherwise            = Severe
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 -- * Improvement results 
 
@@ -300,8 +287,9 @@ candidateFit
   -> [Coord]                                        -- Data set.
   -> LinearCandidate                                -- Model to fit.
   -> Maybe LinearFit 
-candidateFit _ _ _ [] _ = Nothing
-candidateFit ff split iters coords c = Just
+candidateFit ff split iters coords c
+  | length coords < maxPredictors + 1 = Nothing     -- Need a minimum of (maxPredictors + 1) coordinates.
+  | otherwise = Just
   LinearFit 
     {
       _lft  = _lct   c 
