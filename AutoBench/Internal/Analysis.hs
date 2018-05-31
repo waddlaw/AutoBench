@@ -233,10 +233,8 @@ candidateFit ff split iters coords c =
 -- ** Linear fitting cross-validation
 
 -- | Fit a 'LinearCandidate' to a data set using Monte Carlo cross-validation.
--- Return the cross-validation fitting statistics 'CVStats'.
--- 
--- Note: Monte Carlo seems most appropriate because we will likely have 
--- a small data set due to the slow benchmarking process. 
+-- Return the fitting statistics ('CVStats') from each iteration of 
+-- cross-validation.
 cvCandidateFit 
   :: ([Coord] -> LinearCandidate -> Vector Double)  -- Fitting function.
   -> Double                                         -- Train/validate data split.
