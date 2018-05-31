@@ -33,7 +33,7 @@ import           Criterion.Types       (OutlierEffect(..))
 import           Data.Default          (def)
 import           Data.Either           (partitionEithers)
 import           Data.List             (genericLength, sort)
-import           Data.Maybe            (fromMaybe)
+import           Data.Maybe            (catMaybes, fromMaybe)
 import qualified Data.Vector.Storable  as V
 import           Numeric.LinearAlgebra (Vector, norm_1, norm_2)
 import           System.IO.Unsafe      (unsafePerformIO)
@@ -153,8 +153,8 @@ calculateSimpleResults aOpts tr =
   where 
     
     calculateSimpleResult 
-      :: Id    -- Name of test program 
-      -> [SimpleReport]
+      :: Id               -- Name of test program.
+      -> [SimpleReport]   -- Results of each test case.
       -> SimpleResults
     calculateSimpleResult idt srs = 
       SimpleResults
@@ -164,7 +164,7 @@ calculateSimpleResults aOpts tr =
         , _srStdDev        = stdDev
         , _srAvgOutVarEff  = avgOutVarEff
         , _srAvgPutVarFrac = avgOutVarFrac
-        , _srFits          = fits
+        , _srFits          = catMaybes fits
         }
       where 
         coords = simpleReportsToCoords idt srs
@@ -299,8 +299,9 @@ candidateFit
   -> Int                                            -- Cross-validation iterations.
   -> [Coord]                                        -- Data set.
   -> LinearCandidate                                -- Model to fit.
-  -> LinearFit 
-candidateFit ff split iters coords c = 
+  -> Maybe LinearFit 
+candidateFit _ _ _ [] _ = Nothing
+candidateFit ff split iters coords c = Just
   LinearFit 
     {
       _lft  = _lct   c 
