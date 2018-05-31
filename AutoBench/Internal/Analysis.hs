@@ -23,7 +23,8 @@
    ----------------------------------------------------------------------------
    <TO-DO>:
    ----------------------------------------------------------------------------
-   -
+   - Move validateTestReport to user input checks;
+   - 
 -}
 
 module AutoBench.Internal.Analysis where 
@@ -39,10 +40,11 @@ import           Numeric.LinearAlgebra (Vector, norm_1, norm_2)
 import           System.IO.Unsafe      (unsafePerformIO)
 import           System.Random         (randomRIO)
 
-import AutoBench.Internal.AbstractSyntax (Id)    
-import AutoBench.Internal.Regression     ( generateLinearCandidate
-                                         , fitRidgeRegress )
-import AutoBench.Internal.Utils          (allEq, notNull, uniqPairs)
+import AutoBench.Internal.AbstractSyntax  (Id)    
+import AutoBench.Internal.Regression      ( generateLinearCandidate
+                                          , fitRidgeRegress )
+import AutoBench.Internal.UserInputChecks (validateAnalOpts)
+import AutoBench.Internal.Utils           (allEq, notNull, uniqPairs)
 import AutoBench.Internal.Types  
   ( AnalOpts(..)
   , AnalysisReport(..)
@@ -55,79 +57,55 @@ import AutoBench.Internal.Types
   , InputError(..)
   , LinearCandidate(..)
   , LinearFit(..)
-  , LinearType
   , SimpleReport(..)
   , SimpleResults(..)
   , Stats(..)
   , TestReport(..)
-  , maxCVIters
-  , maxCVTrain
   , maxPredictors
-  , minCVIters
-  , minCVTrain
   , numPredictors
   )   
 
+
+
+
+
 -- * Top-level 
 
-analyse :: TestReport -> IO ()
+analyse :: TestReport -> IO ()                                                                        -- <TO-DO> ** COMMENT **
 analyse  = analyseWith def
 
-analyseWith :: AnalOpts -> TestReport -> IO () 
-analyseWith aOpts tr = do 
-  let errs = checkAnalOpts
-  if notNull errs
-  then do 
-    putStrLn "Cannot analyse results due to one or more 'AnalOpts' errors:"
-    mapM_ print errs
-  else do 
+
+
+analyseWith :: AnalOpts -> TestReport -> IO ()                                                        -- <TO-DO> ** COMMENT **
+analyseWith aOpts tr 
+  | notNull (aOptsErrs ++ trErrs) = do  
+      putStrLn "Cannot analyse results due to one or more errors:"
+      mapM_ print (aOptsErrs ++ trErrs)   
+  | otherwise = undefined
+
     
 
-
-    undefined
-
-
   where 
+    -- Validate the 'AnalOpts'.
+    aOptsErrs = validateAnalOpts aOpts
+    -- Validate the 'TestReport'
+    trErrs    = validateTestReport tr
     -- Results of statistical analysis on benchmarking results.
-    analyRep = calculateAnalysisReport aOpts tr
+    analyRep  = calculateAnalysisReport aOpts tr
 
-    -- Valid 'AnalOpts':                                                                             
-    -- Ensure the linear models have <= maximum number of allowed 
-    -- predictors. Check the '_cvIters', '_cvTrain', and '_topModels' values 
-    -- are in the correct range.
-    checkAnalOpts :: [InputError]                                                          -- <TO-DO>: Merge this with static checks.
-    checkAnalOpts  =
-      checkModels (_linearModels aOpts) 
-        ++ checkCVIters   (_cvIters   aOpts) 
-        ++ checkCVTrain   (_cvTrain   aOpts)
-        ++ checkTopModels (_topModels aOpts)
-      where 
-        -- Maximum number of predictors for linear models.
-        checkModels :: [LinearType] -> [InputError]
-        checkModels ls 
-          | maxPredictors >= maximum (fmap numPredictors ls) = []
-          | otherwise = [aOptsModelErr]
-        
-        -- 100 <= '_cvIters' 500.
-        checkCVIters n 
-          | n >= minCVIters && n <= maxCVIters = []
-          | otherwise = [aOptsCVItersErr]
-        
-        -- 0.5 <= '_cvTrain' 0.8.
-        checkCVTrain n 
-          | n >= minCVTrain && n <= maxCVTrain = []
-          | otherwise = [aOptsCVTrainErr]
 
-        -- 'topModels' strictly positive.
-        checkTopModels n 
-          | n > 0 = []
-          | otherwise = [aOptsTopModelsErr] 
 
-    -- Errors:
-    aOptsModelErr     = AnalOptsErr $ "Linear regression models can have a maximum of " ++ show maxPredictors ++ " predictors."
-    aOptsCVItersErr   = AnalOptsErr $ "The number of cross-validation iterators must be " ++ show minCVIters ++ " <= x <= " ++ show maxCVIters ++ "." 
-    aOptsCVTrainErr   = AnalOptsErr $ "The percentage of cross-validation training data must be " ++ show minCVTrain ++ " <= x <= " ++ show maxCVTrain ++ "." 
-    aOptsTopModelsErr = AnalOptsErr $ "The number of models to review must be strictly positive."
+
+
+
+
+
+
+
+
+
+
+
 
 
 -- | Perform statistical analysis on the benchmarking results (i.e., runtime 
@@ -142,17 +120,17 @@ calculateAnalysisReport aOpts tr =
     }
 
 
-
-
-
-calculateSimpleResults :: AnalOpts -> TestReport -> [SimpleResults]                                                                        -- <TO-DO> ** COMMENT **
+calculateSimpleResults :: AnalOpts -> TestReport -> [SimpleResults]                                   -- <TO-DO> ** COMMENT **
 calculateSimpleResults aOpts tr = 
   zipWith calculateSimpleResult (_tProgs tr) (_reports $ _br tr)
   where 
-    
+
+    -- For a set of 'SimpleReport's (i.e., test cases) relating to a 
+    -- given test program, perform statistical analysis and generate
+    -- 'SimpleResults'. 
     calculateSimpleResult 
       :: Id               -- Name of test program.
-      -> [SimpleReport]   -- Results of each test case.
+      -> [SimpleReport]   -- Benchmarking measurements for each test case.
       -> SimpleResults
     calculateSimpleResult idt srs = 
       SimpleResults
@@ -462,3 +440,98 @@ shuffle x =
    i <- randomRIO (0, length x -1)
    r <- shuffle (take i x ++ drop (i + 1) x)
    return (x !! i : r)
+
+
+
+
+
+
+
+
+
+
+--- <TO-DO> MOVE TO CHECKS & COMMENT
+
+
+validateTestReport :: TestReport -> [InputError]
+validateTestReport tr = 
+  checkNotNull progs reps
+    ++ checkWellFormed progs reps 
+    ++ checkNoMiss reps 
+    ++ concatMap checkSuff reps 
+    ++ checkArity progs reps 
+    ++ checkSizes bls reps
+    ++ checkBls bls (length $ head reps)
+  where 
+    
+    progs = _tProgs tr 
+    reps  = _reports (_br tr)
+    bls   = _baselines (_br tr)
+
+    -- Check results aren't null.
+    checkNotNull :: [Id] -> [[SimpleReport]] -> [InputError]
+    checkNotNull [] _ = [noResErr]
+    checkNotNull _ [] = [noResErr]
+    checkNotNull _ _  = []
+
+    -- Check each @[SimpleReport]@ relates to a single test program, 
+    -- and the order of results is the same as '_tProgs'.
+    checkWellFormed :: [Id] -> [[SimpleReport]] -> [InputError]
+    checkWellFormed [] [] = []
+    checkWellFormed _  [] = [malfErr]
+    checkWellFormed [] _  = [malfErr]
+    checkWellFormed (idt : idts) (srs : srss) 
+      | all (\sr -> stripQualModule (_name sr) == idt) srs = checkWellFormed idts srss 
+      | otherwise = [malfErr]
+
+    -- Check each @[SimpleReport]@ is the same length.
+    checkNoMiss :: [[SimpleReport]] -> [InputError]
+    checkNoMiss srss
+      | allEq $ fmap length srss = []
+      | otherwise = [missingErr]
+
+    -- Check sufficient results, i.e., each @[SimpleReport]@ has length @>= 
+    -- maxPredictors + 1@.
+    checkSuff :: [SimpleReport] -> [InputError]
+    checkSuff srs 
+      | length srs > maxPredictors + 1 = []
+      | otherwise = [insufsErr]
+
+    -- Check all reports relate to either unary or binary test programs.
+    checkArity :: [Id] -> [[SimpleReport]] -> [InputError]
+    checkArity idts srss = 
+      case partitionEithers (zipWith simpleReportsToCoords idts srss) of 
+        ([], _) -> []
+        (_, []) -> []
+        _       -> [unBinErr]
+    
+    -- Check all reports have the same input sizes.
+    checkSizes :: [SimpleReport] -> [[SimpleReport]] -> [InputError]
+    checkSizes [] srss  -- No baseline measurements is fine.
+      | allEq $ fmap (sort . fmap _size) srss = []
+      | otherwise = [sizeErr]
+    checkSizes srs srss 
+      | allEq $ fmap (sort . fmap _size) (srs : srss) = []
+      | otherwise = [sizeErr]
+
+    -- Check baseline measurements.
+    checkBls :: [SimpleReport] -> Int -> [InputError]
+    checkBls [] _ = []  -- No baseline measurements is fine.
+    checkBls srs n 
+      | length srs == n = []
+      | otherwise = [blsErr]
+
+    -- Helpers:
+
+    -- Note: all SimpleReport names are qualified with module names.
+    stripQualModule :: String -> String 
+    stripQualModule  = drop 1 . dropWhile (/= '.')
+    
+    -- Errors:
+    noResErr   = TestReportErr "The test report contains no results."
+    missingErr = TestReportErr "Missing test results from one or more test programs."
+    unBinErr   = TestReportErr "Test results include both unary and binary test programs."
+    insufsErr  = TestReportErr "Insufficient test results for one or more test programs."
+    blsErr     = TestReportErr "Insufficient baseline measurements."
+    malfErr    = TestReportErr "Malformed test results for one or more test programs."
+    sizeErr    = TestReportErr "Test results relate to different input sizes."

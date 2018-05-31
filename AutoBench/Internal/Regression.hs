@@ -79,8 +79,6 @@ import AutoBench.Internal.Types
   , numPredictors 
   )
 
-
-
 -- * 'LinearCandidate' generation
 
 -- | Generate a 'LinearCandidate' from a 'LinearType' by filling in the 

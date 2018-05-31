@@ -416,22 +416,24 @@ instance Exception SystemError
 -- errors. These will then be summarised after the user input file has been 
 -- fully analysed.
 data InputError = 
-    FilePathErr  String    -- ^ Invalid filepath.
-  | FileErr      String    -- ^ File access error.
-  | TestSuiteErr String    -- ^ Invalid test suite.
-  | DataOptsErr  String    -- ^ Invalid data options.
-  | AnalOptsErr  String    -- ^ Invalid statistical analysis options.
-  | TypeErr      String    -- ^ Invalid type signature.
-  | InstanceErr  String    -- ^ One or more missing instances
+    FilePathErr   String    -- ^ Invalid filepath.
+  | FileErr       String    -- ^ File access error.
+  | TestSuiteErr  String    -- ^ Invalid test suite.
+  | DataOptsErr   String    -- ^ Invalid data options.
+  | AnalOptsErr   String    -- ^ Invalid statistical analysis options.
+  | TypeErr       String    -- ^ Invalid type signature.
+  | InstanceErr   String    -- ^ One or more missing instances
+  | TestReportErr String    -- ^ Invalid test report.
 
 instance Show InputError where 
-  show (FilePathErr  s) = "File path error: "        ++ s
-  show (FileErr      s) = "File error: "             ++ s
-  show (TestSuiteErr s) = "Test suite error: "       ++ s
-  show (DataOptsErr  s) = "Test data error: "        ++ s
-  show (AnalOptsErr  s) = "Analysis options error: " ++ s
-  show (TypeErr      s) = "Type error: "             ++ s
-  show (InstanceErr  s) = "Instance error: "         ++ s
+  show (FilePathErr   s) = "File path error: "        ++ s
+  show (FileErr       s) = "File error: "             ++ s
+  show (TestSuiteErr  s) = "Test suite error: "       ++ s
+  show (DataOptsErr   s) = "Test data error: "        ++ s
+  show (AnalOptsErr   s) = "Analysis options error: " ++ s
+  show (TypeErr       s) = "Type error: "             ++ s
+  show (InstanceErr   s) = "Instance error: "         ++ s
+  show (TestReportErr s) = "Test report error: "      ++ s
 
 instance Exception InputError
 

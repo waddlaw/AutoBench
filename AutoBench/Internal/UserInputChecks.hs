@@ -69,8 +69,9 @@
 
 module AutoBench.Internal.UserInputChecks 
   ( 
-    userInputCheck        -- Parse, validate and classify user inputs.
-  , qCheckTestPrograms    -- Check whether test programs are semantically equal using QuickCheck.
+    qCheckTestPrograms    -- Check whether test programs are semantically equal using QuickCheck.
+  , userInputCheck        -- Parse, validate and classify user inputs.
+  , validateAnalOpts      -- Validate 'AnalOpts'.
 
   ) where 
 
@@ -346,7 +347,7 @@ checkTestSuites inps =
                      (fmap fst benchFuns)                    -- Benchmarkable.
               else [])           
            ++ checkValidDataOpts ps'' tyInps (_dataOpts ts)  -- Valid 'DataOpts'.
-           ++ checkValidAnalOpts (_analOpts ts)              -- Valid 'AnalOpts'.
+           ++ validateAnalOpts (_analOpts ts)                -- Valid 'AnalOpts'.
            ++ checkCritCfg (_critCfg ts)                     -- Valid Criterion configuration?? <TO-DO>
            ++ checkBaseLine (_baseline ts) (_nf ts)          -- Valid baseline option?
            ++ checkGhcFlags (_ghcFlags ts)                   -- Valid GHC flags?? <TO-DO>
@@ -449,38 +450,6 @@ checkTestSuites inps =
                   | otherwise -> []
                 Nothing -> [dOptsMissGenErr $ head ps]
           | otherwise = []
-        
-        -- Valid 'AnalOpts':
-        -- Ensure the linear models have <= maximum number of allowed 
-        -- predictors. Check the '_cvIters', '_cvTrain', and '_topModels' values 
-        -- are in the correct range.
-        checkValidAnalOpts :: AnalOpts -> [InputError]
-        checkValidAnalOpts aOpts = 
-          checkModels (_linearModels aOpts) 
-            ++ checkCVIters   (_cvIters   aOpts) 
-            ++ checkCVTrain   (_cvTrain   aOpts)
-            ++ checkTopModels (_topModels aOpts)
-          where 
-            -- Maximum number of predictors for linear models.
-            checkModels :: [LinearType] -> [InputError]
-            checkModels ls 
-              | maxPredictors >= maximum (fmap numPredictors ls) = []
-              | otherwise = [aOptsModelErr]
-            
-            -- 100 <= '_cvIters' 500.
-            checkCVIters n 
-              | n >= minCVIters && n <= maxCVIters = []
-              | otherwise = [aOptsCVItersErr]
-            
-            -- 0.5 <= '_cvTrain' 0.8.
-            checkCVTrain n 
-              | n >= minCVTrain && n <= maxCVTrain = []
-              | otherwise = [aOptsCVTrainErr]
-
-            -- 'topModels' strictly positive.
-            checkTopModels n 
-              | n > 0 = []
-              | otherwise = [aOptsTopModelsErr]
 
         -- Check Criterion's configuration??
         checkCritCfg :: Criterion.Config -> [InputError]                                             -- <TO-DO>
@@ -525,11 +494,6 @@ checkTestSuites inps =
     dOptsWrongTyErr      = DataOptsErr "The type of the specified test data is incompatible with the types of testable programs."
     dOptsParErr          = DataOptsErr "Invalid values for 'Gen' bounds and/or step." 
     dOptsSizeErr         = DataOptsErr $ "A minimum of " ++ show minInputs ++ " distinctly sized test inputs are required."
-    -- 'AnalOpts':
-    aOptsModelErr        = AnalOptsErr $ "Linear regression models can have a maximum of " ++ show maxPredictors ++ " predictors."
-    aOptsCVItersErr      = AnalOptsErr $ "The number of cross-validation iterators must be " ++ show minCVIters ++ " <= x <= " ++ show maxCVIters ++ "." 
-    aOptsCVTrainErr      = AnalOptsErr $ "The percentage of cross-validation training data must be " ++ show minCVTrain ++ " <= x <= " ++ show maxCVTrain ++ "." 
-    aOptsTopModelsErr    = AnalOptsErr $ "The number of models to review must be strictly positive."
 
 -- * Dynamic checking
 
@@ -848,3 +812,44 @@ qCheckTestPrograms fp ps inps = do
     -- Projections: names of unary/binary functions in user input file.
     unaryFuns  = fmap fst $ _unaryFuns  inps
     binaryFuns = fmap fst $ _binaryFuns inps
+
+-- * Helpers 
+
+-- | Validate 'AnalOpts':
+-- 
+-- * Ensure the linear models have <= maximum number of allowed predictors. 
+-- * Check the '_cvIters', '_cvTrain', and '_topModels' values are in the 
+--   correct range.
+validateAnalOpts :: AnalOpts -> [InputError]
+validateAnalOpts aOpts = 
+  checkModels (_linearModels aOpts) 
+    ++ checkCVIters   (_cvIters   aOpts) 
+    ++ checkCVTrain   (_cvTrain   aOpts)
+    ++ checkTopModels (_topModels aOpts)
+  where 
+    -- Maximum number of predictors for linear models.
+    checkModels :: [LinearType] -> [InputError]
+    checkModels ls 
+      | maxPredictors >= maximum (fmap numPredictors ls) = []
+      | otherwise = [aOptsModelErr]
+    
+    -- 100 <= '_cvIters' 500.
+    checkCVIters n 
+      | n >= minCVIters && n <= maxCVIters = []
+      | otherwise = [aOptsCVItersErr]
+    
+    -- 0.5 <= '_cvTrain' 0.8.
+    checkCVTrain n 
+      | n >= minCVTrain && n <= maxCVTrain = []
+      | otherwise = [aOptsCVTrainErr]
+
+    -- 'topModels' strictly positive.
+    checkTopModels n 
+      | n > 0 = []
+      | otherwise = [aOptsTopModelsErr]
+
+    -- Error messages:
+    aOptsModelErr        = AnalOptsErr $ "Linear regression models can have a maximum of " ++ show maxPredictors ++ " predictors."
+    aOptsCVItersErr      = AnalOptsErr $ "The number of cross-validation iterators must be " ++ show minCVIters ++ " <= x <= " ++ show maxCVIters ++ "." 
+    aOptsCVTrainErr      = AnalOptsErr $ "The percentage of cross-validation training data must be " ++ show minCVTrain ++ " <= x <= " ++ show maxCVTrain ++ "." 
+    aOptsTopModelsErr    = AnalOptsErr $ "The number of models to review must be strictly positive."
