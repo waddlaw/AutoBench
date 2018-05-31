@@ -410,11 +410,11 @@ instance Default AnalOpts where
           , _coordsFP     = Nothing
           }
 
-defaultStatsFilt :: Stats -> Bool 
-defaultStatsFilt  = undefined
+defaultStatsFilt :: Stats -> Bool                                                   -- TO DO!!
+defaultStatsFilt  = const True
 
-defaultStatsSort :: Stats -> Stats -> Ordering
-defaultStatsSort = undefined
+defaultStatsSort :: Stats -> Stats -> Ordering                                      -- TO DO !!!
+defaultStatsSort _ _  = EQ
 
 -- | The default way to generate improvement results by comparing the runtimes
 -- of two test programs /pointwise/.

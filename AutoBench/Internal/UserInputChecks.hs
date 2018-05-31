@@ -72,6 +72,7 @@ module AutoBench.Internal.UserInputChecks
     qCheckTestPrograms    -- Check whether test programs are semantically equal using QuickCheck.
   , userInputCheck        -- Parse, validate and classify user inputs.
   , validateAnalOpts      -- Validate 'AnalOpts'.
+  , validateTestReport    -- Validate a 'TestReport'.
 
   ) where 
 
@@ -79,6 +80,7 @@ import           Control.Category          ((>>>))
 import           Control.Monad             ((>=>), filterM, foldM, void)
 import           Control.Monad.Catch       (catch, catchAll)
 import qualified Criterion.Types           as Criterion
+import           Data.Either               (partitionEithers)
 import           Data.List                 ( (\\), groupBy, intersect, nub, sort
                                            , sortBy )
 import           Data.Ord                  (comparing)
@@ -124,9 +126,12 @@ import AutoBench.Internal.Hint
   )
 import AutoBench.Internal.Types 
   ( AnalOpts(..)
+  , BenchReport(..)
   , DataOpts(..)
   , InputError(..)
   , LinearType
+  , SimpleReport(..)
+  , TestReport(..)
   , TestSuite(..)
   , UserInputs(..)
   , initUserInputs
@@ -137,6 +142,7 @@ import AutoBench.Internal.Types
   , minCVTrain
   , minInputs
   , numPredictors
+  , simpleReportsToCoords
   )
 import AutoBench.Internal.Utils (allEq, filepathToModuleName, notNull)
 
@@ -853,3 +859,89 @@ validateAnalOpts aOpts =
     aOptsCVItersErr      = AnalOptsErr $ "The number of cross-validation iterators must be " ++ show minCVIters ++ " <= x <= " ++ show maxCVIters ++ "." 
     aOptsCVTrainErr      = AnalOptsErr $ "The percentage of cross-validation training data must be " ++ show minCVTrain ++ " <= x <= " ++ show maxCVTrain ++ "." 
     aOptsTopModelsErr    = AnalOptsErr $ "The number of models to review must be strictly positive."
+
+
+-- | Validate 'TestReport':                                                                          -- <TO-DO>: *** COMMENT. ***
+--
+validateTestReport :: TestReport -> [InputError]
+validateTestReport tr = 
+  checkNotNull progs reps
+    ++ checkWellFormed progs reps 
+    ++ checkNoMiss reps 
+    ++ concatMap checkSuff reps 
+    ++ checkArity progs reps 
+    ++ checkSizes bls reps
+    ++ checkBls bls (length $ head reps)
+  where 
+    
+    progs = _tProgs tr 
+    reps  = _reports (_br tr)
+    bls   = _baselines (_br tr)
+
+    -- Check results aren't null.
+    checkNotNull :: [Id] -> [[SimpleReport]] -> [InputError]
+    checkNotNull [] _ = [noResErr]
+    checkNotNull _ [] = [noResErr]
+    checkNotNull _ _  = []
+
+    -- Check each @[SimpleReport]@ relates to a single test program, 
+    -- and the order of results is the same as '_tProgs'.
+    checkWellFormed :: [Id] -> [[SimpleReport]] -> [InputError]
+    checkWellFormed [] [] = []
+    checkWellFormed _  [] = [malfErr]
+    checkWellFormed [] _  = [malfErr]
+    checkWellFormed (idt : idts) (srs : srss) 
+      | all (\sr -> _name sr == idt) srs = checkWellFormed idts srss 
+      | otherwise = [malfErr]
+
+    -- Check each @[SimpleReport]@ is the same length.
+    checkNoMiss :: [[SimpleReport]] -> [InputError]
+    checkNoMiss srss
+      | allEq $ fmap length srss = []
+      | otherwise = [missingErr]
+
+    -- Check sufficient results, i.e., each @[SimpleReport]@ has length @>= 
+    -- maxPredictors + 1@.
+    checkSuff :: [SimpleReport] -> [InputError]
+    checkSuff srs 
+      | length srs > maxPredictors + 1 = []
+      | otherwise = [insufsErr]
+
+    -- Check all reports relate to either unary or binary test programs.
+    checkArity :: [Id] -> [[SimpleReport]] -> [InputError]
+    checkArity idts srss = 
+      case partitionEithers (zipWith simpleReportsToCoords idts srss) of 
+        ([], ys) 
+          | any null ys -> [unBinErr]  -- None should be empty.
+          | otherwise   -> []
+        (xs, []) 
+          | any null xs -> [unBinErr]
+          | otherwise   -> []          -- None should be empty.
+        _       -> [unBinErr]
+    
+    -- Check all reports have the same input sizes.
+    checkSizes :: [SimpleReport] -> [[SimpleReport]] -> [InputError]
+    checkSizes [] srss  -- No baseline measurements is fine.
+      | allEq $ fmap (sort . fmap _size) srss = []
+      | otherwise = [sizeErr]
+    checkSizes srs srss 
+      | allEq $ fmap (sort . fmap _size) (srs : srss) = []
+      | otherwise = [sizeErr]
+
+    -- Check baseline measurements.
+    checkBls :: [SimpleReport] -> Int -> [InputError]
+    checkBls [] _ = []  -- No baseline measurements is fine.
+    checkBls srs n 
+      | length srs == n = []
+      | otherwise = [blsErr]
+
+    -- Helpers:
+    
+    -- Errors:
+    noResErr   = TestReportErr "The test report contains no results."
+    missingErr = TestReportErr "Missing test results from one or more test programs."
+    unBinErr   = TestReportErr "Test results include both unary and binary test programs."
+    insufsErr  = TestReportErr "Insufficient test results for one or more test programs."
+    blsErr     = TestReportErr "Insufficient baseline measurements."
+    malfErr    = TestReportErr "Malformed test results for one or more test programs."
+    sizeErr    = TestReportErr "Test results relate to different input sizes."

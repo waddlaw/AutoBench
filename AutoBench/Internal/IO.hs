@@ -407,7 +407,7 @@ generateTestReport mn ts fp eql = do
   benchRep <- generateBenchmarkingReport mn ts fp
   return TestReport 
            { -- Copy 'TestSuite' settings:
-             _tProgs    = _progs ts    
+             _tProgs    = sort $ fmap (prettyPrint . qualIdt mn) (_progs ts)
            , _tDataOpts = _dataOpts ts
            , _tNf       = _nf ts 
            , _tGhcFlags = _ghcFlags ts 

@@ -66,6 +66,8 @@ module AutoBench.Internal.Types
   , LinearFit(..)          -- A regression model's fitting statistics and helper functions: predicting y-coordinates, pretty printing.
   , SimpleResults(..)      -- Simple statical analysis results for each test program.
   , numPredictors          -- Number of predictors for each type of model.
+  , simpleReportToCoord    -- Convert a 'SimpleReport' to a (input size(s), runtime) coordinate, i.e., 'Coord' or 'Coord3'.
+  , simpleReportsToCoords  -- Convert a list of 'SimpleReport' to a (input size(s), runtime) coordinate, i.e., 'Coord' or 'Coord3'.
   -- * Errors
   -- ** System errors
   , SystemError(..)        -- System errors.
@@ -85,6 +87,7 @@ module AutoBench.Internal.Types
 import           Control.Arrow             ((&&&))
 import           Control.Exception.Base    (Exception)
 import           Criterion.Types           (OutlierEffect)
+import           Data.Either               (partitionEithers)
 import           Data.List                 (sort, sortBy, transpose)
 import           Data.Ord                  (comparing)
 import           Data.Tuple.Select         (sel1, sel2)
@@ -388,6 +391,25 @@ numPredictors (Poly      k) = k + 1
 numPredictors (Log     _ k) = k + 1 
 numPredictors (PolyLog _ k) = k + 1 
 numPredictors Exp{}         = 2
+
+-- | Convert a list of 'SimpleReport's to a list of (input size(s), runtime) 
+-- coordinates, i.e., a list 'Coord's or 'Coord3's. The name of each 
+-- simple report is verified against the given test program identifier.
+simpleReportsToCoords :: Id -> [SimpleReport] -> Either [Coord] [Coord3]
+simpleReportsToCoords idt srs = case (cs, cs3) of 
+  ([], _) -> Right cs3 
+  (_, []) -> Left cs 
+  _       -> Left [] -- Shouldn't happen.
+  where 
+    srs' = filter (\sr -> _name sr == idt) srs
+    (cs, cs3) = partitionEithers (fmap simpleReportToCoord srs')
+
+-- | Convert a 'SimpleReport' to a (input size(s), runtime) coordinate, 
+-- i.e., 'Coord' or 'Coord3'.
+simpleReportToCoord :: SimpleReport -> Either Coord Coord3 
+simpleReportToCoord sr = case _size sr of 
+  SizeUn n      -> Left  (fromIntegral n, _runtime sr)
+  SizeBin n1 n2 -> Right (fromIntegral n1, fromIntegral n2, _runtime sr)
 
 -- * Errors 
 

@@ -5,6 +5,13 @@ import AutoBench.Types
 import Data.Default 
 import Data.List
 
+
+{-
+import AutoBench.Internal.IO 
+import AutoBench.Internal.UserInputChecks
+import AutoBench.Internal.Types
+import AutoBench.Internal.Analysis-}
+
 import Prelude hiding (id, const)
 
 
@@ -23,14 +30,26 @@ tDat :: UnaryTestData [Int]
 tDat  = take 20 $ zip [1..] $ fmap return (repeat [1])
 
 ts :: TestSuite 
-ts  = def { _progs = ["slowRev", "fastRev"], _baseline = True }
+ts  = def { _progs = ["slowRev", "fastRev", "aaaa", "zzz"] }
 
+
+aaaa :: [Int] -> [Int]
+aaaa  = fastRev
+
+
+zzz :: [Int] -> [Int]
+zzz  = fastRev
+
+
+{-
 
 ts3 :: TestSuite 
 ts3 = def { _dataOpts = Gen 0 5 20, _progs = ["const", "const2"] }
 
 ts2 :: TestSuite
 ts2 = def
+
+-}
 
 const :: [Int] -> [Int] -> [Int]
 const x y = x 

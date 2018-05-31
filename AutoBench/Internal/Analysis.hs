@@ -24,6 +24,7 @@
    <TO-DO>:
    ----------------------------------------------------------------------------
    - Move validateTestReport to user input checks;
+   - Better comments all around.
    - 
 -}
 
@@ -32,7 +33,6 @@ module AutoBench.Internal.Analysis where
 import           Control.Arrow         ((&&&))
 import           Criterion.Types       (OutlierEffect(..))
 import           Data.Default          (def)
-import           Data.Either           (partitionEithers)
 import           Data.List             (genericLength, sort)
 import           Data.Maybe            (catMaybes, fromMaybe)
 import qualified Data.Vector.Storable  as V
@@ -43,8 +43,9 @@ import           System.Random         (randomRIO)
 import AutoBench.Internal.AbstractSyntax  (Id)    
 import AutoBench.Internal.Regression      ( generateLinearCandidate
                                           , fitRidgeRegress )
-import AutoBench.Internal.UserInputChecks (validateAnalOpts)
-import AutoBench.Internal.Utils           (allEq, notNull, uniqPairs)
+import AutoBench.Internal.UserInputChecks ( validateAnalOpts
+                                          , validateTestReport )
+import AutoBench.Internal.Utils           (notNull, uniqPairs)
 import AutoBench.Internal.Types  
   ( AnalOpts(..)
   , AnalysisReport(..)
@@ -52,9 +53,7 @@ import AutoBench.Internal.Types
   , Coord
   , Coord3
   , CVStats(..)
-  , DataSize(..)
   , Improvement
-  , InputError(..)
   , LinearCandidate(..)
   , LinearFit(..)
   , SimpleReport(..)
@@ -63,6 +62,7 @@ import AutoBench.Internal.Types
   , TestReport(..)
   , maxPredictors
   , numPredictors
+  , simpleReportsToCoords
   )   
 
 
@@ -93,24 +93,9 @@ analyseWith aOpts tr
     -- Results of statistical analysis on benchmarking results.
     analyRep  = calculateAnalysisReport aOpts tr
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 -- | Perform statistical analysis on the benchmarking results (i.e., runtime 
 -- measurements of test programs) in the given 'TestReport' and produce an 
--- 'AnalysisReport' to summarise the analysis results.
+-- 'AnalysisReport' to summarise the overall analysis phase.
 calculateAnalysisReport :: AnalOpts -> TestReport -> AnalysisReport                                                                      
 calculateAnalysisReport aOpts tr = 
   AnalysisReport
@@ -119,8 +104,10 @@ calculateAnalysisReport aOpts tr =
     , _imps  = calculateImprovements (_reports $ _br tr) aOpts     -- A set of improvements.
     }
 
-
-calculateSimpleResults :: AnalOpts -> TestReport -> [SimpleResults]                                   -- <TO-DO> ** COMMENT **
+-- | Perform statistical analysis on the benchmarking results (i.e., runtime 
+-- measurements of test programs) in the given 'TestReport' and produce an
+-- analysis report ('SimpleResults') /for each test program/.
+calculateSimpleResults :: AnalOpts -> TestReport -> [SimpleResults]                            
 calculateSimpleResults aOpts tr = 
   zipWith calculateSimpleResult (_tProgs tr) (_reports $ _br tr)
   where 
@@ -188,12 +175,8 @@ calculateSimpleResults aOpts tr =
 -- | Calculate efficiency improvements by comparing the runtimes of test 
 -- programs pointwise.
 calculateImprovements :: [[SimpleReport]] -> AnalOpts -> [Improvement]
-calculateImprovements srs aOpts                                                  -- Basic validation checks:
-  | any null srs = []                                                            -- Make sure no list of simple reports is empty.  
-  | not (allEq $ fmap length srs) = []                                           -- Make sure all lists are the same length.
-  | not (checkCoords srCoords $ length $ head srs) = []                          -- Make sure all lists of coords are the same form and the expected length.
-  | otherwise = concatMap (uncurry calculateImprovement) (uniqPairs $ 
-      zip srNames srCoords)
+calculateImprovements srs aOpts = 
+  concatMap (uncurry calculateImprovement) (uniqPairs $ zip srNames srCoords)
 
   where 
     -- Names of test programs from 'SimpleReport's.
@@ -227,14 +210,6 @@ calculateImprovements srs aOpts                                                 
     calculateImprovement _ _ = [] -- Shouldn't happen.
 
     -- Helpers
-
-    -- Check coordinates are all of the same form (i.e., all 'Coord' or
-    -- all 'Coord3') and the same, expected length @n@.
-    checkCoords :: [Either [Coord] [Coord3]] -> Int -> Bool 
-    checkCoords css n = case partitionEithers css of
-      ([], c3s) -> allEq (n : fmap length c3s)
-      (cs, [])  -> allEq (n : fmap length cs)
-      _         -> False  
     
     -- Make sure coordinates to compare have the same size information. This 
     -- should always be the case because of how they are generated, but better 
@@ -403,25 +378,6 @@ stats c coords coeffs cvSts = _sts
 
 -- * Helpers 
 
--- | Convert a list of 'SimpleReport's to a list of (input size(s), runtime) 
--- coordinates, i.e., a list 'Coord's or 'Coord3's. The name of each 
--- simple report is verified against the given test program identifier.
-simpleReportsToCoords :: Id -> [SimpleReport] -> Either [Coord] [Coord3]
-simpleReportsToCoords idt srs = case (cs, cs3) of 
-  ([], _) -> Right cs3 
-  (_, []) -> Left cs 
-  _       -> Left [] -- Shouldn't happen.
-  where 
-    srs' = filter (\sr -> _name sr == idt) srs
-    (cs, cs3) = partitionEithers (fmap simpleReportToCoord srs')
-
--- | Convert a 'SimpleReport' to a (input size(s), runtime) coordinate, 
--- i.e., 'Coord' or 'Coord3'.
-simpleReportToCoord :: SimpleReport -> Either Coord Coord3 
-simpleReportToCoord sr = case _size sr of 
-  SizeUn n      -> Left  (fromIntegral n, _runtime sr)
-  SizeBin n1 n2 -> Right (fromIntegral n1, fromIntegral n2, _runtime sr)
-
 -- | Split a list into two random sublists of specified sizes.
 -- Warning: uses 'unsafePerformIO' for randomness.
 splitRand :: Double -> [a] -> ([a], [a])
@@ -437,101 +393,6 @@ shuffle x =
   if length x < 2 
   then return x 
   else do
-   i <- randomRIO (0, length x -1)
+   i <- randomRIO (0, length x - 1)
    r <- shuffle (take i x ++ drop (i + 1) x)
    return (x !! i : r)
-
-
-
-
-
-
-
-
-
-
---- <TO-DO> MOVE TO CHECKS & COMMENT
-
-
-validateTestReport :: TestReport -> [InputError]
-validateTestReport tr = 
-  checkNotNull progs reps
-    ++ checkWellFormed progs reps 
-    ++ checkNoMiss reps 
-    ++ concatMap checkSuff reps 
-    ++ checkArity progs reps 
-    ++ checkSizes bls reps
-    ++ checkBls bls (length $ head reps)
-  where 
-    
-    progs = _tProgs tr 
-    reps  = _reports (_br tr)
-    bls   = _baselines (_br tr)
-
-    -- Check results aren't null.
-    checkNotNull :: [Id] -> [[SimpleReport]] -> [InputError]
-    checkNotNull [] _ = [noResErr]
-    checkNotNull _ [] = [noResErr]
-    checkNotNull _ _  = []
-
-    -- Check each @[SimpleReport]@ relates to a single test program, 
-    -- and the order of results is the same as '_tProgs'.
-    checkWellFormed :: [Id] -> [[SimpleReport]] -> [InputError]
-    checkWellFormed [] [] = []
-    checkWellFormed _  [] = [malfErr]
-    checkWellFormed [] _  = [malfErr]
-    checkWellFormed (idt : idts) (srs : srss) 
-      | all (\sr -> stripQualModule (_name sr) == idt) srs = checkWellFormed idts srss 
-      | otherwise = [malfErr]
-
-    -- Check each @[SimpleReport]@ is the same length.
-    checkNoMiss :: [[SimpleReport]] -> [InputError]
-    checkNoMiss srss
-      | allEq $ fmap length srss = []
-      | otherwise = [missingErr]
-
-    -- Check sufficient results, i.e., each @[SimpleReport]@ has length @>= 
-    -- maxPredictors + 1@.
-    checkSuff :: [SimpleReport] -> [InputError]
-    checkSuff srs 
-      | length srs > maxPredictors + 1 = []
-      | otherwise = [insufsErr]
-
-    -- Check all reports relate to either unary or binary test programs.
-    checkArity :: [Id] -> [[SimpleReport]] -> [InputError]
-    checkArity idts srss = 
-      case partitionEithers (zipWith simpleReportsToCoords idts srss) of 
-        ([], _) -> []
-        (_, []) -> []
-        _       -> [unBinErr]
-    
-    -- Check all reports have the same input sizes.
-    checkSizes :: [SimpleReport] -> [[SimpleReport]] -> [InputError]
-    checkSizes [] srss  -- No baseline measurements is fine.
-      | allEq $ fmap (sort . fmap _size) srss = []
-      | otherwise = [sizeErr]
-    checkSizes srs srss 
-      | allEq $ fmap (sort . fmap _size) (srs : srss) = []
-      | otherwise = [sizeErr]
-
-    -- Check baseline measurements.
-    checkBls :: [SimpleReport] -> Int -> [InputError]
-    checkBls [] _ = []  -- No baseline measurements is fine.
-    checkBls srs n 
-      | length srs == n = []
-      | otherwise = [blsErr]
-
-    -- Helpers:
-
-    -- Note: all SimpleReport names are qualified with module names.
-    stripQualModule :: String -> String 
-    stripQualModule  = drop 1 . dropWhile (/= '.')
-    
-    -- Errors:
-    noResErr   = TestReportErr "The test report contains no results."
-    missingErr = TestReportErr "Missing test results from one or more test programs."
-    unBinErr   = TestReportErr "Test results include both unary and binary test programs."
-    insufsErr  = TestReportErr "Insufficient test results for one or more test programs."
-    blsErr     = TestReportErr "Insufficient baseline measurements."
-    malfErr    = TestReportErr "Malformed test results for one or more test programs."
-    sizeErr    = TestReportErr "Test results relate to different input sizes."

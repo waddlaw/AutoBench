@@ -81,7 +81,7 @@ main = do
                   putStrLn $ poorNest 1 "\10004"
                   
 
-                  analyseWith testRep (_analOpts ts)
+                  analyseWith (_analOpts ts) testRep 
 
 
 
