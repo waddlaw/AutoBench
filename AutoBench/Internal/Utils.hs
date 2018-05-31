@@ -49,11 +49,10 @@ module AutoBench.Internal.Utils
   , CLArgs(..)           -- Command line arguments.
   , clArgsParser         -- Options parser for command line arguments.
   -- * Pretty printing
-  , forceSecs            -- Force a number of seconds to be displayed in the given spacing and in the given units.
+  , forceSecs            -- Force a positive number of seconds to be displayed in the given spacing and in the given units.
   , bySide               -- Put a list of multi-line 'PP.Doc's side by side and output as a 'String'.
   , secs                 -- Convert a number of seconds to a string.
--- units
-  -- * Misc 
+  -- * Misc.
   , Padme(..)            -- Padded lists.
   , (.*)                 -- Generalised function composition.
   , deggar               -- Pad strings with whitespace so they are the same length.
@@ -201,7 +200,6 @@ clArgsParser  = CLArgs <$> OPTS.info
       | otherwise  = OPTS.readerError ("Invalid filepath: " ++ show s)
       where s' = makeValid s
 
-
 -- * Pretty printing 
 
 -- | Put a list of multi-line 'PP.Doc's side by side and output as a 'String'.
@@ -237,8 +235,8 @@ secs k
              | t >= 1e1  = (printf "%.2f" t, u)
              | otherwise = (printf "%.3f" t, u)
 
--- | Force a number of seconds to be displayed in the given spacing and in the
--- given units.
+-- | Force a positive number of seconds to be displayed in the given spacing 
+-- and in the given units. Note: adapted from Criterion source code.
 forceSecs :: Int -> String -> Double -> String 
 forceSecs i s k = case s of 
   "s"  -> fmt k 

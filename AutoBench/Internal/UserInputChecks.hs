@@ -64,7 +64,9 @@
    ----------------------------------------------------------------------------
    <TO-DO>:
    ----------------------------------------------------------------------------
-   -
+   - Need to think more about 'validateTestReport' when loading from JSON 
+     files;
+   - 
 -}
 
 module AutoBench.Internal.UserInputChecks 
@@ -95,6 +97,8 @@ import Language.Haskell.Interpreter
   , interpret
   )
 
+import AutoBench.Internal.Utils (allEq, filepathToModuleName, notNull)
+
 import AutoBench.Internal.AbstractSyntax
   ( HsType
   , Id
@@ -106,6 +110,7 @@ import AutoBench.Internal.AbstractSyntax
   , tyFunInps
   , unqualTyToTy
   )
+
 import AutoBench.Internal.StaticChecks 
   ( isABGenTyFun
   , isABTyFun
@@ -119,11 +124,13 @@ import AutoBench.Internal.StaticChecks
   , parseTySig
   , testDataTyFunInps
   )
+
 import AutoBench.Internal.Hint  
   ( extractElemsAndTypes
   , loadFileSetTopLevelModule
   , loadFileSetTopLevelModuleWithHelpers
   )
+
 import AutoBench.Internal.Types 
   ( AnalOpts(..)
   , BenchReport(..)
@@ -144,10 +151,9 @@ import AutoBench.Internal.Types
   , numPredictors
   , simpleReportsToCoords
   )
-import AutoBench.Internal.Utils (allEq, filepathToModuleName, notNull)
 
 
--- * Top-level 
+-- * Top-level checking
 
 -- | Parse, validate and classify user inputs.
 userInputCheck :: MonadInterpreter m => FilePath -> m UserInputs 
@@ -514,8 +520,8 @@ catNFDataInput mn inps = do
   where 
     check :: MonadInterpreter m => String -> (Id, HsType) -> m Bool
     check qualCheckFun (idt ,_) = catchIE 
-      ((void . eval $ qualCheckFun ++ " " ++ (prettyPrint $ qualIdt mn idt)) >> return True)
-      (const $ return False)
+      ((void . eval $ qualCheckFun ++ " " ++ (prettyPrint $ 
+        qualIdt mn idt)) >> return True) (const $ return False)
 
     -- Functions to perform checks, qualified with module name.
     qualCheckFunUn  = "AutoBench.Internal.DynamicChecks.checkNFDataInputUn"
@@ -532,8 +538,8 @@ catNFDataResult mn inps = do
   where 
     check:: MonadInterpreter m => String -> (Id, HsType) -> m Bool
     check qualCheckFun  (idt ,_) = catchIE 
-      ((void . eval $ qualCheckFun ++ " " ++ (prettyPrint $ qualIdt mn idt)) >> return True)
-      (const $ return False)
+      ((void . eval $ qualCheckFun ++ " " ++ (prettyPrint $ 
+        qualIdt mn idt)) >> return True) (const $ return False)
 
     -- Functions to perform checks, qualified with module name.
     qualCheckFunUn  = "AutoBench.Internal.DynamicChecks.checkNFDataResultUn"
@@ -550,10 +556,12 @@ catArbitrary mn inps = do
     check :: MonadInterpreter m => (Id, HsType) -> m Bool
     check (idt , ty) 
       | isUnaryTyFun ty = catchIE 
-          ((void . eval $ qualCheckFunUn ++ " " ++ (prettyPrint $ qualIdt mn idt)) >> return True)
+          ((void . eval $ qualCheckFunUn ++ " " ++ (prettyPrint $ 
+            qualIdt mn idt)) >> return True)
           (const $ return False)
       | isBinaryTyFun ty = catchIE 
-          ((void . eval $ qualCheckFunBin ++ " " ++ (prettyPrint $ qualIdt mn idt)) >> return True)
+          ((void . eval $ qualCheckFunBin ++ " " ++ (prettyPrint $ 
+            qualIdt mn idt)) >> return True)
           (const $ return False)
       | otherwise = return False                                                                           -- <TO-DO>: should probably error report here?
 
@@ -606,6 +614,7 @@ checkFullTestSuites mn inps = do
       ) (const $ return (vs, (idt, [inputErr]) : ivs))
     
     qualCheckFun = "AutoBench.Internal.DynamicChecks.checkInitialisedTestSuite"
+    
     inputErr = TestSuiteErr "One or more record fields are uninitialised/undefined."
 
 -- | Validate test data in the '_unaryData' and '_binaryData' lists according
@@ -642,6 +651,141 @@ checkValidTestData mn inps = do
     qualCheckFunBin = "AutoBench.Internal.DynamicChecks.sizeBinaryTestData"
 
     sizeErr = DataOptsErr $ "A minimum of " ++ show minInputs ++ " distinctly sized test inputs are required."
+
+-- * External validation checks 
+
+-- | Validate 'AnalOpts':
+-- 
+-- * Ensure the linear models have <= maximum number of allowed predictors. 
+-- * Check the '_cvIters', '_cvTrain', and '_topModels' values are in the 
+--   correct range.
+validateAnalOpts :: AnalOpts -> [InputError]
+validateAnalOpts aOpts = 
+  checkModels (_linearModels aOpts) 
+    ++ checkCVIters   (_cvIters   aOpts) 
+    ++ checkCVTrain   (_cvTrain   aOpts)
+    ++ checkTopModels (_topModels aOpts)
+  where 
+    -- Maximum number of predictors for linear models.
+    checkModels :: [LinearType] -> [InputError]
+    checkModels ls 
+      | maxPredictors >= maximum (fmap numPredictors ls) = []
+      | otherwise = [aOptsModelErr]
+    
+    -- 100 <= '_cvIters' 500.
+    checkCVIters n 
+      | n >= minCVIters && n <= maxCVIters = []
+      | otherwise = [aOptsCVItersErr]
+    
+    -- 0.5 <= '_cvTrain' 0.8.
+    checkCVTrain n 
+      | n >= minCVTrain && n <= maxCVTrain = []
+      | otherwise = [aOptsCVTrainErr]
+
+    -- 'topModels' strictly positive.
+    checkTopModels n 
+      | n > 0 = []
+      | otherwise = [aOptsTopModelsErr]
+
+    -- Error messages:
+    aOptsModelErr     = AnalOptsErr $ "Linear regression models can have a maximum of " ++ show maxPredictors ++ " predictors."
+    aOptsCVItersErr   = AnalOptsErr $ "The number of cross-validation iterators must be " ++ show minCVIters ++ " <= x <= " ++ show maxCVIters ++ "." 
+    aOptsCVTrainErr   = AnalOptsErr $ "The percentage of cross-validation training data must be " ++ show minCVTrain ++ " <= x <= " ++ show maxCVTrain ++ "." 
+    aOptsTopModelsErr = AnalOptsErr $ "The number of models to review must be strictly positive."
+
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+-- | Validate 'TestReport's. 'TestReport's' are to be loaded from/saved to JSON                       -- <TO-DO>: Need to ensure these validation checks are sufficient:
+-- files in the future, so the system validates them to ensure they comply with                       -- (1) The name of baseline measurements must be "Baseline Measurements"
+-- its expectations to avoid erroneous results.
+validateTestReport :: TestReport -> [InputError]
+validateTestReport tr = 
+  checkNotNull progs reps
+    ++ checkWellFormed progs reps 
+    ++ checkNoMiss reps 
+    ++ concatMap checkSuff reps 
+    ++ checkArity progs reps 
+    ++ checkSizes bls reps
+    ++ checkBls bls (length $ head reps)
+  where 
+    
+    progs = _tProgs tr 
+    reps  = _reports (_br tr)
+    bls   = _baselines (_br tr)
+
+    -- Check results aren't null.
+    checkNotNull :: [Id] -> [[SimpleReport]] -> [InputError]
+    checkNotNull [] _ = [noResErr]
+    checkNotNull _ [] = [noResErr]
+    checkNotNull _ _  = []
+
+    -- Check each @[SimpleReport]@ relates to a single test program, 
+    -- and the order of results is the same as '_tProgs'.
+    checkWellFormed :: [Id] -> [[SimpleReport]] -> [InputError]
+    checkWellFormed [] [] = []
+    checkWellFormed _  [] = [malfErr]
+    checkWellFormed [] _  = [malfErr]
+    checkWellFormed (idt : idts) (srs : srss) 
+      | all (\sr -> _name sr == idt) srs = checkWellFormed idts srss 
+      | otherwise = [malfErr]
+
+    -- Check each @[SimpleReport]@ is the same length.
+    checkNoMiss :: [[SimpleReport]] -> [InputError]
+    checkNoMiss srss
+      | allEq $ fmap length srss = []
+      | otherwise = [missingErr]
+
+    -- Check sufficient results, i.e., each @[SimpleReport]@ has length @>= 
+    -- maxPredictors + 1@.
+    checkSuff :: [SimpleReport] -> [InputError]
+    checkSuff srs 
+      | length srs > maxPredictors + 1 = []
+      | otherwise = [insufsErr]
+
+    -- Check all reports relate to either unary or binary test programs.
+    checkArity :: [Id] -> [[SimpleReport]] -> [InputError]
+    checkArity idts srss = 
+      case partitionEithers (zipWith simpleReportsToCoords idts srss) of 
+        ([], ys) 
+          | any null ys -> [unBinErr]  -- None should be empty.
+          | otherwise   -> []
+        (xs, []) 
+          | any null xs -> [unBinErr]
+          | otherwise   -> []          -- None should be empty.
+        _ -> [unBinErr]
+    
+    -- Check all reports have the same input sizes.
+    checkSizes :: [SimpleReport] -> [[SimpleReport]] -> [InputError]
+    checkSizes [] srss  -- No baseline measurements is fine.
+      | allEq $ fmap (sort . fmap _size) srss = []
+      | otherwise = [sizeErr]
+    checkSizes srs srss 
+      | allEq $ fmap (sort . fmap _size) (srs : srss) = []
+      | otherwise = [sizeErr]
+
+    -- Check baseline measurements.
+    checkBls :: [SimpleReport] -> Int -> [InputError]
+    checkBls [] _ = []  -- No baseline measurements is fine.
+    checkBls srs n 
+      | length srs == n = []
+      | otherwise = [blsErr]
+
+    -- Helpers:
+    
+    -- Errors:
+    noResErr   = TestReportErr "The test report contains no results."
+    missingErr = TestReportErr "Missing test results from one or more test programs."
+    unBinErr   = TestReportErr "Test results include both unary and binary test programs."
+    insufsErr  = TestReportErr "Insufficient test results for one or more test programs."
+    blsErr     = TestReportErr "Insufficient baseline measurements."
+    malfErr    = TestReportErr "Malformed test results for one or more test programs."
+    sizeErr    = TestReportErr "Test results relate to different input sizes."
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 -- * Helpers 
 
@@ -687,21 +831,21 @@ expandTestSuites inps =
       
       -- If '_progs' list is empty, need to expand:
       
-      | _nf ts && gen = case genTestSuites $                                               -- Nf, Gen, and Benchmarkable: size range match.
+      | _nf ts && gen = case genTestSuites $                                  -- Nf, Gen, and Benchmarkable: size range match.
           matchWithGenSize (_dataOpts ts) True benchNfArbUnFunsGpd ++
           matchWithGenSize (_dataOpts ts) False benchNfArbBinFunsGpd of 
             []  -> (valids, (idt, [dOptsSizeErr]) : errs)
             tss -> (tss ++ valids, errs)
-      | _nf ts = case genTestSuites $ matchWithTestData (_dataOpts ts)                     -- Nf and Benchmarkable: manual match.
+      | _nf ts = case genTestSuites $ matchWithTestData (_dataOpts ts)        -- Nf and Benchmarkable: manual match.
           benchNfFunsGpd of 
             []  -> (valids, (idt, [dOptsWrongTyErr]) : errs)
             tss -> (tss ++ valids, errs) 
-      | gen = case genTestSuites $                                                         -- Gen and Benchmarkable: gen size range match.
+      | gen = case genTestSuites $                                            -- Gen and Benchmarkable: gen size range match.
           matchWithGenSize (_dataOpts ts) True benchArbUnFunsGpd ++
           matchWithGenSize (_dataOpts ts) False benchArbBinFunsGpd of 
             []  -> (valids, (idt, [dOptsWrongTyErr]) : errs)
             tss -> (tss ++ valids, errs)
-      | otherwise = case genTestSuites $ matchWithTestData (_dataOpts ts)                  -- All Benchmarkable: manual match.
+      | otherwise = case genTestSuites $ matchWithTestData (_dataOpts ts)     -- All Benchmarkable: manual match.
           benchFunsGpd of 
             []  -> (valids, (idt, [dOptsWrongTyErr]) : errs)
             tss -> (tss ++ valids, errs)
@@ -802,11 +946,14 @@ qCheckTestPrograms fp ps inps = do
     -- Check whether the test programs are unary or binary by 
     -- cross-referencing the 'UserInputs' data structure.
     -- Construct the appropriate function call to do the checking.
-      | (head ps) `elem` unaryFuns  = PP.render $ qCheckUn  PP.<+> ppList (fmap PP.text ps') -- Unary test programs.
-      | (head ps) `elem` binaryFuns = PP.render $ qCheckBin PP.<+> ppList (fmap PP.text ps') -- Binary test programs.
-      | otherwise = "False" -- Shouldn't happen at this stage due to prior validation checks.
+      -- Unary test programs.
+      | (head ps) `elem` unaryFuns  = PP.render $ qCheckUn  PP.<+> ppList (fmap PP.text ps') 
+      -- Binary test programs.
+      | (head ps) `elem` binaryFuns = PP.render $ qCheckBin PP.<+> ppList (fmap PP.text ps')
+      -- Shouldn't happen at this stage due to prior validation checks.
+      | otherwise = "False" 
 
-    -- *** Don't edit these function names ***
+    -- *** Don't edit the names of these functions. ***
     qCheckUn  = PP.text "AutoBench.Internal.DynamicChecks.quickCheckUn"
     qCheckBin = PP.text "AutoBench.Internal.DynamicChecks.quickCheckBin"
 
@@ -818,130 +965,3 @@ qCheckTestPrograms fp ps inps = do
     -- Projections: names of unary/binary functions in user input file.
     unaryFuns  = fmap fst $ _unaryFuns  inps
     binaryFuns = fmap fst $ _binaryFuns inps
-
--- * Helpers 
-
--- | Validate 'AnalOpts':
--- 
--- * Ensure the linear models have <= maximum number of allowed predictors. 
--- * Check the '_cvIters', '_cvTrain', and '_topModels' values are in the 
---   correct range.
-validateAnalOpts :: AnalOpts -> [InputError]
-validateAnalOpts aOpts = 
-  checkModels (_linearModels aOpts) 
-    ++ checkCVIters   (_cvIters   aOpts) 
-    ++ checkCVTrain   (_cvTrain   aOpts)
-    ++ checkTopModels (_topModels aOpts)
-  where 
-    -- Maximum number of predictors for linear models.
-    checkModels :: [LinearType] -> [InputError]
-    checkModels ls 
-      | maxPredictors >= maximum (fmap numPredictors ls) = []
-      | otherwise = [aOptsModelErr]
-    
-    -- 100 <= '_cvIters' 500.
-    checkCVIters n 
-      | n >= minCVIters && n <= maxCVIters = []
-      | otherwise = [aOptsCVItersErr]
-    
-    -- 0.5 <= '_cvTrain' 0.8.
-    checkCVTrain n 
-      | n >= minCVTrain && n <= maxCVTrain = []
-      | otherwise = [aOptsCVTrainErr]
-
-    -- 'topModels' strictly positive.
-    checkTopModels n 
-      | n > 0 = []
-      | otherwise = [aOptsTopModelsErr]
-
-    -- Error messages:
-    aOptsModelErr        = AnalOptsErr $ "Linear regression models can have a maximum of " ++ show maxPredictors ++ " predictors."
-    aOptsCVItersErr      = AnalOptsErr $ "The number of cross-validation iterators must be " ++ show minCVIters ++ " <= x <= " ++ show maxCVIters ++ "." 
-    aOptsCVTrainErr      = AnalOptsErr $ "The percentage of cross-validation training data must be " ++ show minCVTrain ++ " <= x <= " ++ show maxCVTrain ++ "." 
-    aOptsTopModelsErr    = AnalOptsErr $ "The number of models to review must be strictly positive."
-
-
--- | Validate 'TestReport':                                                                          -- <TO-DO>: *** COMMENT. ***
---
-validateTestReport :: TestReport -> [InputError]
-validateTestReport tr = 
-  checkNotNull progs reps
-    ++ checkWellFormed progs reps 
-    ++ checkNoMiss reps 
-    ++ concatMap checkSuff reps 
-    ++ checkArity progs reps 
-    ++ checkSizes bls reps
-    ++ checkBls bls (length $ head reps)
-  where 
-    
-    progs = _tProgs tr 
-    reps  = _reports (_br tr)
-    bls   = _baselines (_br tr)
-
-    -- Check results aren't null.
-    checkNotNull :: [Id] -> [[SimpleReport]] -> [InputError]
-    checkNotNull [] _ = [noResErr]
-    checkNotNull _ [] = [noResErr]
-    checkNotNull _ _  = []
-
-    -- Check each @[SimpleReport]@ relates to a single test program, 
-    -- and the order of results is the same as '_tProgs'.
-    checkWellFormed :: [Id] -> [[SimpleReport]] -> [InputError]
-    checkWellFormed [] [] = []
-    checkWellFormed _  [] = [malfErr]
-    checkWellFormed [] _  = [malfErr]
-    checkWellFormed (idt : idts) (srs : srss) 
-      | all (\sr -> _name sr == idt) srs = checkWellFormed idts srss 
-      | otherwise = [malfErr]
-
-    -- Check each @[SimpleReport]@ is the same length.
-    checkNoMiss :: [[SimpleReport]] -> [InputError]
-    checkNoMiss srss
-      | allEq $ fmap length srss = []
-      | otherwise = [missingErr]
-
-    -- Check sufficient results, i.e., each @[SimpleReport]@ has length @>= 
-    -- maxPredictors + 1@.
-    checkSuff :: [SimpleReport] -> [InputError]
-    checkSuff srs 
-      | length srs > maxPredictors + 1 = []
-      | otherwise = [insufsErr]
-
-    -- Check all reports relate to either unary or binary test programs.
-    checkArity :: [Id] -> [[SimpleReport]] -> [InputError]
-    checkArity idts srss = 
-      case partitionEithers (zipWith simpleReportsToCoords idts srss) of 
-        ([], ys) 
-          | any null ys -> [unBinErr]  -- None should be empty.
-          | otherwise   -> []
-        (xs, []) 
-          | any null xs -> [unBinErr]
-          | otherwise   -> []          -- None should be empty.
-        _       -> [unBinErr]
-    
-    -- Check all reports have the same input sizes.
-    checkSizes :: [SimpleReport] -> [[SimpleReport]] -> [InputError]
-    checkSizes [] srss  -- No baseline measurements is fine.
-      | allEq $ fmap (sort . fmap _size) srss = []
-      | otherwise = [sizeErr]
-    checkSizes srs srss 
-      | allEq $ fmap (sort . fmap _size) (srs : srss) = []
-      | otherwise = [sizeErr]
-
-    -- Check baseline measurements.
-    checkBls :: [SimpleReport] -> Int -> [InputError]
-    checkBls [] _ = []  -- No baseline measurements is fine.
-    checkBls srs n 
-      | length srs == n = []
-      | otherwise = [blsErr]
-
-    -- Helpers:
-    
-    -- Errors:
-    noResErr   = TestReportErr "The test report contains no results."
-    missingErr = TestReportErr "Missing test results from one or more test programs."
-    unBinErr   = TestReportErr "Test results include both unary and binary test programs."
-    insufsErr  = TestReportErr "Insufficient test results for one or more test programs."
-    blsErr     = TestReportErr "Insufficient baseline measurements."
-    malfErr    = TestReportErr "Malformed test results for one or more test programs."
-    sizeErr    = TestReportErr "Test results relate to different input sizes."

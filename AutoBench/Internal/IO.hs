@@ -211,10 +211,39 @@ selTestSuiteOption inps = case _testSuites inps of
     showUserInputs = print $ PP.nest 2 $ docUserInputs inps
 
 
+
+
 -- | Output the results of statistical analysis.
-outputAnalysisReport :: AnalOpts -> AnalysisReport -> IO ()
-outputAnalysisReport aOpts rep = do 
-  print $ PP.nest 2 $ docSimpleResults (_anlys rep)
+outputAnalysisReport :: AnalOpts -> TestReport -> AnalysisReport -> IO ()
+outputAnalysisReport aOpts tr ar = do 
+  putStrLn ""
+  putStrLn ""
+  print $ PP.nest 2 $ trSummary
+  putStrLn ""
+  print $ PP.nest 2 $ docSimpleResults (_anlys ar ++ blAn)
+
+
+  where 
+    blAn = case _blAn ar of 
+      Nothing -> []
+      Just sr -> [sr]
+
+    trSummary :: PP.Doc 
+    trSummary  = PP.vcat
+      [ PP.text "\8226" PP.<+> PP.hcat (PP.punctuate (PP.text ", ") $ fmap PP.text $ _tProgs tr)
+      , PP.text "\8226" PP.<+> PP.text (show $ _tDataOpts tr)
+      , PP.text "\8226" PP.<+> if _tNf tr then PP.text "nf" else PP.text "whnf"
+      , PP.text "\8226" PP.<+> if _eql tr then PP.text "==" else PP.text "=/="
+      , ppGhcFlags (_tGhcFlags tr)
+      ]
+
+     -- Pretty print list of GHC flags.
+    ppGhcFlags :: [String] -> PP.Doc 
+    ppGhcFlags [] = PP.empty
+    ppGhcFlags flags = PP.text "\8226" PP.<+> PP.hcat ((PP.text "GHC flags: ") : 
+      (PP.punctuate (PP.text ", ") $ fmap PP.text $ flags))
+
+
 
 
 
@@ -439,12 +468,9 @@ generateTestReport mn ts fp eql = do
 -- the names of test programs and input sizes are encoded into the titles of 
 -- benchmarks. The 'Report' titles are decoded here and checked against the 
 -- settings of the 'TestSuite used to generate the benchmarks initially. 
---
--- <TO-DO>: check input size against the 'UserInputs' data structure.
---
-generateBenchmarkingReport 
+generateBenchmarkingReport                                                                            -- <TO-DO>: check input size against the 'UserInputs' data structure.
   :: ModuleName -- Module name of user input file. 
-  -> TestSuite  -- TestSuite used to generate benchmarking file.
+  -> TestSuite  -- TestSuite used to generate benchmarking file.                                      -- <TO-DO>: are these checks sufficient?
   -> FilePath   -- Filepath of Criterion's JSON report.
   -> IO BenchReport 
 generateBenchmarkingReport mn ts fp = do 
@@ -603,7 +629,6 @@ generateBenchmarkingReport mn ts fp = do
         -- E.g., "Input Sizes (5, 5)/p1"
         -- E.g., "Input Size 5/p2"
         void $ (symbol "Input Sizes") MP.<|> (symbol "Input Size")
-        --void $ MP.optional (MP.letterChar)
         ds <- parseDataSize
         void $ symbol "/"
         idt <- MP.manyTill MP.anyChar MP.eof
@@ -614,8 +639,7 @@ generateBenchmarkingReport mn ts fp = do
       parseBaseline :: Parser (Id, DataSize)
       parseBaseline = do
         void $ (symbol "Input Sizes") MP.<|> (symbol "Input Size")
-        --void $ MP.optional (MP.letterChar)
-        ("BASELINE",) <$> parseDataSize
+        ("Baseline Measurements",) <$> parseDataSize                                                -- <TO-DO>: This is too important to be a string.
 
       -- Parse the encoded data size from the name of a Criterion report.
       -- E.g., (5, 5) or 5.

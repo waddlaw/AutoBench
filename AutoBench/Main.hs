@@ -39,7 +39,7 @@ import AutoBench.Internal.Types
    <TO-DO>:
    ----------------------------------------------------------------------------
    - Which system files to delete?
-   - QuickCheck semantic equality checks are missing;
+   - Sanitise runtimes, max 0 ..
 -}
 
 

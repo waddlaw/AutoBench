@@ -100,7 +100,7 @@ analyseWith aOpts tr
       putStrLn "Cannot analyse results due to one or more errors:"
       mapM_ print (aOptsErrs ++ trErrs)   
   -- Just output the results of statistical analysis.
-  | otherwise = outputAnalysisReport aOpts $ calculateAnalysisReport aOpts tr
+  | otherwise = outputAnalysisReport aOpts tr $ calculateAnalysisReport aOpts tr
 
   where 
     -- Validate the 'AnalOpts'.
@@ -114,8 +114,8 @@ quickAnalysis :: AnalOpts -> [QuickReport] -> QuickAnalysis
 quickAnalysis aOpts qrs = 
   QuickAnalysis
     {
-      _qAnlys =  quickResults aOpts qrs                              -- A set of quick results ('QuickResults') for each test program.
-    , _qImps  =  catMaybes $ fmap (uncurry $ calculateImprovements   -- A set of improvements.
+      _qAnlys = quickResults aOpts qrs                               -- A set of quick results ('QuickResults') for each test program.
+    , _qImps  = catMaybes $ fmap (uncurry $ calculateImprovements    -- A set of improvements.
         (_improv aOpts)) (uniqPairs $ zip names coords)
     }
   where 
@@ -149,11 +149,14 @@ calculateAnalysisReport :: AnalOpts -> TestReport -> AnalysisReport
 calculateAnalysisReport aOpts tr = 
   AnalysisReport
     {
-      _anlys = calculateSimpleResults aOpts tr                     -- A set of simple results ('SimpleResults') for each test program.
+      _anlys = anlys                                               -- A set of simple results ('SimpleResults') for each test program.
     , _imps  = catMaybes $ fmap (uncurry $ calculateImprovements   -- A set of improvements.
         (_improv aOpts)) (uniqPairs $ zip srNames srCoords)  
+    , _blAn  = blAn                                                -- Analysis of baseline measurements, if applicable.
     }
-  where 
+  where
+    -- 'SimpleResults' for test programs and baseline measurements, if applicable.
+    (anlys, blAn) =  calculateSimpleResults aOpts tr    
     -- SimpleReports.
     srs = _reports (_br tr)
     -- Names of test programs from 'SimpleReport's.
@@ -164,10 +167,19 @@ calculateAnalysisReport aOpts tr =
 -- | Perform statistical analysis on the benchmarking results (i.e., runtime 
 -- measurements of test programs) in the given 'TestReport' and produce an
 -- analysis report ('SimpleResults') /for each test program/.
-calculateSimpleResults :: AnalOpts -> TestReport -> [SimpleResults]                            
-calculateSimpleResults aOpts tr = 
-  zipWith calculateSimpleResult (_tProgs tr) (_reports $ _br tr)
-  where 
+calculateSimpleResults 
+  :: AnalOpts 
+  -> TestReport 
+  -> ([SimpleResults], Maybe SimpleResults)                           
+calculateSimpleResults aOpts tr = (progResults, blResults)
+  
+  where
+    -- Analysis for test programs.
+    progResults = zipWith calculateSimpleResult (_tProgs tr) (_reports $ _br tr)
+    -- Analysis for baseline measurements.
+    blResults = case _baselines $ _br tr of 
+      []  -> Nothing 
+      bls -> Just $ calculateSimpleResult "Baseline Measurements" bls                                -- This shouldn't be a string.
 
     -- For a set of 'SimpleReport's (i.e., test cases) relating to a 
     -- given test program, perform statistical analysis and generate
@@ -238,9 +250,9 @@ candidateFit ff split iters coords c
     , _sts  = sts
     }
   where 
-    -- Model coeffs when fit to full /entire/ set
+    -- Model coefficients when fit to /entire/ data set.
     coeffs = ff coords c
-    -- Statistids from cross-validation
+    -- Statistics from cross-validation.
     cvSts  = cvCandidateFit ff split iters coords c
     -- Combine statistics from each cross-validation iteration and also compute
     -- other goodness of fit measures.
@@ -428,7 +440,7 @@ matchCoords3 ((s1, s2, t1) : cs1) ((s1', s2', t2) : cs2)
   | s1 == s1' && s2 == s2' = (t1, t2) : matchCoords3 cs1 cs2 
   | otherwise = matchCoords3 cs1 cs2 
 
-fitCoords :: AnalOpts -> Either [Coord] [Coord3] -> [LinearFit]                               -- <TO-DO>: comment
+fitCoords :: AnalOpts -> Either [Coord] [Coord3] -> [LinearFit]                                           -- <TO-DO>: comment
 fitCoords _ Right{} = []
 fitCoords aOpts (Left coords) = take (_topModels aOpts)
    $ sortBy (\lf1 lf2 -> (_statsSort aOpts) (_sts lf1) (_sts lf2))

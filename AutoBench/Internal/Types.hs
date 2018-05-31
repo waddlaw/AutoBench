@@ -64,13 +64,13 @@ module AutoBench.Internal.Types
   , Exp                    -- Expressions with 'Double' literals.
   , LinearCandidate(..)    -- The details of a regression model necessary to fit it to a given dataset.
   , LinearFit(..)          -- A regression model's fitting statistics and helper functions: predicting y-coordinates, pretty printing.
-  , SimpleResults(..)      -- Simple statical analysis results for each test program.
+  , SimpleResults(..)      -- Simple statistical analysis results for each test program.
   , numPredictors          -- Number of predictors for each type of model.
   , simpleReportToCoord    -- Convert a 'SimpleReport' to a (input size(s), runtime) coordinate, i.e., 'Coord' or 'Coord3'.
   , simpleReportsToCoords  -- Convert a list of 'SimpleReport' to a (input size(s), runtime) coordinate, i.e., 'Coord' or 'Coord3'.
   -- ** QuickBench
   , QuickAnalysis(..)      -- A report to summarise the system's analysis phase for QuickBenching.
-  , QuickResults(..)       -- Simple statical analysis results for each test program for QuickBenching.
+  , QuickResults(..)       -- Simple statistical analysis results for each test program for QuickBenching.
   -- * Errors
   -- ** System errors
   , SystemError(..)        -- System errors.
@@ -302,11 +302,12 @@ data QuickReport =
 data AnalysisReport = 
   AnalysisReport
     {
-      _anlys :: [SimpleResults]   -- ^ Simple statistical analysis results per test program.   
-    , _imps  :: [Improvement]     -- ^ Improvement results.
+      _anlys :: [SimpleResults]       -- ^ Simple statistical analysis results per test program.   
+    , _imps  :: [Improvement]         -- ^ Improvement results.
+    , _blAn  :: Maybe SimpleResults   -- ^ Analysis of baseline measurements, if applicable.
     }
 
--- | Simple statical analysis results for each test program. 
+-- | Simple statistical analysis results for each test program. 
 data SimpleResults = 
   SimpleResults 
    {
@@ -426,7 +427,7 @@ data QuickAnalysis =
     , _qImps  :: [Improvement]     -- ^ Improvement results.
     }
 
--- | Simple statical analysis results for each test program for QuickBenching.
+-- | Simple statistical analysis results for each test program for QuickBenching.
 data QuickResults = 
   QuickResults 
    {
@@ -668,7 +669,6 @@ docTestReport tr = PP.vcat
     ppGhcFlags flags = PP.vcat $ (PP.text "GHC flags: ") : 
       (PP.punctuate (PP.text ", ") $ fmap PP.text $ flags)
 
-
 -- | Pretty printing for 'BenchReport' data structure.
 docBenchReport :: BenchReport -> PP.Doc 
 docBenchReport br = PP.vcat
@@ -700,35 +700,32 @@ docBenchReport br = PP.vcat
       PP.text ", " PP.<> PP.int n2 PP.<> PP.text ", " PP.<> 
       PP.double d PP.<> PP.char ')'
 
-
-
-
-
-
-
-
--- <TO-DO>: COMMENT 
-
-
--- | Pretty printing for a list of 'SimpleResults'.
+-- | Pretty printing for a list of 'SimpleResults'. The maximum runtime among 
+-- all test cases is formatted into seconds/milliseconds/nanoseconds etc. and 
+-- the rest of the results are forced into the same units for consistency. 
+-- This makes it easier to compare runtimes at a glance of the raw results on 
+-- the command line.
 docSimpleResults :: [SimpleResults] -> PP.Doc 
 docSimpleResults srs = PP.vcat $ PP.punctuate (PP.text "\n") $ 
   fmap (docSimpleResult units) srs
   where 
-    -- Format all runtimes based on maximum runtime units.
-    maxRuntime = maximum $ fmap (maxCoord . _srRaws) srs
-    (_, units) = secs maxRuntime
+    maxRuntime = maximum $ fmap (maxFromCoords . _srRaws) srs  -- Maximum runtime of all test cases.
+    (_, units) = secs maxRuntime                               -- Display all runtimes in the same /units/.
 
-    maxCoord :: Either [Coord] [Coord3] -> Double 
-    maxCoord (Left cs)  = maximum (fmap snd cs)
-    maxCoord (Right cs) = maximum (fmap sel3 cs)
+    -- Maximum runtime from a set of coordinates.
+    maxFromCoords :: Either [Coord] [Coord3] -> Double 
+    maxFromCoords (Left cs)  = maximum (fmap snd cs)
+    maxFromCoords (Right cs) = maximum (fmap sel3 cs)
 
--- | Pretty printing for 'SimpleResults' data structure.
+-- | Pretty printing for 'SimpleResults' data structure. The runtimes of test
+-- programs are formatted according the /units/ parameter. See 'forceSecs'.
+-- (This makes it easier to compare runtimes as they are all in the same units.)
 docSimpleResult :: String -> SimpleResults -> PP.Doc 
 docSimpleResult units sr = title PP.$$ (PP.nest 2 $ PP.vcat 
-  [ PP.text size   PP.<+> sizes
-  , PP.text time   PP.<+> runtimes
-  , PP.text stdDev PP.<+> PP.text (forceSecs maxWidth units $ _srStdDev sr)
+  [ PP.text size   PP.<+> sizes    -- Input sizes.
+  , PP.text time   PP.<+> runtimes -- Runtimes.
+   -- Simple cumulative statistics for all test cases.
+  , PP.text stdDev PP.<+> PP.text (forceSecs maxWidth units $ _srStdDev sr)    
   , PP.text $ "Average variance introduced by outliers: " ++ 
       printf "%d%% (%s)" (round (_srAvgPutVarFrac sr * 100) :: Int) wibble
   , PP.text "" 
@@ -736,27 +733,37 @@ docSimpleResult units sr = title PP.$$ (PP.nest 2 $ PP.vcat
   ])
 
   where 
-    title = PP.text (_srIdt sr) PP.<> PP.char ':'
-    size   = "Size    " ++ replicate (length sUnits) ' ' ++ " "
-    time   = "Time    " ++ sUnits ++ " "
-    stdDev = "Std dev " ++ sUnits ++ " "
-    sUnits  = "(" ++ units ++ ")"
-
-
+    -- Side headings with some manual spacing so everything aligns properly.
+    title = PP.text (_srIdt sr) PP.<> PP.char ':'                 -- Name of program.
+    size   = "Size    " ++ replicate (length sUnits) ' ' ++ " "   -- Input sizes.
+    time   = "Time    " ++ sUnits ++ " "                          -- Runtime measurements.
+    stdDev = "Std dev " ++ sUnits ++ " "                          -- Standard deviation.
+    sUnits  = "(" ++ units ++ ")"                                 -- Forced units.
+    
+    -- Output input sizes and runtime measurements in a tabular format with
+    -- maximum width of ~80.
     (sizes, runtimes) = ppCoords (_srRaws sr)
     
-    -- Layout coordinates in tabular format.
+    -- Layout coordinates in tabular format. Approximately 80 character width 
+    -- and input sizes and runtimes are aligned vertically. Multiple rows
+    -- are required for both input sizes and runtimes, but this is fine.
+    -- Input sizes for 'Coord's are printed as just values.
     ppCoords :: Either [Coord] [Coord3] -> (PP.Doc, PP.Doc)
     ppCoords (Left cs) = (PP.vcat $ hsepChunks xs, PP.vcat $ hsepChunks ys)
       where 
-        xs = fmap (PP.text . printf ("%-" ++ show maxWidth ++ "s") . show . round' . fst) cs 
-        ys = fmap (PP.text . forceSecs maxWidth units . snd) cs
+        xs = fmap (PP.text . printf ("%-" ++ show maxWidth ++ "s") . show . 
+          round' . fst) cs' 
+        ys = fmap (PP.text . forceSecs maxWidth units . snd) cs'
+        cs' = sort cs
+    -- Input sizes for 'Coord3's are printed as tuples.
     ppCoords (Right cs) = (PP.vcat $ hsepChunks xs, PP.vcat $ hsepChunks ys')
       where 
-        (xs1, xs2, ys) = unzip3 cs
-        xs = zipWith (\x1 x2 -> PP.char '(' PP.<> PP.int (round x1) PP.<> 
-          PP.char ',' PP.<+> PP.int (round x2) PP.<> PP.char ')') xs1 xs2
+        (xs1, xs2, ys) = unzip3 cs'
+        xs = zipWith (\x1 x2 -> PP.text $ printf ("%-" ++ show maxWidth ++ "s") $ 
+          show $ PP.char '(' PP.<> PP.int (round' x1) PP.<> PP.char ',' PP.<+> 
+          PP.int (round x2) PP.<> PP.char ')') xs1 xs2
         ys' = fmap (PP.text . forceSecs maxWidth units) ys
+        cs' = sort cs
 
     -- Pretty print the equations of 'LinearFits'.
     fits :: PP.Doc 
@@ -770,24 +777,24 @@ docSimpleResult units sr = title PP.$$ (PP.nest 2 $ PP.vcat
 
     -- Helpers:
 
-    -- Maximum width of input sizes, to align columns.
+    -- Maximum width of input sizes: to align table columns.
     maxWidth :: Int 
     maxWidth  = case (_srRaws sr) of
-      Left  cs -> max (length . show . maximum $ fmap fst cs) 8
+      Left  cs -> max (length . show . round' . maximum $ fmap fst cs) 7
       Right cs -> max (maximum $ fmap (\(x1, x2, _) -> 
-        length (show x1) + length (show x2) + 4) cs) 8
+        length (show $ round' x1) + length (show $ round' x2) + 5) cs) 7
 
-    -- Note: taken from Criterion source code.
+    -- Note: taken from Criterion source code: wibble??
     wibble = case _srAvgOutVarEff sr of
       Unaffected -> "unaffected"
       Slight     -> "slightly inflated"
       Moderate   -> "moderately inflated"
       Severe     -> "severely inflated"
  
-    -- 70/maxWidth columns and then display them horizontally.
+    -- 70/maxWidth columns and then display chunks horizontally. 
     hsepChunks :: [PP.Doc] -> [PP.Doc]
-    hsepChunks  = fmap PP.hsep . chunksOf (70 `div` maxWidth)
+    hsepChunks  = fmap PP.hsep . chunksOf (70 `div` (maxWidth + 2))
     
-    -- For typing information.
+    -- Just for typing information.
     round' :: Double -> Int 
     round'  = round
