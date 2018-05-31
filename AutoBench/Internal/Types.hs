@@ -285,7 +285,6 @@ data TestReport =
 
 -- ** QuickBench 
 
-data Quick
 -- | A report to summarise the QuickBench testing phase.
 data QuickReport = 
   QuickReport 

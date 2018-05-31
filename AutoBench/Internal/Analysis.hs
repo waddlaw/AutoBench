@@ -41,6 +41,7 @@ import           System.IO.Unsafe      (unsafePerformIO)
 import           System.Random         (randomRIO)
 
 import AutoBench.Internal.AbstractSyntax  (Id)    
+import AutoBench.Internal.IO              (outputAnalysisReport)
 import AutoBench.Internal.Regression      ( generateLinearCandidate
                                           , fitRidgeRegress )
 import AutoBench.Internal.UserInputChecks ( validateAnalOpts
@@ -98,15 +99,14 @@ analyseWith aOpts tr
   | notNull (aOptsErrs ++ trErrs) = do  
       putStrLn "Cannot analyse results due to one or more errors:"
       mapM_ print (aOptsErrs ++ trErrs)   
-  | otherwise = undefined
+  -- Just output the results of statistical analysis.
+  | otherwise = outputAnalysisReport aOpts $ calculateAnalysisReport aOpts tr
 
   where 
     -- Validate the 'AnalOpts'.
     aOptsErrs = validateAnalOpts aOpts
     -- Validate the 'TestReport'
     trErrs    = validateTestReport tr
-    -- Results of statistical analysis on benchmarking results.
-    analyRep  = calculateAnalysisReport aOpts tr
 
 -- * QuickBench Analysis
 
@@ -374,7 +374,7 @@ splitRand split xs = (take len shuff, drop len shuff)
     shuff = unsafePerformIO (shuffle xs)
 
 -- | Naive way to shuffle a list.
-shuffle :: [a] -> IO [a]
+shuffle :: [a] -> IO [a]                                                                   -- Could shuffle in the top-level functions to avoid using unsafePerformIO?
 shuffle x = 
   if length x < 2 
   then return x 
@@ -428,7 +428,6 @@ matchCoords3 ((s1, s2, t1) : cs1) ((s1', s2', t2) : cs2)
   | s1 == s1' && s2 == s2' = (t1, t2) : matchCoords3 cs1 cs2 
   | otherwise = matchCoords3 cs1 cs2 
 
- 
 fitCoords :: AnalOpts -> Either [Coord] [Coord3] -> [Maybe LinearFit]                               -- <TO-DO>: comment
 fitCoords _ Right{} = []
 fitCoords aOpts (Left coords) = 

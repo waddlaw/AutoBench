@@ -43,6 +43,7 @@ module AutoBench.Internal.IO
                                         -- Note: in some cases no valid test suites will be available due to
                                         -- input errors, in this case users can review the 'UserInputs'
                                         -- data structure /using this function/.
+  , outputAnalysisReport                -- Output the results of statistical analysis.
   -- * IO for benchmarking files
   , generateBenchmarkingFile            -- Generate a benchmarking file to benchmark all the test programs in a given test suite
   , generateTestReport                  -- Generate a 'TestReport' that summarises the system's testing phase.
@@ -112,7 +113,9 @@ import Criterion.Types
 import AutoBench.Internal.Utils          (Parser, allEq, integer, strip, symbol)
 import AutoBench.Internal.AbstractSyntax (Id, ModuleName, prettyPrint, qualIdt)
 import AutoBench.Internal.Types 
-  ( BenchReport(..)
+  ( AnalOpts(..)
+  , AnalysisReport(..)
+  , BenchReport(..)
   , DataOpts(..)
   , DataSize(..)
   , InputError(..)
@@ -205,6 +208,13 @@ selTestSuiteOption inps = case _testSuites inps of
 
     -- Use 'docUserInputs' but nest 2.
     showUserInputs = print $ PP.nest 2 $ docUserInputs inps
+
+
+-- | Output the results of statistical analysis.
+outputAnalysisReport :: AnalOpts -> AnalysisReport -> IO ()
+outputAnalysisReport aOpts rep = undefined
+
+
 
 
 -- * IO for benchmarking files:
