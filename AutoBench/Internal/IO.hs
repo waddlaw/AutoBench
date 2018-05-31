@@ -110,8 +110,7 @@ import Criterion.Types
  , reportMeasured
  )
 
-import AutoBench.Internal.Utils          ( Parser, allEq, integer, secs
-                                         , strip, symbol )
+import AutoBench.Internal.Utils          (Parser, allEq, integer, strip, symbol)
 import AutoBench.Internal.AbstractSyntax (Id, ModuleName, prettyPrint, qualIdt)
 import AutoBench.Internal.Types 
   ( AnalOpts(..)
@@ -125,6 +124,7 @@ import AutoBench.Internal.Types
   , TestReport(..)
   , TestSuite(..)
   , UserInputs(..)
+  , docSimpleResults
   , docTestSuite
   , docUserInputs
   )
