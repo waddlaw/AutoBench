@@ -221,13 +221,14 @@ outputAnalysisReport aOpts tr ar = do
   putStrLn ""
   print $ PP.nest 1 $ PP.text $ "-- \ESC[3mTest summary\ESC[0m " ++ replicate 64 '-'
   putStrLn ""
-  putStrLn $ trSummary
+  print $ PP.nest 2 trSummary
+  putStrLn ""
   print $ PP.nest 1 $ PP.text $ "-- \ESC[3mAnalysis\ESC[0m " ++ replicate 68 '-'
   putStrLn ""
   print $ PP.nest 2 $ docSimpleResults (_anlys ar ++ blAn)
   printImprovements
   putStrLn ""
-  putStrLn $ " " ++ replicate 79 '-'
+  putStrLn $ " " ++ replicate 65 '-' ++ " \ESC[3mAutoBench\ESC[0m --"
   putStrLn ""
 
 
@@ -243,38 +244,44 @@ outputAnalysisReport aOpts tr ar = do
       (_, [])       -> return ()
       (True, imps)  -> do 
         putStrLn ""
-        putStrLn "  Optimisations:"
+        if length imps == 1 
+           then print $ PP.nest 2 $ PP.text "Optimisation:"
+           else print $ PP.nest 2 $ PP.text "Optimisations:"
         putStrLn ""
-        let ls = lines $ showImprovements True imps 
-        print $ PP.nest 4 $ PP.vcat $ fmap PP.text (sort ls)
+        print . PP.nest 4 . PP.vcat . fmap PP.text . sort . lines $ 
+          showImprovements True imps 
       (False, imps) -> do
         putStrLn ""
-        putStrLn "  Improvements:"
+        if length imps == 1 
+           then print $ PP.nest 2 $ PP.text "Improvement:"
+           else print $ PP.nest 2 $ PP.text "Improvements:"
         putStrLn ""
-        let ls = lines $ showImprovements False imps
-        print $ PP.nest 4 $ PP.vcat $ fmap PP.text (sort ls) 
+        print . PP.nest 4 . PP.vcat . fmap PP.text . sort . lines $ 
+          showImprovements False imps
 
     -- Print test summary.
-    trSummary :: String 
-    trSummary  = bySide [headers, values] "  "
+    trSummary :: PP.Doc 
+    trSummary  = PP.vcat $ fmap PP.text $ lines $ bySide [headers, values] "  "
       where
+        -- Left headers.
         headers =  PP.vcat 
-          [ PP.text "  Programs", PP.text "  Data", PP.text "  Normalisation"
-          , PP.text "  QuickCheck", PP.text "  GHC flags" ]
+          [ PP.text "Programs", PP.text "Data", PP.text "Normalisation"
+          , PP.text "QuickCheck", PP.text "GHC flags" ]
 
+        -- Summary values.
         values = PP.vcat 
           [ PP.hcat (PP.punctuate (PP.text ", ") $ fmap PP.text $ _tProgs tr)
           , PP.text (show $ _tDataOpts tr)
           , if _tNf tr then PP.text "nf" else PP.text "whnf"
           , if _eql tr then PP.text "==" else PP.text "=/="
-          , ppGhcFlags (_tGhcFlags tr)
+          , ppList (_tGhcFlags tr)
           ]
 
-         -- Pretty print list of GHC flags.
-        ppGhcFlags :: [String] -> PP.Doc 
-        ppGhcFlags [] = PP.text "N/A"
-        ppGhcFlags flags = 
-          PP.hcat $ PP.punctuate (PP.text ", ") $ fmap PP.text flags
+         -- Pretty print list.
+        ppList :: [String] -> PP.Doc 
+        ppList [] = PP.text "N/A"
+        ppList xs = 
+          PP.hcat $ PP.punctuate (PP.text ", ") $ fmap PP.text xs
 
 
 

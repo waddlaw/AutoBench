@@ -510,8 +510,7 @@ docImprovement' False (idt1, GT, idt2, d) =
 
 -- | Pretty printing for a list of 'Improvement's.
 showImprovements :: Bool -> [Improvement] -> String 
-showImprovements b imps = bySide (fmap PP.vcat $ 
-  transpose docImps) " "
+showImprovements b imps = bySide (fmap PP.vcat $ transpose docImps) " "
   where docImps = fmap (docImprovement' b) imps
 
 -- | Simplified pretty printing for the 'TestSuite' data structure.
