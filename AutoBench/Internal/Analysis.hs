@@ -28,18 +28,24 @@
 
 module AutoBench.Internal.Analysis where 
 
+import           Control.Arrow         ((&&&))
+import           Criterion.Types       (OutlierEffect(..))
 import           Data.Default          (def)
 import           Data.Either           (partitionEithers)
 import           Data.List             (genericLength, sort)
+import           Data.Maybe            (fromMaybe)
 import qualified Data.Vector.Storable  as V
 import           Numeric.LinearAlgebra (Vector, norm_1, norm_2)
 import           System.IO.Unsafe      (unsafePerformIO)
 import           System.Random         (randomRIO)
 
 import AutoBench.Internal.AbstractSyntax (Id)    
+import AutoBench.Internal.Regression     ( generateLinearCandidate
+                                         , fitRidgeRegress )
 import AutoBench.Internal.Utils          (allEq, notNull, uniqPairs)
 import AutoBench.Internal.Types  
   ( AnalOpts(..)
+  , AnalysisReport(..)
   , BenchReport(..)
   , Coord
   , Coord3
@@ -51,6 +57,7 @@ import AutoBench.Internal.Types
   , LinearFit(..)
   , LinearType
   , SimpleReport(..)
+  , SimpleResults(..)
   , Stats(..)
   , TestReport(..)
   , maxCVIters
@@ -121,6 +128,87 @@ analyseWith aOpts tr = do
     aOptsCVItersErr   = AnalOptsErr $ "The number of cross-validation iterators must be " ++ show minCVIters ++ " <= x <= " ++ show maxCVIters ++ "." 
     aOptsCVTrainErr   = AnalOptsErr $ "The percentage of cross-validation training data must be " ++ show minCVTrain ++ " <= x <= " ++ show maxCVTrain ++ "." 
     aOptsTopModelsErr = AnalOptsErr $ "The number of models to review must be strictly positive."
+
+
+
+
+
+
+
+
+
+
+calculateAnalysisReport :: AnalOpts -> TestReport -> AnalysisReport                                                                        -- <TO-DO> ** COMMENT **
+calculateAnalysisReport aOpts tr = 
+  AnalysisReport
+    {
+      _anlys = calculateSimpleResults aOpts tr
+    , _imps  = calculateImprovements (_reports $ _br tr) aOpts
+    }
+
+
+calculateSimpleResults :: AnalOpts -> TestReport -> [SimpleResults]                                                                        -- <TO-DO> ** COMMENT **
+calculateSimpleResults aOpts tr = 
+  zipWith calculateSimpleResult (_tProgs tr) (_reports $ _br tr)
+  where 
+    
+    calculateSimpleResult 
+      :: Id    -- Name of test program 
+      -> [SimpleReport]
+      -> SimpleResults
+    calculateSimpleResult idt srs = 
+      SimpleResults
+        {
+          _srIdt           = idt 
+        , _srRaws          = coords
+        , _srStdDev        = stdDev
+        , _srAvgOutVarEff  = avgOutVarEff
+        , _srAvgPutVarFrac = avgOutVarFrac
+        , _srFits          = fits
+        }
+      where 
+        coords = simpleReportsToCoords idt srs
+        (stdDev, avgOutVarFrac, avgOutVarEff) = 
+          fromMaybe (0, 0, Unaffected) (simpleReportSummary srs)                              -- <TO-DO> error handling.
+        fits = case coords of                                                                 -- <TO-DO> error handling.
+          Left{}  -> let Left cs = coords                                                     -- <TO-DO> error handling.           
+            in fmap ( ( candidateFit 
+                          fitRidgeRegress           -- Use ridge regression to fit.
+                          (_cvTrain aOpts)          -- Train/evaluate data split.
+                          (_cvIters aOpts)          -- Number of cross-validation iterations.  
+                          cs                        -- Data set.
+                      ) . generateLinearCandidate   -- 'LinearType' -> 'LinearCandidate'.
+                    ) (_linearModels aOpts)         -- Fit all models in 'AnalOpts'.
+          Right{} -> []
+
+    simpleReportSummary                                                                        -- <TO-DO> ** COMMENT **
+      :: [SimpleReport] 
+      -> Maybe (Double, Double, OutlierEffect)
+    simpleReportSummary []  = Nothing
+    simpleReportSummary srs = Just (stdDev srs, avgOutVarFrac, avgOutVarEff)
+      where 
+        -- Standard deviation for all test cases: sqrt (SUM variance_i/samples_i).
+        stdDev  = sqrt . sum . fmap (uncurry (/) . ((** 2) . 
+          _stdDev &&& fromIntegral . _samples)) 
+        
+        -- Average effect of outliers on variance.
+        avgOutVarFrac = sum (fmap _outVarFrac srs) / genericLength srs
+        avgOutVarEff 
+          | avgOutVarFrac < 0.01 = Unaffected
+          | avgOutVarFrac < 0.1  = Slight
+          | avgOutVarFrac < 0.5  = Moderate
+          | otherwise            = Severe
+
+
+
+
+
+
+
+
+
+
+
 
 
 

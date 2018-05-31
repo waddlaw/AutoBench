@@ -254,13 +254,13 @@ data BenchReport =
 data SimpleReport = 
   SimpleReport 
    { 
-     _name       :: Id             -- ^ Name of test program.
-   , _size       :: DataSize       -- ^ Size of test data.
-   , _samples    :: Int            -- ^ Number of samples used to calculate statistics below.
-   , _runtime    :: Double         -- ^ Estimate runtime.
-   , _stdDev     :: Double         -- ^ Estimate standard deviation.
-   , _outVarEff  :: OutlierEffect  -- ^ Outlier effect. 
-   , _outVarFrac :: Double         -- ^ Outlier effect as a percentage.
+     _name       :: Id              -- ^ Name of test program.
+   , _size       :: DataSize        -- ^ Size of test data.
+   , _samples    :: Int             -- ^ Number of samples used to calculate statistics below.
+   , _runtime    :: Double          -- ^ Estimate runtime.
+   , _stdDev     :: Double          -- ^ Estimate standard deviation.
+   , _outVarEff  :: OutlierEffect   -- ^ Outlier effect. 
+   , _outVarFrac :: Double          -- ^ Outlier effect as a percentage.
    }
 
 -- ** QuickBench 
@@ -270,8 +270,8 @@ data SimpleReport =
 data QuickReport = 
   QuickReport 
     {
-      _qName     :: Id                      -- ^ Name of test program.
-    , _qRuntimes :: Either [Coord] [Coord3] -- ^ [(Input size(s), mean runtime)].
+      _qName     :: Id                        -- ^ Name of test program.
+    , _qRuntimes :: Either [Coord] [Coord3]   -- ^ [(Input size(s), mean runtime)].
     }
 
 -- * Test results 
@@ -294,20 +294,20 @@ data TestReport =
 data AnalysisReport = 
   AnalysisReport
     {
-      _anlys :: [SimpleResults]     -- ^ Simple statistical analysis results per test program.   
-    , _imps  :: [Improvement]       -- ^ Improvement results.
+      _anlys :: [SimpleResults]   -- ^ Simple statistical analysis results per test program.   
+    , _imps  :: [Improvement]     -- ^ Improvement results.
     }
 
 -- | Simple statical analysis results for each test program. 
 data SimpleResults = 
   SimpleResults 
    {
-     _saIdt           :: Id                           -- ^ Name of test program.
-   , _saRaws          :: Either [Coord] [Coord3]      -- ^ Raw input size/runtime results.
-   , _saStdDev        :: Double                       -- ^ Standard deviation of all runtime results.
-   , _saAvgOutVarEff  :: OutlierEffect                -- ^ Average outlier effect. 
-   , _saAvgPutVarFrac :: Double                       -- ^ Average outlier effect as a percentage.
-   , _saFits          :: [LinearFit]                  -- ^ Fitting statistics for each candidate model.
+     _srIdt           :: Id                           -- ^ Name of test program.
+   , _srRaws          :: Either [Coord] [Coord3]      -- ^ Raw input size/runtime results.
+   , _srStdDev        :: Double                       -- ^ Standard deviation of all runtime results.
+   , _srAvgOutVarEff  :: OutlierEffect                -- ^ Average outlier effect. 
+   , _srAvgPutVarFrac :: Double                       -- ^ Average outlier effect as a percentage.
+   , _srFits          :: [LinearFit]                  -- ^ Fitting statistics for each candidate model.
    }
 
 -- | An efficiency improvement is an ordering between two test programs and a 
