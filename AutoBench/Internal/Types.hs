@@ -56,13 +56,15 @@ module AutoBench.Internal.Types
   -- * Test results 
   , TestReport(..)         -- A report to summarise the system's testing phase.
   , QuickReport(..)        -- A report to summarise the QuickBench phase of testing.
-  -- * Statistical analysis                                                                                     
+  -- * Statistical analysis 
+  , AnalysisReport(..)     -- A report to summarise the system's analysis phase.                                                                                 
   , CVStats(..)            -- Fitting statistics calculated for regression models per each iteration of cross-validation.
   , Improvement            -- An efficiency improvement is an ordering between two test programs and a rating
                            -- 0 <= d <= 1 that corresponds to the percentage of test cases that support the ordering.
   , Exp                    -- Expressions with 'Double' literals.
   , LinearCandidate(..)    -- The details of a regression model necessary to fit it to a given dataset.
   , LinearFit(..)          -- A regression model's fitting statistics and helper functions: predicting y-coordinates, pretty printing.
+  , SimpleResults(..)      -- Simple statical analysis results for each test program.
   , numPredictors          -- Number of predictors for each type of model.
   -- * Errors
   -- ** System errors
@@ -288,12 +290,25 @@ data TestReport =
 
 -- * Statistical analysis
 
--- | Number of predictors for each type of model.
-numPredictors :: LinearType -> Int 
-numPredictors (Poly      k) = k + 1 
-numPredictors (Log     _ k) = k + 1 
-numPredictors (PolyLog _ k) = k + 1 
-numPredictors Exp{}         = 2
+-- | A report to summarise the system's analysis phase.
+data AnalysisReport = 
+  AnalysisReport
+    {
+      _anlys :: [SimpleResults]     -- ^ Simple statistical analysis results per test program.   
+    , _imps  :: [Improvement]       -- ^ Improvement results.
+    }
+
+-- | Simple statical analysis results for each test program. 
+data SimpleResults = 
+  SimpleResults 
+   {
+     _saIdt           :: Id                           -- ^ Name of test program.
+   , _saRaws          :: Either [Coord] [Coord3]      -- ^ Raw input size/runtime results.
+   , _saStdDev        :: Double                       -- ^ Standard deviation of all runtime results.
+   , _saAvgOutVarEff  :: OutlierEffect                -- ^ Average outlier effect. 
+   , _saAvgPutVarFrac :: Double                       -- ^ Average outlier effect as a percentage.
+   , _saFits          :: [LinearFit]                  -- ^ Fitting statistics for each candidate model.
+   }
 
 -- | An efficiency improvement is an ordering between two test programs and a 
 -- rating 0 <= d <= 1 that corresponds to the percentage of test cases that
@@ -366,6 +381,13 @@ data LinearFit =
    , _yhat :: Vector Double -> Vector Double   -- ^ A function to generate the model's predicted y-coords for a given set of x-coords.
    , _sts  :: Stats                            -- ^ Fitting statistics.
    }
+
+-- | Number of predictors for each type of model.
+numPredictors :: LinearType -> Int 
+numPredictors (Poly      k) = k + 1 
+numPredictors (Log     _ k) = k + 1 
+numPredictors (PolyLog _ k) = k + 1 
+numPredictors Exp{}         = 2
 
 -- * Errors 
 

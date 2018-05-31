@@ -175,7 +175,7 @@ calculateImprovements srs aOpts                                                 
 
     -- Helpers
 
-    -- Check coords are all of the same form (i.e., all 'Coord' or
+    -- Check coordinates are all of the same form (i.e., all 'Coord' or
     -- all 'Coord3') and the same, expected length @n@.
     checkCoords :: [Either [Coord] [Coord3]] -> Int -> Bool 
     checkCoords css n = case partitionEithers css of
@@ -237,9 +237,9 @@ candidateFit ff split iters coords c =
 -- cross-validation.
 cvCandidateFit 
   :: ([Coord] -> LinearCandidate -> Vector Double)  -- Fitting function.
-  -> Double                                         -- Train/validate data split.
-  -> Int                                            -- Cross-validation iterations.
-  -> [Coord]                                        -- Data set to fit model to.
+  -> Double                                         -- Train/evaluate data split.
+  -> Int                                            -- Number of iterations.
+  -> [Coord]                                        -- Full data set.
   -> LinearCandidate                                -- Model to fit.
   -> [CVStats]
 cvCandidateFit ff split iters coords c = 
@@ -345,23 +345,6 @@ stats c coords coeffs cvSts = _sts
     cv_ss_tot = (sum $ fmap _cv_ss_tot cvSts) / cv_n                                                 -- 1/n * SUM ss_tot_k      for each iteration k
     p_ss_res  = (sum $ fmap _cv_ss_res cvSts) / cv_n                                                 -- 1/n * SUM ss_res_k      for each iteration k
     p_r2     = 1.0 - (p_ss_res / cv_ss_tot)                                                          -- 1 - p_ss_res/cv_ss_tot
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 -- * Helpers 
 
