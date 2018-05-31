@@ -80,6 +80,7 @@ module AutoBench.Internal.Types
   -- ** Pretty printing
   , docImprovement         -- Generate a 'PP.Doc' for an 'Improvement'.
   , docSimpleReport        -- Generate a 'PP.Doc' for a 'SimpleReport'.
+  , docSimpleResults       -- Generate a 'PP.Doc' for 'SimpleResults'.
   , docTestReport          -- Generate a 'PP.Doc' for a 'TestReport'.
   , docTestSuite           -- Generate a 'PP.Doc' for a 'TestSuite'.
   , docUserInputs          -- Generate a 'PP.Doc' for a 'UserInputs'.
@@ -89,9 +90,10 @@ module AutoBench.Internal.Types
 
 import           Control.Arrow             ((&&&))
 import           Control.Exception.Base    (Exception)
-import           Criterion.Types           (OutlierEffect)
+import           Criterion.Types           (OutlierEffect(..))
 import           Data.Either               (partitionEithers)
 import           Data.List                 (sort, sortBy, transpose)
+import           Data.List.Split           (chunksOf)
 import           Data.Ord                  (comparing)
 import           Data.Tuple.Select         (sel1, sel2)
 import           Numeric.LinearAlgebra     (Vector)
@@ -100,7 +102,8 @@ import qualified Text.PrettyPrint.HughesPJ as PP
 
 
 import qualified AutoBench.Internal.Expr  as E
-import           AutoBench.Internal.Utils ((.*), bySide, deggar)
+import           AutoBench.Internal.Utils ( (.*), bySide, deggar
+                                          , forceSecs, secs )
 import           AutoBench.Types  -- Re-export.
 
 import AutoBench.Internal.AbstractSyntax 
@@ -696,3 +699,102 @@ docBenchReport br = PP.vcat
     ppSizeRuntime (SizeBin n1 n2) d = PP.char '(' PP.<> PP.int n1 PP.<> 
       PP.text ", " PP.<> PP.int n2 PP.<> PP.text ", " PP.<> 
       PP.double d PP.<> PP.char ')'
+
+
+
+
+
+
+-- | Pretty printing for 'SimpleResults' data structure.
+docSimpleResults :: String -> SimpleResults -> PP.Doc 
+docSimpleResults units sr = title PP.$$ (PP.nest 2 $ PP.vcat 
+  [ PP.text ("Size"      ++ replicate (length (show units) + 5) ' ') PP.<+> sizes
+  , PP.text ("Time    (" ++ units ++ ") ") PP.<+> runtimes
+  , PP.text ("Std dev (" ++ units ++ ") ") PP.<+> PP.text (forceSecs 4 units $ _srStdDev sr)
+  , PP.text $ "Average variance introduced by outliers: " ++ 
+      printf "%d%% (%s)" (round (_srAvgPutVarFrac sr * 100) :: Int) wibble
+  , PP.text "" 
+  , fits
+  ])
+
+  where 
+    title = PP.text (_srIdt sr) PP.<> PP.char ':'
+    (sizes, runtimes) = ppCoords (_srRaws sr)
+
+    ppCoords :: Either [Coord] [Coord3] -> (PP.Doc, PP.Doc)
+    ppCoords (Left cs) = (PP.vcat $ hsepChunks xs, PP.vcat $ hsepChunks ys)
+      where 
+        xs = fmap (PP.text . printf ("%-" ++ show maxWidth ++ "s") . show . round' . fst) cs 
+        ys = fmap (PP.text . forceSecs maxWidth units . snd) cs
+    ppCoords (Right cs) = (PP.vcat $ hsepChunks xs, PP.vcat $ hsepChunks ys')
+      where 
+        (xs1, xs2, ys) = unzip3 cs
+        xs = zipWith (\x1 x2 -> PP.char '(' PP.<> PP.int (round x1) PP.<> 
+          PP.char ',' PP.<+> PP.int (round x2) PP.<> PP.char ')') xs1 xs2
+        ys' = fmap (PP.text . forceSecs maxWidth units) ys
+
+    
+    fits :: PP.Doc 
+    fits = case _srFits sr of 
+      []   -> PP.text ("Fits" ++ replicate (length (show units) + 5) ' ') 
+        PP.<+> PP.text "N/A"
+      [lf] -> PP.text ("Fit" ++ replicate (length (show units) + 6) ' ') 
+        PP.<+> E.docExpr (_ex lf)
+      lfs  -> PP.text ("Fits" ++ replicate (length (show units) + 5) ' ') 
+        PP.<+> (PP.vcat $ fmap (E.docExpr . _ex) lfs)
+
+    -- Helpers:
+
+    maxWidth :: Int 
+    maxWidth  = case (_srRaws sr) of
+      Left  cs -> max (length . show . maximum $ fmap fst cs) 8
+      Right cs -> max (maximum $ fmap (\(x1, x2, _) -> 
+        length (show x1) + length (show x2) + 4) cs) 8
+
+    -- Note: taken from Criterion source code.
+    wibble = case _srAvgOutVarEff sr of
+      Unaffected -> "unaffected"
+      Slight     -> "slightly inflated"
+      Moderate   -> "moderately inflated"
+      Severe     -> "severely inflated"
+
+    hsepChunks :: [PP.Doc] -> [PP.Doc]
+    hsepChunks  = fmap PP.hsep . chunksOf (70 `div` maxWidth)
+    
+    round' :: Double -> Int 
+    round'  = round
+  
+
+
+
+
+
+{-
+
+-- | Simple statical analysis results for each test program. 
+data SimpleResults = 
+  SimpleResults 
+   {
+     _srIdt           :: Id                           -- ^ Name of test program.
+   , _srRaws          :: Either [Coord] [Coord3]      -- ^ Raw input size/runtime results.
+   , _srStdDev        :: Double                       -- ^ Standard deviation of all runtime results.
+   , _srAvgOutVarEff  :: OutlierEffect                -- ^ Average outlier effect. 
+   , _srAvgPutVarFrac :: Double                       -- ^ Average outlier effect as a percentage.
+   , _srFits          :: [LinearFit]                  -- ^ Fitting statistics for each candidate model.
+   }
+
+
+
+
+-}
+
+foo :: SimpleResults
+foo  = SimpleResults 
+   {
+     _srIdt           = "slowRev"
+   , _srRaws          = Left $ zip [100000,200000..] [1.5,1.6..3.4]
+   , _srStdDev        = 0.4
+   , _srAvgOutVarEff  = Moderate 
+   , _srAvgPutVarFrac = 0.3
+   , _srFits          = []          
+   }

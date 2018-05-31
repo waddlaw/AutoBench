@@ -1,5 +1,6 @@
 
-{-# OPTIONS_GHC -Wall #-} 
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# OPTIONS_GHC -Wall            #-} 
 
 {-|
 
@@ -48,7 +49,10 @@ module AutoBench.Internal.Utils
   , CLArgs(..)           -- Command line arguments.
   , clArgsParser         -- Options parser for command line arguments.
   -- * Pretty printing
+  , forceSecs            -- Force a number of seconds to be displayed in the given spacing and in the given units.
   , bySide               -- Put a list of multi-line 'PP.Doc's side by side and output as a 'String'.
+  , secs                 -- Convert a number of seconds to a string.
+-- units
   -- * Misc 
   , Padme(..)            -- Padded lists.
   , (.*)                 -- Generalised function composition.
@@ -68,7 +72,9 @@ import           System.FilePath.Posix        (isValid, makeValid, takeBaseName)
 import qualified Text.Megaparsec              as MP
 import qualified Text.Megaparsec.Char         as MP 
 import qualified Text.Megaparsec.Char.Lexer   as L
+import           Text.Printf                  (printf)
 import qualified Text.PrettyPrint.HughesPJ    as PP
+
 
 
 -- * AutoBench specific
@@ -209,6 +215,46 @@ bySide xs sep =
     pad s        = replicate (length $ head s) ' '
     padLeft  s p = (:) <$> s :- p
     padRight s p = (:) <$> s :- p <*> pure []
+
+-- | Convert a number of seconds to a string. The string will consist
+-- of four decimal places, followed by a short description of the time
+-- units. Note: taken from Criterion source code.
+secs :: Double -> (String, String)
+secs k
+  | k < 0      = let (s, u) = secs (-k) in ('-' : s, u)
+  | k >= 1     = k        `with` "s"
+  | k >= 1e-3  = (k*1e3)  `with` "ms"
+  | k >= 1e-6  = (k*1e6)  `with` "μs"
+  | k >= 1e-9  = (k*1e9)  `with` "ns"
+  | k >= 1e-12 = (k*1e12) `with` "ps"
+  | k >= 1e-15 = (k*1e15) `with` "fs"
+  | k >= 1e-18 = (k*1e18) `with` "as"
+  | otherwise  = (printf "%g" k, "s")
+   where with (t :: Double) (u :: String)
+             | t >= 1e9  = (printf "%.4g" t, u)
+             | t >= 1e3  = (printf "%.0f" t, u)
+             | t >= 1e2  = (printf "%.1f" t, u)
+             | t >= 1e1  = (printf "%.2f" t, u)
+             | otherwise = (printf "%.3f" t, u)
+
+-- | Force a number of seconds to be displayed in the given spacing and in the
+-- given units.
+forceSecs :: Int -> String -> Double -> String 
+forceSecs i s k = case s of 
+  "s"  -> fmt k 
+  "ms" -> fmt (k * 1e3)
+  "μs" -> fmt (k * 1e6)
+  "ns" -> fmt (k * 1e9)
+  "ps" -> fmt (k * 1e12)
+  "fs" -> fmt (k * 1e15)
+  "as" -> fmt (k * 1e18) 
+  _    -> printf ("%-" ++ show i ++ "g") k
+  where fmt (t :: Double)
+          | t >= 1e9  = printf ("%-" ++ show i ++ ".4g") t
+          | t >= 1e3  = printf ("%-" ++ show i ++ ".0f") t
+          | t >= 1e2  = printf ("%-" ++ show i ++ ".1f") t
+          | t >= 1e1  = printf ("%-" ++ show i ++ ".2f") t
+          | otherwise = printf ("%-" ++ show i ++ ".3f") t
 
 -- * Misc.
 

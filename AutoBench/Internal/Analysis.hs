@@ -33,7 +33,7 @@ module AutoBench.Internal.Analysis where
 import           Control.Arrow         ((&&&))
 import           Criterion.Types       (OutlierEffect(..))
 import           Data.Default          (def)
-import           Data.List             (genericLength, sort)
+import           Data.List             (genericLength, sort, sortBy)
 import           Data.Maybe            (catMaybes, fromMaybe)
 import qualified Data.Vector.Storable  as V
 import           Numeric.LinearAlgebra (Vector, norm_1, norm_2)
@@ -136,7 +136,7 @@ quickResults aOpts = fmap quickResult
         {
           _qrIdt  = _qName qr
         , _qrRaws = coords
-        , _qrFits = catMaybes $ fitCoords aOpts coords
+        , _qrFits = fitCoords aOpts coords
         }
       where coords = _qRuntimes qr
 
@@ -184,7 +184,7 @@ calculateSimpleResults aOpts tr =
         , _srStdDev        = stdDev
         , _srAvgOutVarEff  = avgOutVarEff
         , _srAvgPutVarFrac = avgOutVarFrac
-        , _srFits          = catMaybes $ fitCoords aOpts coords
+        , _srFits          = fitCoords aOpts coords
         }
       where 
         coords = simpleReportsToCoords idt srs
@@ -428,13 +428,16 @@ matchCoords3 ((s1, s2, t1) : cs1) ((s1', s2', t2) : cs2)
   | s1 == s1' && s2 == s2' = (t1, t2) : matchCoords3 cs1 cs2 
   | otherwise = matchCoords3 cs1 cs2 
 
-fitCoords :: AnalOpts -> Either [Coord] [Coord3] -> [Maybe LinearFit]                               -- <TO-DO>: comment
+fitCoords :: AnalOpts -> Either [Coord] [Coord3] -> [LinearFit]                               -- <TO-DO>: comment
 fitCoords _ Right{} = []
-fitCoords aOpts (Left coords) = 
-  fmap ( ( candidateFit 
-             fitRidgeRegress           -- Use ridge regression to fit.
-             (_cvTrain aOpts)          -- Train/evaluate data split.
-             (_cvIters aOpts)          -- Number of cross-validation iterations.  
-             coords                    -- Data set.
-         ) . generateLinearCandidate   -- 'LinearType' -> 'LinearCandidate'.
-       ) (_linearModels aOpts)         -- Fit all models in 'AnalOpts'.
+fitCoords aOpts (Left coords) = take (_topModels aOpts)
+   $ sortBy (\lf1 lf2 -> (_statsSort aOpts) (_sts lf1) (_sts lf2))
+   $ filter (\lf -> (_statsFilt aOpts) (_sts lf))
+   $ catMaybes
+   $ fmap ( ( candidateFit 
+               fitRidgeRegress           -- Use ridge regression to fit.
+               (_cvTrain aOpts)          -- Train/evaluate data split.
+               (_cvIters aOpts)          -- Number of cross-validation iterations.  
+               coords                    -- Data set.
+            ) . generateLinearCandidate   -- 'LinearType' -> 'LinearCandidate'.
+          ) (_linearModels aOpts)         -- Fit all models in 'AnalOpts'.

@@ -110,7 +110,8 @@ import Criterion.Types
  , reportMeasured
  )
 
-import AutoBench.Internal.Utils          (Parser, allEq, integer, strip, symbol)
+import AutoBench.Internal.Utils          ( Parser, allEq, integer, secs
+                                         , strip, symbol )
 import AutoBench.Internal.AbstractSyntax (Id, ModuleName, prettyPrint, qualIdt)
 import AutoBench.Internal.Types 
   ( AnalOpts(..)
@@ -213,6 +214,7 @@ selTestSuiteOption inps = case _testSuites inps of
 -- | Output the results of statistical analysis.
 outputAnalysisReport :: AnalOpts -> AnalysisReport -> IO ()
 outputAnalysisReport aOpts rep = undefined
+
 
 
 
