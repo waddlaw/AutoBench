@@ -110,7 +110,8 @@ import Criterion.Types
  , reportMeasured
  )
 
-import AutoBench.Internal.Utils          (Parser, allEq, integer, strip, symbol)
+import AutoBench.Internal.Utils          ( Parser, allEq, bySide, integer
+                                         , strip, symbol )
 import AutoBench.Internal.AbstractSyntax (Id, ModuleName, prettyPrint, qualIdt)
 import AutoBench.Internal.Types 
   ( AnalOpts(..)
@@ -127,6 +128,7 @@ import AutoBench.Internal.Types
   , docSimpleResults
   , docTestSuite
   , docUserInputs
+  , showImprovements
   )
 
 
@@ -217,31 +219,62 @@ selTestSuiteOption inps = case _testSuites inps of
 outputAnalysisReport :: AnalOpts -> TestReport -> AnalysisReport -> IO ()
 outputAnalysisReport aOpts tr ar = do 
   putStrLn ""
+  print $ PP.nest 1 $ PP.text $ "-- \ESC[3mTest summary\ESC[0m " ++ replicate 64 '-'
   putStrLn ""
-  print $ PP.nest 2 $ trSummary
+  putStrLn $ trSummary
+  print $ PP.nest 1 $ PP.text $ "-- \ESC[3mAnalysis\ESC[0m " ++ replicate 68 '-'
   putStrLn ""
   print $ PP.nest 2 $ docSimpleResults (_anlys ar ++ blAn)
+  printImprovements
+  putStrLn ""
+  putStrLn $ " " ++ replicate 79 '-'
+  putStrLn ""
 
 
   where 
     blAn = case _blAn ar of 
       Nothing -> []
       Just sr -> [sr]
+    
 
-    trSummary :: PP.Doc 
-    trSummary  = PP.vcat
-      [ PP.text "\8226" PP.<+> PP.hcat (PP.punctuate (PP.text ", ") $ fmap PP.text $ _tProgs tr)
-      , PP.text "\8226" PP.<+> PP.text (show $ _tDataOpts tr)
-      , PP.text "\8226" PP.<+> if _tNf tr then PP.text "nf" else PP.text "whnf"
-      , PP.text "\8226" PP.<+> if _eql tr then PP.text "==" else PP.text "=/="
-      , ppGhcFlags (_tGhcFlags tr)
-      ]
+    -- Print improvements.
+    printImprovements :: IO () 
+    printImprovements  = case (_eql tr, _imps ar) of 
+      (_, [])       -> return ()
+      (True, imps)  -> do 
+        putStrLn ""
+        putStrLn "  Optimisations:"
+        putStrLn ""
+        let ls = lines $ showImprovements True imps 
+        print $ PP.nest 4 $ PP.vcat $ fmap PP.text (sort ls)
+      (False, imps) -> do
+        putStrLn ""
+        putStrLn "  Improvements:"
+        putStrLn ""
+        let ls = lines $ showImprovements False imps
+        print $ PP.nest 4 $ PP.vcat $ fmap PP.text (sort ls) 
 
-     -- Pretty print list of GHC flags.
-    ppGhcFlags :: [String] -> PP.Doc 
-    ppGhcFlags [] = PP.empty
-    ppGhcFlags flags = PP.text "\8226" PP.<+> PP.hcat ((PP.text "GHC flags: ") : 
-      (PP.punctuate (PP.text ", ") $ fmap PP.text $ flags))
+    -- Print test summary.
+    trSummary :: String 
+    trSummary  = bySide [headers, values] "  "
+      where
+        headers =  PP.vcat 
+          [ PP.text "  Programs", PP.text "  Data", PP.text "  Normalisation"
+          , PP.text "  QuickCheck", PP.text "  GHC flags" ]
+
+        values = PP.vcat 
+          [ PP.hcat (PP.punctuate (PP.text ", ") $ fmap PP.text $ _tProgs tr)
+          , PP.text (show $ _tDataOpts tr)
+          , if _tNf tr then PP.text "nf" else PP.text "whnf"
+          , if _eql tr then PP.text "==" else PP.text "=/="
+          , ppGhcFlags (_tGhcFlags tr)
+          ]
+
+         -- Pretty print list of GHC flags.
+        ppGhcFlags :: [String] -> PP.Doc 
+        ppGhcFlags [] = PP.text "N/A"
+        ppGhcFlags flags = 
+          PP.hcat $ PP.punctuate (PP.text ", ") $ fmap PP.text flags
 
 
 
