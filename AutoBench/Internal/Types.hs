@@ -726,9 +726,9 @@ docSimpleResults srs = PP.vcat $ PP.punctuate (PP.text "\n") $
 -- | Pretty printing for 'SimpleResults' data structure.
 docSimpleResult :: String -> SimpleResults -> PP.Doc 
 docSimpleResult units sr = title PP.$$ (PP.nest 2 $ PP.vcat 
-  [ PP.text ("Size"      ++ replicate (length (show units) + 5) ' ') PP.<+> sizes
-  , PP.text ("Time    (" ++ units ++ ") ") PP.<+> runtimes
-  , PP.text ("Std dev (" ++ units ++ ") ") PP.<+> PP.text (forceSecs 4 units $ _srStdDev sr)
+  [ PP.text size   PP.<+> sizes
+  , PP.text time   PP.<+> runtimes
+  , PP.text stdDev PP.<+> PP.text (forceSecs maxWidth units $ _srStdDev sr)
   , PP.text $ "Average variance introduced by outliers: " ++ 
       printf "%d%% (%s)" (round (_srAvgPutVarFrac sr * 100) :: Int) wibble
   , PP.text "" 
@@ -737,6 +737,12 @@ docSimpleResult units sr = title PP.$$ (PP.nest 2 $ PP.vcat
 
   where 
     title = PP.text (_srIdt sr) PP.<> PP.char ':'
+    size   = "Size    " ++ replicate (length sUnits) ' ' ++ " "
+    time   = "Time    " ++ sUnits ++ " "
+    stdDev = "Std dev " ++ sUnits ++ " "
+    sUnits  = "(" ++ units ++ ")"
+
+
     (sizes, runtimes) = ppCoords (_srRaws sr)
     
     -- Layout coordinates in tabular format.
@@ -755,12 +761,12 @@ docSimpleResult units sr = title PP.$$ (PP.nest 2 $ PP.vcat
     -- Pretty print the equations of 'LinearFits'.
     fits :: PP.Doc 
     fits = case _srFits sr of 
-      []   -> PP.text ("Fits" ++ replicate (length (show units) + 5) ' ') 
+      []   -> PP.text ("Fits" ++ replicate (length units + 7) ' ') 
         PP.<+> PP.text "N/A"
-      [lf] -> PP.text ("Fit" ++ replicate (length (show units) + 6) ' ') 
-        PP.<+> E.docExpr (_ex lf)
-      lfs  -> PP.text ("Fits" ++ replicate (length (show units) + 5) ' ') 
-        PP.<+> (PP.vcat $ fmap (E.docExpr . _ex) lfs)
+      [lf] -> PP.text ("Fit" ++ replicate (length units + 8) ' ') 
+        PP.<+> PP.text "y =" PP.<+> E.docExpr (_ex lf)
+      lfs  -> PP.text ("Fits" ++ replicate (length units + 7) ' ') 
+        PP.<+> (PP.vcat $ fmap ((PP.text "y =" PP.<+>) . E.docExpr . _ex) lfs)
 
     -- Helpers:
 

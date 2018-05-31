@@ -6,11 +6,11 @@ import Data.Default
 import Data.List
 
 
-{-
+
 import AutoBench.Internal.IO 
 import AutoBench.Internal.UserInputChecks
 import AutoBench.Internal.Types
-import AutoBench.Internal.Analysis-}
+import AutoBench.Internal.Analysis
 
 import Prelude hiding (id, const)
 
