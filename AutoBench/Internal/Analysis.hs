@@ -206,11 +206,11 @@ calculateImprovements srs aOpts                                                 
 -- | Fit a 'LinearCandidate' model to a data set, generating a 'LinearFit'
 -- that can be used to asses the model's goodness of fit.
 candidateFit 
-  :: ([Coord] -> LinearCandidate -> Vector Double)  -- ^ Fitting function.
-  -> Double                                         -- ^ Cross-validation train/validate data split.
-  -> Int                                            -- ^ Cross-validation iterations.
-  -> [Coord]                                        -- ^ Data set.
-  -> LinearCandidate                                -- ^ Model to fit.
+  :: ([Coord] -> LinearCandidate -> Vector Double)  -- Fitting function.
+  -> Double                                         -- Cross-validation train/validate data split.
+  -> Int                                            -- Cross-validation iterations.
+  -> [Coord]                                        -- Data set.
+  -> LinearCandidate                                -- Model to fit.
   -> LinearFit 
 candidateFit ff split iters coords c = 
   LinearFit 
@@ -238,11 +238,11 @@ candidateFit ff split iters coords c =
 -- Note: Monte Carlo seems most appropriate because we will likely have 
 -- a small data set due to the slow benchmarking process. 
 cvCandidateFit 
-  :: ([Coord] -> LinearCandidate -> Vector Double)  -- ^ Fitting function.
-  -> Double                                         -- ^ Train/validate data split.
-  -> Int                                            -- ^ Cross-validation iterations.
-  -> [Coord]                                        -- ^ Data set to fit model to.
-  -> LinearCandidate                                -- ^ Model to fit.
+  :: ([Coord] -> LinearCandidate -> Vector Double)  -- Fitting function.
+  -> Double                                         -- Train/validate data split.
+  -> Int                                            -- Cross-validation iterations.
+  -> [Coord]                                        -- Data set to fit model to.
+  -> LinearCandidate                                -- Model to fit.
   -> [CVStats]
 cvCandidateFit ff split iters coords c = 
   fmap (uncurry trainAndValidate) splits 
