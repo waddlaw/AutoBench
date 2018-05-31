@@ -60,6 +60,7 @@ module AutoBench.Internal.Types
   , CVStats(..)            -- Fitting statistics calculated for regression models per each iteration of cross-validation.
   , Improvement            -- An efficiency improvement is an ordering between two test programs and a rating
                            -- 0 <= d <= 1 that corresponds to the percentage of test cases that support the ordering.
+  , Exp                    -- Expressions with 'Double' literals.
   , LinearCandidate(..)    -- The details of a regression model necessary to fit it to a given dataset.
   , LinearFit(..)          -- A regression model's fitting statistics and helper functions: predicting y-coordinates, pretty printing.
   , numPredictors          -- Number of predictors for each type of model.

@@ -198,6 +198,124 @@ calculateImprovements srs aOpts                                                 
       | s1 == s1' && s2 == s2' = (t1, t2) : matchCoords3 cs1 cs2 
       | otherwise = matchCoords3 cs1 cs2 
 
+
+
+
+
+
+-- * Linear fitting
+
+
+
+
+
+-- ** Cross-validation statistics
+
+-- | Statistics generated from a single iteration of cross-validation.
+cvStats 
+  :: LinearCandidate    -- The model.
+  -> [Coord]            -- The /evaluation/ set of this iteration of cross-validation.
+  -> Vector Double      -- The coefficients of the model calculated using the /training/ set.
+  -> CVStats            -- The model's fitting statistics for this iteration of cross-validation.
+cvStats c coords coeffs = 
+  CVStats
+   {
+     mse     = _mse 
+   , mae     = _mae
+   , ss_tot_ = _ss_tot
+   , ss_res_ = _ss_res
+   }
+  where 
+    ---------------------------------------------------------------------------
+    (xs, ys) = unzip coords 
+    _X       = V.fromList xs                                                                         -- X. ** don't transform using fxs **
+    _Y       = V.fromList ys                                                                         -- Y.
+    _n       = length coords        
+    _n'      = fromIntegral _n                                                                       -- n data points.
+    ---------------------------------------------------------------------------
+    _yhat    = fyhat c coeffs _X                                                                     -- Model y-coords.
+    _ybar    = V.sum _Y / _n'                                                                        -- Average of data y-coords.
+    _ybars   = V.replicate _n _ybar    
+    ---------------------------------------------------------------------------
+    _mse     = _ss_res / _n'                                                                         -- Mean squared error       ss_res / n
+    _mae     = (norm_1 $ V.zipWith (-) _Y  _yhat) / _n'                                              -- Mean absolute error:     (SUM |y_i - f(y_i)|) / n             
+    _ss_tot  = (norm_2 $ V.zipWith (-) _Y  _ybars) ** 2.0                                            -- Total sum of squares:    SUM (y_i - avg(y))^2
+    _ss_res  = (norm_2 $ V.zipWith (-) _Y  _yhat)  ** 2.0                                            -- Residual sum of squares: SUM (y_i - f(y_i))^2
+
+-- | All statistics for analysing goodness of fit.
+stats 
+  :: LinearCandidate  -- ^ Model to analyse.
+  -> [Coord]          -- ^ Complete data set.
+  -> Vector Double    -- ^ Coefficients from regression analysis for
+                      --   /complete/ data set.
+  -> [CVStats]        -- ^ Cross-validated statistics.
+  -> Stats
+stats c coords coeffs cvSts = _sts 
+  where
+    -- Statistics calculated below.
+    _sts = Stats 
+            {
+              p_mse    = _p_mse
+            , p_mae    = _p_mae
+            , ss_tot   = cv_ss_tot
+            , p_ss_res = _p_ss_res
+            , r2       = _r2
+            , a_r2     = _a_r2
+            , p_r2     = _p_r2
+            , bic      = _bic
+            , aic      = _aic
+            , cp       = _cp
+            }
+    --------------------------------------------------------------------------- 
+    -- Stats for /complete/ data set:
+    --------------------------------------------------------------------------- 
+    (xs, ys) = unzip coords 
+    _X       = V.fromList xs                                                                         -- X. ** do not transform using fxs **
+    _Y       = V.fromList ys                                                                         -- Y.
+    _n       = length coords        
+    _n'      = fromIntegral _n                                                                       -- n data points.
+    _k'      = fromIntegral (numPredictors $ lcc c)                                                  -- k predictors.
+    ---------------------------------------------------------------------------
+    _yhat    = fyhat c coeffs _X                                                                     -- Model y-coords.
+    _ybar    = V.sum _Y / _n'                                                                        -- Average of data y-coords.
+    _ybars   = V.replicate _n _ybar    
+    ---------------------------------------------------------------------------           
+    _mse     = _ss_res / _n'                                                                         -- Mean squared error:                       ss_res / n
+    _ss_tot  = (norm_2 $ V.zipWith (-) _Y _ybars) ** 2.0                                             -- Total sum of squares:                     SUM (y_i - avg(y))^2
+    _ss_res  = (norm_2 $ V.zipWith (-) _Y _yhat)  ** 2.0                                             -- Residual sum of squares:                  SUM (y_i - f(y_i))^2
+    _r2      = 1.0 - (_ss_res / _ss_tot)                                                             -- Coefficient of Determination:             1 - ss_res/ss_tot
+    _a_r2    = 1.0 - ((1.0 - _r2) * (_n' - 1.0) / (_n' - _k' - 1.0))                                 -- Adjusted Coefficient of Determination:    1 - ((1 - r^2)(n - 1)/(n - k - 1))
+    -- http://www.stat.wisc.edu/courses/st333-larget/aic.pdf (implementations from R).
+    _aic = (_n' * log (_ss_res / _n')) + (2 * _k')                                                   -- Akaike’s Information Criterion:           n * ln(ss_res/n) + 2k
+    _bic = (_n' * log (_ss_res / _n')) + (_k' * log _n')                                             -- Bayesian Information Criterion:           n * ln(ss_res/n) + k * ln(n)
+    _cp  = (_ss_res / _mse) - (_n' - (2 * _k'))                                                      -- Mallows' Cp Statistic:                    (ss_res/_mse) - (n - 2k)
+    --------------------------------------------------------------------------- 
+    -- Cross-validated stats:
+    ---------------------------------------------------------------------------   
+    cv_n      = genericLength cvSts
+    _p_mse    = (sum $ fmap mse cvSts)     / cv_n                                                    -- 1/n * SUM mse_k         for each iteration k
+    _p_mae    = (sum $ fmap mae cvSts)     / cv_n                                                    -- 1/n * SUM mae_k         for each iteration k
+    cv_ss_tot = (sum $ fmap ss_tot_ cvSts) / cv_n                                                    -- 1/n * SUM ss_tot_k      for each iteration k
+    _p_ss_res = (sum $ fmap ss_res_ cvSts) / cv_n                                                    -- 1/n * SUM ss_res_k      for each iteration k
+    _p_r2     = 1.0 - (_p_ss_res / cv_ss_tot)                                                        -- 1 - p_ss_res/cv_ss_tot
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 -- * Helpers 
 
 -- | Convert a list of 'SimpleReport's to a list of (input size(s), runtime) 
