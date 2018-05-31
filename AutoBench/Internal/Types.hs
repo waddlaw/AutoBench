@@ -80,7 +80,7 @@ module AutoBench.Internal.Types
   -- ** Pretty printing
   , docImprovement         -- Generate a 'PP.Doc' for an 'Improvement'.
   , docSimpleReport        -- Generate a 'PP.Doc' for a 'SimpleReport'.
-  , docSimpleResults       -- Generate a 'PP.Doc' for 'SimpleResults'.
+  , docSimpleResults       -- Generate a 'PP.Doc' for list of 'SimpleResults'.
   , docTestReport          -- Generate a 'PP.Doc' for a 'TestReport'.
   , docTestSuite           -- Generate a 'PP.Doc' for a 'TestSuite'.
   , docUserInputs          -- Generate a 'PP.Doc' for a 'UserInputs'.
@@ -95,7 +95,7 @@ import           Data.Either               (partitionEithers)
 import           Data.List                 (sort, sortBy, transpose)
 import           Data.List.Split           (chunksOf)
 import           Data.Ord                  (comparing)
-import           Data.Tuple.Select         (sel1, sel2)
+import           Data.Tuple.Select         (sel1, sel2, sel3)
 import           Numeric.LinearAlgebra     (Vector)
 import           Text.Printf               (printf)
 import qualified Text.PrettyPrint.HughesPJ as PP
@@ -705,9 +705,27 @@ docBenchReport br = PP.vcat
 
 
 
+
+
+-- <TO-DO>: COMMENT 
+
+
+-- | Pretty printing for a list of 'SimpleResults'.
+docSimpleResults :: [SimpleResults] -> PP.Doc 
+docSimpleResults srs = PP.vcat $ PP.punctuate (PP.text "\n") $ 
+  fmap (docSimpleResult units) srs
+  where 
+    -- Format all runtimes based on maximum runtime units.
+    maxRuntime = maximum $ fmap (maxCoord . _srRaws) srs
+    (_, units) = secs maxRuntime
+
+    maxCoord :: Either [Coord] [Coord3] -> Double 
+    maxCoord (Left cs)  = maximum (fmap snd cs)
+    maxCoord (Right cs) = maximum (fmap sel3 cs)
+
 -- | Pretty printing for 'SimpleResults' data structure.
-docSimpleResults :: String -> SimpleResults -> PP.Doc 
-docSimpleResults units sr = title PP.$$ (PP.nest 2 $ PP.vcat 
+docSimpleResult :: String -> SimpleResults -> PP.Doc 
+docSimpleResult units sr = title PP.$$ (PP.nest 2 $ PP.vcat 
   [ PP.text ("Size"      ++ replicate (length (show units) + 5) ' ') PP.<+> sizes
   , PP.text ("Time    (" ++ units ++ ") ") PP.<+> runtimes
   , PP.text ("Std dev (" ++ units ++ ") ") PP.<+> PP.text (forceSecs 4 units $ _srStdDev sr)
@@ -720,7 +738,8 @@ docSimpleResults units sr = title PP.$$ (PP.nest 2 $ PP.vcat
   where 
     title = PP.text (_srIdt sr) PP.<> PP.char ':'
     (sizes, runtimes) = ppCoords (_srRaws sr)
-
+    
+    -- Layout coordinates in tabular format.
     ppCoords :: Either [Coord] [Coord3] -> (PP.Doc, PP.Doc)
     ppCoords (Left cs) = (PP.vcat $ hsepChunks xs, PP.vcat $ hsepChunks ys)
       where 
@@ -733,7 +752,7 @@ docSimpleResults units sr = title PP.$$ (PP.nest 2 $ PP.vcat
           PP.char ',' PP.<+> PP.int (round x2) PP.<> PP.char ')') xs1 xs2
         ys' = fmap (PP.text . forceSecs maxWidth units) ys
 
-    
+    -- Pretty print the equations of 'LinearFits'.
     fits :: PP.Doc 
     fits = case _srFits sr of 
       []   -> PP.text ("Fits" ++ replicate (length (show units) + 5) ' ') 
@@ -745,6 +764,7 @@ docSimpleResults units sr = title PP.$$ (PP.nest 2 $ PP.vcat
 
     -- Helpers:
 
+    -- Maximum width of input sizes, to align columns.
     maxWidth :: Int 
     maxWidth  = case (_srRaws sr) of
       Left  cs -> max (length . show . maximum $ fmap fst cs) 8
@@ -757,44 +777,11 @@ docSimpleResults units sr = title PP.$$ (PP.nest 2 $ PP.vcat
       Slight     -> "slightly inflated"
       Moderate   -> "moderately inflated"
       Severe     -> "severely inflated"
-
+ 
+    -- 70/maxWidth columns and then display them horizontally.
     hsepChunks :: [PP.Doc] -> [PP.Doc]
     hsepChunks  = fmap PP.hsep . chunksOf (70 `div` maxWidth)
     
+    -- For typing information.
     round' :: Double -> Int 
     round'  = round
-  
-
-
-
-
-
-{-
-
--- | Simple statical analysis results for each test program. 
-data SimpleResults = 
-  SimpleResults 
-   {
-     _srIdt           :: Id                           -- ^ Name of test program.
-   , _srRaws          :: Either [Coord] [Coord3]      -- ^ Raw input size/runtime results.
-   , _srStdDev        :: Double                       -- ^ Standard deviation of all runtime results.
-   , _srAvgOutVarEff  :: OutlierEffect                -- ^ Average outlier effect. 
-   , _srAvgPutVarFrac :: Double                       -- ^ Average outlier effect as a percentage.
-   , _srFits          :: [LinearFit]                  -- ^ Fitting statistics for each candidate model.
-   }
-
-
-
-
--}
-
-foo :: SimpleResults
-foo  = SimpleResults 
-   {
-     _srIdt           = "slowRev"
-   , _srRaws          = Left $ zip [100000,200000..] [1.5,1.6..3.4]
-   , _srStdDev        = 0.4
-   , _srAvgOutVarEff  = Moderate 
-   , _srAvgPutVarFrac = 0.3
-   , _srFits          = []          
-   }

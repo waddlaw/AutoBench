@@ -213,7 +213,8 @@ selTestSuiteOption inps = case _testSuites inps of
 
 -- | Output the results of statistical analysis.
 outputAnalysisReport :: AnalOpts -> AnalysisReport -> IO ()
-outputAnalysisReport aOpts rep = undefined
+outputAnalysisReport aOpts rep = do 
+  print $ PP.nest 2 $ docSimpleResults (_anlys rep)
 
 
 
