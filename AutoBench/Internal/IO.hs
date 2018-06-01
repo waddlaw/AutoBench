@@ -228,13 +228,13 @@ outputAnalysisReport aOpts tr ar = do
   print fullReport
 
   -- File output:
-
-  maybe (return ()) (plotGraph   _sas) (graphFP  aOpts)
-  maybe (return ()) (writeCoords _sas) (coordsFP aOpts)
-  maybe (return ()) genReport          (repFP aOpts)
+  --maybe (return ()) (plotGraph   _sas)        (graphFP  aOpts)
+  --maybe (return ()) (writeCoords _sas)        (coordsFP aOpts)
+  --maybe (return ()) (reportToFile fullReport) (repFP aOpts)
 
   where 
-
+     
+    -- Full test and analysis report.
     fullReport :: PP.Doc 
     fullReport = PP.vcat 
       [ -- Test report in case 'TestReport' has been loaded from file.
