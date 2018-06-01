@@ -1,8 +1,9 @@
 
-{-# LANGUAGE LambdaCase    #-}
-{-# LANGUAGE MultiWayIf    #-}
-{-# LANGUAGE TupleSections #-}
-{-# OPTIONS_GHC -Wall      #-} 
+{-# LANGUAGE LambdaCase          #-}
+{-# LANGUAGE MultiWayIf          #-}
+{-# LANGUAGE TupleSections       #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# OPTIONS_GHC -Wall            #-} 
 
 {-|
 
@@ -57,7 +58,7 @@ module AutoBench.Internal.IO
 
   ) where
 
-import           Control.Exception         (catch)
+import           Control.Exception         (SomeException, catch)
 import           Control.Exception.Base    (throwIO)
 import           Control.Monad             (unless, void)
 import           Control.Monad.Catch       (throwM)
@@ -68,6 +69,7 @@ import qualified Data.ByteString.Char8     as C
 import           Data.Char                 (toLower)
 import           Data.List                 ( groupBy, isInfixOf, partition, sort
                                            , sortBy )
+import           Data.List.Utils           (replace)
 import qualified Data.Map                  as Map
 import           Data.Ord                  (comparing)
 import qualified Data.Vector               as V
@@ -117,10 +119,13 @@ import AutoBench.Internal.Types
   ( AnalOpts(..)
   , AnalysisReport(..)
   , BenchReport(..)
+  , Coord 
+  , Coord3
   , DataOpts(..)
   , DataSize(..)
   , InputError(..)
   , SimpleReport(..)
+  , SimpleResults(..)
   , SystemError(..)
   , TestReport(..)
   , TestSuite(..)
@@ -226,11 +231,13 @@ outputAnalysisReport aOpts tr ar = do
   -- Console output:
   putStrLn ""
   print fullReport
+  putStrLn ""
 
   -- File output:
   --maybe (return ()) (plotGraph   _sas)        (graphFP  aOpts)
-  --maybe (return ()) (writeCoords _sas)        (coordsFP aOpts)
-  --maybe (return ()) (reportToFile fullReport) (repFP aOpts)
+  
+  maybe (return ()) (reportToFile fullReport)             (_reportFP aOpts)
+  maybe (return ()) (coordsToFile (_anlys ar) (_blAn ar)) (_coordsFP aOpts)
 
   where 
      
@@ -238,20 +245,19 @@ outputAnalysisReport aOpts tr ar = do
     fullReport :: PP.Doc 
     fullReport = PP.vcat 
       [ -- Test report in case 'TestReport' has been loaded from file.
-        PP.nest 1 $ PP.text $ "-- \ESC[3mTest summary\ESC[0m " ++ replicate 64 '-'  -- Headers are 80 wide.
-      , PP.text "\n"
+        PP.nest 1 $ PP.text $ "-- \ESC[3mTest summary\ESC[0m " ++ replicate 62 '-' ++ "\n"  -- Headers are 80 wide.
       , PP.nest 2 trReport
-      , PP.text " "
+      , PP.text "   "
       -- Analysis of results.
-      , PP.nest 1 $ PP.text $ "-- \ESC[3mAnalysis\ESC[0m " ++ replicate 68 '-'
-      , PP.text "\n"
+      , PP.nest 1 $ PP.text $ "-- \ESC[3mAnalysis\ESC[0m " ++ replicate 66 '-'
+      , PP.text "   "
       -- Measurements for each individual test program.
       , PP.nest 2 $ docSimpleResults $ _anlys ar ++ case _blAn ar of 
           Nothing -> []
           Just sr -> [sr] -- Display baseline measurements if there are any.
       -- Improvements report.
       , improvementsReport
-      , PP.text " "
+      , PP.text "   "
       -- Footer 
       , PP.text $ " " ++ replicate 65 '-' ++ " \ESC[3mAutoBench\ESC[0m --"
       ]
@@ -262,21 +268,21 @@ outputAnalysisReport aOpts tr ar = do
       (_, [])       -> PP.empty  -- No improvements/optimisations.
       (True, imps)  -> PP.vcat   -- One or more optimisations.
         [ 
-          PP.text "\n"
+          PP.text "   "
         , if length imps == 1 
-             then PP.nest 2 $ PP.text "Optimisation:"
-             else PP.nest 2 $ PP.text "Optimisations:"
-        , PP.text "\n"
+             then PP.nest 2 $ PP.text "Optimisation:\n" -- Hack some space.
+             else PP.nest 2 $ PP.text "Optimisations:\n"
+        , PP.text "   "
         , PP.nest 4 . PP.vcat . fmap PP.text . sort . lines $    -- Print alphabetically.
             showImprovements True imps  -- 'showImprovements' returns a string because of 'deggar'ing.
         ] 
       (False, imps) -> PP.vcat   -- One or more improvements.
         [ 
-          PP.text "\n"
+          PP.text "   "
         , if length imps == 1 
-             then PP.nest 2 $ PP.text "Improvement:"
-             else PP.nest 2 $ PP.text "Improvements:"
-        , PP.text "\n"
+             then PP.nest 2 $ PP.text "Improvement:\n"
+             else PP.nest 2 $ PP.text "Improvements:\n"
+        , PP.text "   "
         , PP.nest 4 . PP.vcat . fmap PP.text . sort . lines $   -- Print alphabetically.
             showImprovements False imps
         ]
@@ -308,6 +314,43 @@ outputAnalysisReport aOpts tr ar = do
                then PP.text "n/a" 
                else wrapPPList 64 ", " (_tGhcFlags tr)
           ]
+
+    -- Helpers:
+
+    -- Write output to file.
+    writeToFile :: FilePath -> String -> String -> IO ()
+    writeToFile fp prompt doc = 
+     ( do writeFile fp doc
+          b <- doesFileExist fp 
+          if b
+          then putStrLn $ prompt ++ " created: " ++ fp
+          else putStrLn $ prompt ++ " could not be created."
+     ) `catch` (\(e :: SomeException) -> putStrLn $ 
+         prompt ++ " could not be created: " ++ show e)
+  
+    -- Write the full report to file, catch and print any file errors.
+    reportToFile :: PP.Doc -> FilePath -> IO ()
+    reportToFile doc fp = writeToFile fp "Report" $ replace "\ESC[3m" "" 
+      . replace "\ESC[0m" "" $ "\n" ++ PP.render doc
+
+    -- Write the coordinates of each test case to file.
+    coordsToFile :: [SimpleResults] -> Maybe SimpleResults -> FilePath -> IO ()
+    coordsToFile srs mbls fp = writeToFile fp "Coords file" $ "\n" ++ (PP.render $ 
+      PP.vcat $ fmap (\sr -> PP.vcat $ [PP.text $ _srIdt sr, ppCoords $ _srRaws sr])
+      (srs ++ maybe [] return mbls))
+      
+      where 
+        -- Pretty printing for coordinates.
+        ppCoords :: Either [Coord] [Coord3] -> PP.Doc 
+        ppCoords (Left  cs) = PP.vcat $ fmap (\(s, t) -> PP.int (round s) PP.<> 
+          PP.char ',' PP.<> PP.double t) cs
+        ppCoords (Right cs) = PP.vcat $ fmap (\(s1, s2, t) -> PP.int (round s1) 
+          PP.<> PP.char ',' PP.<> PP.int (round s2) PP.<> PP.char ',' PP.<>
+          PP.double t) cs
+
+
+     
+
 
 
 

@@ -29,7 +29,7 @@ fastRev xs = go xs []
 
 
 ts :: TestSuite 
-ts  = def { _progs = ["slowRev", "fastRev"], _baseline = True }
+ts  = def { _progs = ["slowRev", "fastRev"], _baseline = True, _analOpts = def { _reportFP = Just "test.txt" } }
 
 
 const :: Int -> Int -> Int
