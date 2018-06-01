@@ -34,17 +34,35 @@ module AutoBench.QuickBench
   -- * Datatypes
     GenRange(..)         -- QuickBench test data size range.
   , QuickOpts(..)        -- QuickBench options.
-  -- * QuickBench top-level functions: default 'QuickOpts'
+  -- * QuickBench: no EQ
+  -- ** QuickBench top-level functions: default 'QuickOpts'
   , quickBench           -- QuickBench: unary test programs; test cases evaluated to normal form; default quick options.
   , quickBench'          -- As above but user can specify the names of test programs.
   , quickBenchWhnf       -- QuickBench: unary test programs; test cases evaluated to weak head normal form; default quick options.
   , quickBench2          -- QuickBench: binary test programs; test cases evaluated to normal form; default quick options.
   , quickBenchWhnf2      -- QuickBench: binary test programs; test cases evaluated to weak head normal form; default quick options.
-  -- * QuickBench top-level functions: with 'QuickOpts'
+  -- ** QuickBench top-level functions: with 'QuickOpts'
   , quickBenchNfWith     -- As above but with user-specified 'QuickOpts'.
   , quickBenchWhnfWith
   , quickBenchNf2With
   , quickBenchWhnf2With
+
+  {-
+  -- * QuickBench: with EQ
+    -- ** QuickBench top-level functions: default 'QuickOpts'
+  , quickBenchEQ         -- QuickBench: unary test programs; test cases evaluated to normal form; default quick options.
+  , quickBenchEQ'        -- As above but user can specify the names of test programs.
+  , quickBenchWhnfEQ     -- QuickBench: unary test programs; test cases evaluated to weak head normal form; default quick options.
+  , quickBench2EQ        -- QuickBench: binary test programs; test cases evaluated to normal form; default quick options.
+  , quickBenchWhnf2EQ    -- QuickBench: binary test programs; test cases evaluated to weak head normal form; default quick options.
+  -- ** QuickBench top-level functions: with 'QuickOpts'
+  , quickBenchNfWithEQ   -- As above but with user-specified 'QuickOpts'.
+  , quickBenchWhnfWithEQ
+  , quickBenchNf2WithEQ
+  , quickBenchWhnf2WithEQ-}
+
+
+
 
   ) where 
 
@@ -68,6 +86,7 @@ import Criterion.Types
   )
 
 import AutoBench.Internal.AbstractSyntax (Id)
+import AutoBench.Internal.Analysis       (quickAnalyseWith)
 import AutoBench.Internal.Types          (AnalOpts, QuickReport(..))
 import AutoBench.Internal.Utils          (allEq)
 
@@ -164,6 +183,16 @@ quickBenchWhnf2
   -> IO ()
 quickBenchWhnf2 = quickBenchWhnf2With def
 
+
+
+
+
+
+
+
+
+
+
 -- * QuickBench top-level functions: with 'QuickOpts'
 
 -- | QuickBench a number of unary test programs using generated test data:
@@ -178,8 +207,8 @@ quickBenchNfWith
 quickBenchNfWith qOpts ps = do 
   seed <- newQCGen
   let !dats = unGen' seed (genSizedUn $ _qGenRange qOpts)
-  qReps <- quickBenchNfUn qOpts ps dats
-  undefined
+  qReps <- quickBenchNfUn qOpts ps dats -- QuickReports.
+  quickAnalyseWith (_qAnalOpts qOpts) False qReps
 
 -- | QuickBench a number of unary test programs using generated test data:
 -- 
@@ -194,7 +223,7 @@ quickBenchWhnfWith qOpts ps = do
   seed <- newQCGen
   let !dats = unGen' seed (genSizedUn $ _qGenRange qOpts)
   qReps <- quickBenchWhnfUn qOpts ps dats
-  undefined
+  quickAnalyseWith (_qAnalOpts qOpts) False qReps
 
 -- | QuickBench a number of binary test programs using generated test data:
 -- 
@@ -209,7 +238,7 @@ quickBenchNf2With qOpts ps = do
   seed <- newQCGen
   let !dats = unGen' seed (genSizedBin $ _qGenRange qOpts)
   qReps <- quickBenchNfBin qOpts ps dats
-  undefined
+  quickAnalyseWith (_qAnalOpts qOpts) False qReps
 
 -- | QuickBench a number of binary test programs using generated test data:
 -- 
@@ -224,7 +253,7 @@ quickBenchWhnf2With qOpts ps = do
   seed <- newQCGen
   let !dats = unGen' seed (genSizedBin $ _qGenRange qOpts)
   qReps <- quickBenchWhnfBin qOpts ps dats
-  undefined 
+  quickAnalyseWith (_qAnalOpts qOpts) False qReps
 
 -- * Helpers 
 

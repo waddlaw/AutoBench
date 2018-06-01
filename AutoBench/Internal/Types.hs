@@ -80,6 +80,7 @@ module AutoBench.Internal.Types
   -- ** Pretty printing
   , docCoords              -- Generate a 'PP.Doc' for list of 'Coord's or 'Coord3's.
   , docImprovement         -- Generate a 'PP.Doc' for an 'Improvement'.
+  , docQuickResults        -- Generate a 'PP.Doc' for list of 'QuickResults'.
   , docSimpleReport        -- Generate a 'PP.Doc' for a 'SimpleReport'.
   , docSimpleResults       -- Generate a 'PP.Doc' for list of 'SimpleResults'.
   , docTestReport          -- Generate a 'PP.Doc' for a 'TestReport'.
@@ -729,8 +730,7 @@ docSimpleResult units sr = title PP.$$ (PP.nest 2 $ PP.vcat
   , PP.text stdDev PP.<+> PP.text (forceSecs maxWidth units $ _srStdDev sr)    
   , PP.text $ "Average variance introduced by outliers: " ++ 
       printf "%d%% (%s)" (round (_srAvgPutVarFrac sr * 100) :: Int) wibble
-  , PP.text "" 
-  , fits
+  , fits -- 'LinearFits'.
   ])
 
   where 
@@ -743,38 +743,17 @@ docSimpleResult units sr = title PP.$$ (PP.nest 2 $ PP.vcat
     
     -- Output input sizes and runtime measurements in a tabular format with
     -- maximum width of ~80.
-    (sizes, runtimes) = ppCoords (_srRaws sr)
+    (sizes, runtimes) = docCoordsTabular maxWidth 60 units (_srRaws sr)
     
-    -- Layout coordinates in tabular format. Approximately 80 character width 
-    -- and input sizes and runtimes are aligned vertically. Multiple rows
-    -- are required for both input sizes and runtimes, but this is fine.
-    -- Input sizes for 'Coord's are printed as just values.
-    ppCoords :: Either [Coord] [Coord3] -> (PP.Doc, PP.Doc)
-    ppCoords (Left cs) = (PP.vcat $ hsepChunks xs, PP.vcat $ hsepChunks ys)
-      where 
-        xs = fmap (PP.text . printf ("%-" ++ show maxWidth ++ "s") . show . 
-          round' . fst) cs' 
-        ys = fmap (PP.text . forceSecs maxWidth units . snd) cs'
-        cs' = sort cs
-    -- Input sizes for 'Coord3's are printed as tuples.
-    ppCoords (Right cs) = (PP.vcat $ hsepChunks xs, PP.vcat $ hsepChunks ys')
-      where 
-        (xs1, xs2, ys) = unzip3 cs'
-        xs = zipWith (\x1 x2 -> PP.text $ printf ("%-" ++ show maxWidth ++ "s") $ 
-          show $ PP.char '(' PP.<> PP.int (round' x1) PP.<> PP.char ',' PP.<+> 
-          PP.int (round x2) PP.<> PP.char ')') xs1 xs2
-        ys' = fmap (PP.text . forceSecs maxWidth units) ys
-        cs' = sort cs
-
     -- Pretty print the equations of 'LinearFits'.
     fits :: PP.Doc 
     fits = case _srFits sr of 
       []   -> PP.text ("Fits" ++ replicate (length units + 7) ' ') 
         PP.<+> PP.text "N/A"
       [lf] -> PP.text ("Fit" ++ replicate (length units + 8) ' ') 
-        PP.<+> PP.text "y =" PP.<+> E.docExpr (_ex lf)
+        PP.<+> docLinearFitsTabular 60 [lf]
       lfs  -> PP.text ("Fits" ++ replicate (length units + 7) ' ') 
-        PP.<+> (PP.vcat $ fmap ((PP.text "y =" PP.<+>) . E.wrapDocExpr 55 . _ex) lfs)
+        PP.<+> docLinearFitsTabular 60 lfs
 
     -- Helpers:
 
@@ -785,25 +764,122 @@ docSimpleResult units sr = title PP.$$ (PP.nest 2 $ PP.vcat
       Right cs -> max (maximum $ fmap (\(x1, x2, _) -> 
         length (show $ round' x1) + length (show $ round' x2) + 5) cs) 7
 
-    -- Note: taken from Criterion source code: wibble??
+    -- Note: taken from Criterion source code.. wibble??
     wibble = case _srAvgOutVarEff sr of
       Unaffected -> "unaffected"
       Slight     -> "slightly inflated"
       Moderate   -> "moderately inflated"
       Severe     -> "severely inflated"
  
-    -- 60/maxWidth columns and then display chunks horizontally. 
-    hsepChunks :: [PP.Doc] -> [PP.Doc]
-    hsepChunks  = fmap PP.hsep . chunksOf (60 `div` maxWidth)
-    
-    -- Just for typing information.
-    round' :: Double -> Int 
-    round'  = round
 
--- | Pretty printing for coordinates.
+-- | Pretty printing for a list of 'QuickResults'. The maximum runtime among 
+-- all test cases is formatted into seconds/milliseconds/nanoseconds etc. and 
+-- the rest of the results are forced into the same units for consistency. 
+-- This makes it easier to compare runtimes at a glance of the raw results on 
+-- the command line.
+docQuickResults :: [QuickResults] -> PP.Doc 
+docQuickResults qrs = PP.vcat $ PP.punctuate (PP.text "\n") $ 
+  fmap (docQuickResult units) qrs
+  where 
+    maxRuntime = maximum $ fmap (maxFromCoords . _qrRaws) qrs  -- Maximum runtime of all test cases.
+    (_, units) = secs maxRuntime                               -- Display all runtimes in the same /units/.
+
+    -- Maximum runtime from a set of coordinates.
+    maxFromCoords :: Either [Coord] [Coord3] -> Double 
+    maxFromCoords (Left cs)  = maximum (fmap snd cs)
+    maxFromCoords (Right cs) = maximum (fmap sel3 cs)
+
+
+-- | Pretty printing for 'QuickResults' data structure. The runtimes of test
+-- programs are formatted according the /units/ parameter. See 'forceSecs'.
+-- (This makes it easier to compare runtimes as they are all in the same units.)
+docQuickResult :: String -> QuickResults -> PP.Doc 
+docQuickResult units qr = title PP.$$ (PP.nest 2 $ PP.vcat 
+  [ PP.text size   PP.<+> sizes    -- Input sizes.
+  , PP.text time   PP.<+> runtimes -- Runtimes.
+  , fits -- 'LinearFits'.
+  ])
+
+  where 
+    -- Side headings with some manual spacing so everything aligns properly.
+    title = PP.text (_qrIdt qr) PP.<> PP.char ':'                 -- Name of program.
+    size   = "Size    " ++ replicate (length sUnits) ' ' ++ " "   -- Input sizes.
+    time   = "Time    " ++ sUnits ++ " "                          -- Runtime measurements.
+    sUnits  = "(" ++ units ++ ")"                                 -- Forced units.
+    
+    -- Output input sizes and runtime measurements in a tabular format with
+    -- maximum width of ~80.
+    (sizes, runtimes) = docCoordsTabular maxWidth 60 units (_qrRaws qr)
+    
+    -- Pretty print the equations of 'LinearFits'.
+    fits :: PP.Doc 
+    fits = case _qrFits qr of 
+      []   -> PP.text ("Fits" ++ replicate (length units + 7) ' ') 
+        PP.<+> PP.text "N/A"
+      [lf] -> PP.text ("Fit" ++ replicate (length units + 8) ' ') 
+        PP.<+> docLinearFitsTabular 60 [lf]
+      lfs  -> PP.text ("Fits" ++ replicate (length units + 7) ' ') 
+        PP.<+> docLinearFitsTabular 60 lfs
+
+    -- Helpers:
+
+    -- Maximum width of input sizes: to align table columns.
+    maxWidth :: Int 
+    maxWidth  = case _qrRaws qr of
+      Left  cs -> max (length . show . round' . maximum $ fmap fst cs) 7
+      Right cs -> max (maximum $ fmap (\(x1, x2, _) -> 
+        length (show $ round' x1) + length (show $ round' x2) + 5) cs) 7
+
+
+-- | Pretty print the equations of linear fits in a tabular layout of a given 
+-- width.
+docLinearFitsTabular :: Int -> [LinearFit] -> PP.Doc 
+docLinearFitsTabular _ [] = PP.empty 
+docLinearFitsTabular width lfs = 
+  PP.vcat $ fmap ((PP.text "y =" PP.<+>) . E.wrapDocExpr (width - 5) . _ex) lfs -- Subtract 5 width for "y = ".
+
+-- | Layout coordinates in tabular format of a given width. It is 
+-- slightly involved because multiple rows are required for both input sizes 
+-- and runtimes, so stack them. Force runtimes to be the given units.
+docCoordsTabular 
+  :: Int                        -- Table width.
+  -> Int                        -- Width of each column.
+  -> String                     -- Runtime units.
+  -> Either [Coord] [Coord3]    -- Measurements.
+  -> (PP.Doc, PP.Doc)
+docCoordsTabular maxWidth width units (Left cs) = 
+  (PP.vcat $ hsepChunks' xs, PP.vcat $ hsepChunks' ys)
+  where 
+    xs = fmap (PP.text . printf ("%-" ++ show width ++ "s") . show . 
+      round' . fst) cs' 
+    ys = fmap (PP.text . forceSecs width units . snd) cs'
+    cs' = sort cs
+    hsepChunks' = hsepChunks maxWidth width
+-- Input sizes for 'Coord3's are printed as tuples.
+docCoordsTabular maxWidth width units (Right cs) = 
+  (PP.vcat $ hsepChunks' xs, PP.vcat $ hsepChunks' ys')
+  where 
+    (xs1, xs2, ys) = unzip3 cs'
+    xs = zipWith (\x1 x2 -> PP.text $ printf ("%-" ++ show width ++ "s") $ 
+      show $ PP.char '(' PP.<> PP.int (round' x1) PP.<> PP.char ',' PP.<+> 
+      PP.int (round x2) PP.<> PP.char ')') xs1 xs2
+    ys' = fmap (PP.text . forceSecs width units) ys
+    cs' = sort cs
+    hsepChunks' = hsepChunks maxWidth width
+
+-- | Chunk off rows into maxWidth/width columns and then display chunks 
+-- horizontally. 
+hsepChunks :: Int -> Int -> [PP.Doc] -> [PP.Doc]
+hsepChunks maxWidth width = fmap PP.hsep . chunksOf (maxWidth `div` width)
+
+-- | Just for typing information.
+round' :: Double -> Int 
+round'  = round
+
+-- | Pretty printing for coordinates, non-tabular format.
 docCoords :: Either [Coord] [Coord3] -> PP.Doc 
 docCoords (Left  cs) = PP.vcat $ fmap (\(s, t) -> PP.int (round s) PP.<> 
   PP.char ',' PP.<> PP.double t) cs
-ppCoords (Right cs) = PP.vcat $ fmap (\(s1, s2, t) -> PP.int (round s1) 
+docCoords (Right cs) = PP.vcat $ fmap (\(s1, s2, t) -> PP.int (round s1) 
   PP.<> PP.char ',' PP.<> PP.int (round s2) PP.<> PP.char ',' PP.<>
   PP.double t) cs

@@ -33,6 +33,7 @@
    - It would be nice for the generating benchmarking file to be nicely
      formatted;
    - Add more validation to generateBenchmarkingReport;
+   - improvementReport is duplicated;
    -
 -}
 
@@ -124,6 +125,7 @@ import AutoBench.Internal.Types
   , DataSize(..)
   , InputError(..)
   , QuickAnalysis(..)
+  , QuickResults(..)
   , SimpleReport(..)
   , SimpleResults(..)
   , SystemError(..)
@@ -131,6 +133,7 @@ import AutoBench.Internal.Types
   , TestSuite(..)
   , UserInputs(..)
   , docCoords
+  , docQuickResults
   , docSimpleResults
   , docTestSuite
   , docUserInputs
@@ -247,17 +250,14 @@ outputAnalysisReport aOpts tr ar = do
       [ -- Test report in case 'TestReport' has been loaded from file.
         PP.nest 1 $ PP.text $ "-- \ESC[3mTest summary\ESC[0m " ++ replicate 62 '-' ++ "\n"  -- Headers are 80 wide.
       , PP.nest 2 trReport
-      , PP.text "   "
       -- Analysis of results.
       , PP.nest 1 $ PP.text $ "-- \ESC[3mAnalysis\ESC[0m " ++ replicate 66 '-'
-      , PP.text "   "
       -- Measurements for each individual test program.
       , PP.nest 2 $ docSimpleResults $ _anlys ar ++ case _blAn ar of 
           Nothing -> []
           Just sr -> [sr] -- Display baseline measurements if there are any.
       -- Improvements report.
       , improvementsReport
-      , PP.text "   "
       -- Footer 
       , PP.text $ " " ++ replicate 65 '-' ++ " \ESC[3mAutoBench\ESC[0m --"
       ]
@@ -268,21 +268,17 @@ outputAnalysisReport aOpts tr ar = do
       (_, [])       -> PP.empty  -- No improvements/optimisations.
       (True, imps)  -> PP.vcat   -- One or more optimisations.
         [ 
-          PP.text "   "
-        , if length imps == 1 
+          if length imps == 1 
              then PP.nest 2 $ PP.text "Optimisation:\n" -- Hack some space.
              else PP.nest 2 $ PP.text "Optimisations:\n"
-        , PP.text "   "
         , PP.nest 4 . PP.vcat . fmap PP.text . sort . lines $    -- Print alphabetically.
             showImprovements True imps  -- 'showImprovements' returns a string because of 'deggar'ing.
         ] 
       (False, imps) -> PP.vcat   -- One or more improvements.
         [ 
-          PP.text "   "
-        , if length imps == 1 
+          if length imps == 1 
              then PP.nest 2 $ PP.text "Improvement:\n"
              else PP.nest 2 $ PP.text "Improvements:\n"
-        , PP.text "   "
         , PP.nest 4 . PP.vcat . fmap PP.text . sort . lines $   -- Print alphabetically.
             showImprovements False imps
         ]
@@ -334,35 +330,75 @@ outputAnalysisReport aOpts tr ar = do
 
 
 
-     
 
-
-{-
-
--- | A report to summarise the system's analysis phase for QuickBenching.
-data QuickAnalysis = 
-  QuickAnalysis
-    {
-      _qAnlys :: [QuickResults]    -- ^ Quick results per test program.   
-    , _qImps  :: [Improvement]     -- ^ Improvement results.
-    }
-
--- | Simple statistical analysis results for each test program for QuickBenching.
-data QuickResults = 
-  QuickResults 
-   {
-     _qrIdt   :: Id                           -- ^ Name of test program.
-   , _qrRaws  :: Either [Coord] [Coord3]      -- ^ Raw input size/runtime results.
-   , _qrFits  :: [LinearFit]                  -- ^ Fitting statistics for each candidate model.
-   }
-
-
-
--}
 
 -- | Output quick analysis results.
-outputQuickAnalysis :: AnalOpts -> QuickAnalysis -> IO ()
-outputQuickAnalysis aOpts qanyls = undefined
+outputQuickAnalysis :: AnalOpts -> Bool -> QuickAnalysis -> IO ()
+outputQuickAnalysis aOpts eql qa = do 
+
+  -- Console output:
+  putStrLn ""
+  print fullReport
+  putStrLn ""
+
+  -- File output:
+  maybe (return ()) (reportToFile fullReport)   (_reportFP aOpts)
+  maybe (return ()) (coordsToFile $ _qAnlys qa) (_coordsFP aOpts)
+  maybe (return ()) (graphToFile  $ _qAnlys qa) (_graphFP  aOpts)
+  
+  where 
+ 
+    -- Full test and analysis report.
+    fullReport :: PP.Doc 
+    fullReport = PP.vcat 
+      [
+      -- Analysis of results.
+        PP.nest 1 $ PP.text $ "-- \ESC[3mAnalysis\ESC[0m " ++ replicate 66 '-'
+      -- Measurements for each individual test program.
+      , PP.nest 2 $ docQuickResults $ _qAnlys qa
+      -- Improvements report.
+      , improvementsReport
+      -- Footer 
+      , PP.text $ " " ++ replicate 65 '-' ++ " \ESC[3mAutoBench\ESC[0m --"
+      ]
+
+    -- Report of improvements/optimisations.
+    improvementsReport :: PP.Doc 
+    improvementsReport  = case (eql, _qImps qa) of 
+      (_, [])       -> PP.empty  -- No improvements/optimisations.
+      (True, imps)  -> PP.vcat   -- One or more optimisations.
+        [ 
+          if length imps == 1 
+             then PP.nest 2 $ PP.text "Optimisation:\n" -- Hack some space.
+             else PP.nest 2 $ PP.text "Optimisations:\n"
+        , PP.nest 4 . PP.vcat . fmap PP.text . sort . lines $    -- Print alphabetically.
+            showImprovements True imps  -- 'showImprovements' returns a string because of 'deggar'ing.
+        ] 
+      (False, imps) -> PP.vcat   -- One or more improvements.
+        [ 
+          if length imps == 1 
+             then PP.nest 2 $ PP.text "Improvement:\n"
+             else PP.nest 2 $ PP.text "Improvements:\n"
+        , PP.nest 4 . PP.vcat . fmap PP.text . sort . lines $   -- Print alphabetically.
+            showImprovements False imps
+        ]
+
+    -- File output: -----------------------------------------------------------
+    
+    -- Write full report to file.
+    reportToFile :: PP.Doc -> FilePath -> IO ()
+    reportToFile doc fp = writeToFile fp "Report" $ replace "\ESC[3m" "" 
+      . replace "\ESC[0m" "" $ "\n" ++ PP.render doc
+
+    -- Write coordinates of each test case to file.
+    coordsToFile :: [QuickResults] -> FilePath -> IO ()
+    coordsToFile qrs fp = writeToFile fp "Coords file" $ PP.render $ 
+      PP.vcat $ fmap (\qr -> PP.vcat $ [ PP.text $ "\n" ++ (_qrIdt qr),
+        docCoords $ _qrRaws qr]) qrs
+
+    -- Generate the runtime graph:
+    graphToFile :: [QuickResults] -> FilePath -> IO ()
+    graphToFile qrs fp = undefined
 
 
 

@@ -76,18 +76,15 @@ import AutoBench.Internal.Types
 
 -- * QuickBench Top-level 
 
-quickAnalyse :: [QuickReport] -> IO ()                                                                -- <TO-DO> ** COMMENT **
-quickAnalyse  = quickAnalyseWith def
-
-quickAnalyseWith :: AnalOpts -> [QuickReport] -> IO ()                                                -- <TO-DO> ** COMMENT **
-quickAnalyseWith aOpts qrs -- Don't check 'QuickReport's because users can't manipulate them.
+quickAnalyseWith :: AnalOpts -> Bool -> [QuickReport] -> IO ()                                        -- <TO-DO> ** COMMENT **
+quickAnalyseWith aOpts eql qrs -- Don't check 'QuickReport's because users can't manipulate them.
   | notNull aOptsErrs = do  
       putStrLn "Cannot analyse results due to one or more errors:"
       mapM_ print aOptsErrs
-  | otherwise = outputQuickAnalysis aOpts $ quickAnalysis aOpts qrs
+  | otherwise = outputQuickAnalysis aOpts eql $ quickAnalysis aOpts qrs
   where aOptsErrs = validateAnalOpts aOpts -- Validate the 'AnalOpts'.
     
-    
+
 -- * AutoBench Top-level 
 
 analyse :: TestReport -> IO ()                                                                        -- <TO-DO> ** COMMENT **
