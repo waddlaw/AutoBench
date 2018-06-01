@@ -708,8 +708,8 @@ docBenchReport br = PP.vcat
 -- This makes it easier to compare runtimes at a glance of the raw results on 
 -- the command line.
 docSimpleResults :: [SimpleResults] -> PP.Doc 
-docSimpleResults srs = PP.vcat $ PP.punctuate (PP.text "\n") $ 
-  fmap (docSimpleResult units) srs
+docSimpleResults srs = (PP.vcat $ PP.punctuate (PP.text "\n") $ 
+  fmap (docSimpleResult units) srs) PP.<> PP.text "\n" 
   where 
     maxRuntime = maximum $ fmap (maxFromCoords . _srRaws) srs  -- Maximum runtime of all test cases.
     (_, units) = secs maxRuntime                               -- Display all runtimes in the same /units/.
@@ -728,8 +728,8 @@ docSimpleResult units sr = title PP.$$ (PP.nest 2 $ PP.vcat
   , PP.text time   PP.<+> runtimes -- Runtimes.
    -- Simple cumulative statistics for all test cases.
   , PP.text stdDev PP.<+> PP.text (forceSecs maxWidth units $ _srStdDev sr)    
-  , PP.text $ "Average variance introduced by outliers: " ++ 
-      printf "%d%% (%s)" (round (_srAvgPutVarFrac sr * 100) :: Int) wibble
+  , (PP.text $ "Average variance introduced by outliers: " ++ 
+      printf "%d%% (%s)" (round (_srAvgPutVarFrac sr * 100) :: Int) wibble) PP.<> PP.text "\n" 
   , fits -- 'LinearFits'.
   ])
 

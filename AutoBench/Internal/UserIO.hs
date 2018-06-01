@@ -42,22 +42,28 @@ module AutoBench.Internal.UserIO
 
   ) where
 
+import           Control.Arrow             ((&&&))
 import           Control.Exception         (SomeException, catch)
 import           Control.Monad.IO.Class    (MonadIO, liftIO)
 import           Data.Char                 (toLower)
 import           Data.List                 (sort)
 import           Data.List.Utils           (replace)
-
-import           System.Console.Haskeline  (InputT, MonadException, getInputLine)
+import           Data.Maybe                (catMaybes)
+import           System.Console.Haskeline  ( InputT, MonadException 
+                                           , defaultSettings, getInputLine
+                                           , runInputT )
 import           System.Directory          (doesFileExist)
 import qualified Text.PrettyPrint.HughesPJ as PP
+import           Text.Printf               (printf)
 
 
-import AutoBench.Internal.Utils          ((<<+>>), deggar, strip, wrapPPList)
 import AutoBench.Internal.AbstractSyntax (Id)
+import AutoBench.Internal.Expr           (wrapDocExpr)
+import AutoBench.Internal.Utils          ((<<+>>), deggar, strip, wrapPPList)
 import AutoBench.Internal.Types 
   ( AnalOpts(..)
   , AnalysisReport(..)
+  , LinearFit(..)
   , QuickAnalysis(..)
   , QuickResults(..)
   , SimpleResults(..)
@@ -153,6 +159,104 @@ selTestSuiteOption inps = case _testSuites inps of
     -- Use 'docUserInputs' but nest 2.
     showUserInputs = print $ PP.nest 2 $ docUserInputs inps
 
+
+
+
+
+
+
+
+
+selFitOptions                                              -- To comment
+  :: (MonadIO m, MonadException m)    
+  => [(Id, [LinearFit])]   
+  -> InputT m [(Id, LinearFit)]
+selFitOptions xss = catMaybes <$> mapM (uncurry selFitOption) xss
+  where
+
+    -- Select a fit option.
+    selFitOption 
+      :: (MonadIO m, MonadException m)  
+      => Id 
+      -> [LinearFit] 
+      -> InputT m (Maybe (Id, LinearFit))
+    selFitOption _ []     = return Nothing
+    selFitOption idt [lf] = return $ Just (idt, lf)
+    selFitOption idt lfs  = do 
+      showFitOptions idt lfs 
+      let go :: (MonadIO m, MonadException m) => InputT m (Maybe (Id, LinearFit))
+          go = do liftIO $ putStrLn ""
+                  liftIO $ putStrLn $ unlines 
+                    [ "  * Select a fit       [1" ++ endRange
+                    , "  * Review statistics  [S]"
+                    , "  * Don't plot         [C]" ]
+                  fmap (fmap toLower . strip) <$> getInputLine "> " >>= \case 
+                    Nothing  -> do 
+                      liftIO $ putStrLn ""
+                      return Nothing
+                    Just "c" -> do
+                      liftIO $ putStrLn ""
+                      return Nothing
+                    Just "s" -> do 
+                      liftIO $ putStrLn ""
+                      showStats lfs 
+                      go
+                    Just inp -> case reads inp :: [(Int, String)] of 
+                      []         -> inpErr >> go
+                      (n, _) : _ -> if n >= 1 && n <= l
+                                    then do 
+                                      liftIO $ putStrLn ""
+                                      return $ Just $ (idt, lfs !! (n - 1))
+                                    else inpErr >> go
+
+      go
+
+      where 
+        l = length lfs 
+        endRange = if l > 1
+                   then ".." ++ show (l :: Int) ++ "]"
+                   else "]"
+
+        inpErr :: (MonadIO m, MonadException m) => InputT m ()
+        inpErr   = liftIO $ putStrLn "\n Error: invalid choice.\n"
+
+    showStats  
+      :: (MonadIO m, MonadException m) 
+      => [LinearFit] 
+      -> InputT m ()
+    showStats lfs = do 
+      liftIO $ mapM_ (\lf -> (print $ PP.vcat 
+        [
+          PP.nest 2 $ PP.text "y =" PP.<+> (wrapDocExpr 70 $ _ex lf)
+        , PP.nest 4 $ PP.vcat $ fmap PP.text $ lines $ show (_sts lf)
+        ]) >> putStrLn "") lfs
+
+    -- Show the options to pick from.
+    showFitOptions 
+      :: (MonadIO m, MonadException m)
+      => Id 
+      -> [LinearFit] 
+      -> InputT m ()
+    showFitOptions idt lfs = liftIO $ putStrLn $ PP.render $ PP.vcat 
+      [
+        PP.nest 2 $ PP.text idt PP.<> PP.char ':'
+      , PP.nest 4 $ PP.vcat fitIdxs
+      ]
+
+      where 
+        fits = fmap ((PP.text "y =" PP.<+>) . wrapDocExpr 70 . _ex) lfs
+        idxs = fmap (PP.text . printIdx . show) ([1..] :: [Int])
+        fitIdxs = zipWith (<<+>>) idxs fits
+        l  = length lfs
+        sl = (length $ show l)
+        printIdx :: String -> String 
+        printIdx  = printf ("%-" ++ show sl ++ "s)")
+
+
+
+
+
+
 -- * User output
 
 -- | Output the results of statistical analysis.
@@ -178,7 +282,7 @@ outputAnalysisReport aOpts tr ar = do
         PP.nest 1 $ PP.text $ "-- \ESC[3mTest summary\ESC[0m " ++ replicate 62 '-' ++ "\n"  -- Headers are 80 wide.
       , PP.nest 2 trReport
       -- Analysis of results.
-      , PP.nest 1 $ PP.text $ "-- \ESC[3mAnalysis\ESC[0m " ++ replicate 66 '-'
+      , PP.nest 1 $ PP.text $ "-- \ESC[3mAnalysis\ESC[0m " ++ replicate 66 '-' ++ "\n"
       -- Measurements for each individual test program.
       , PP.nest 2 $ docSimpleResults $ _anlys ar ++ case _blAn ar of 
           Nothing -> []
@@ -198,21 +302,21 @@ outputAnalysisReport aOpts tr ar = do
           if length imps == 1 
              then PP.nest 2 $ PP.text "Optimisation:\n" -- Hack some space.
              else PP.nest 2 $ PP.text "Optimisations:\n"
-        , PP.nest 4 . PP.vcat . fmap PP.text . sort . lines $    -- Print alphabetically.
-            showImprovements True imps  -- 'showImprovements' returns a string because of 'deggar'ing.
+        , (PP.nest 4 . PP.vcat . fmap PP.text . sort . lines $    -- Print alphabetically.
+            showImprovements True imps) PP.<> PP.text "\n"  -- 'showImprovements' returns a string because of 'deggar'ing.
         ] 
       (False, imps) -> PP.vcat   -- One or more improvements.
         [ 
           if length imps == 1 
              then PP.nest 2 $ PP.text "Improvement:\n"
              else PP.nest 2 $ PP.text "Improvements:\n"
-        , PP.nest 4 . PP.vcat . fmap PP.text . sort . lines $   -- Print alphabetically.
-            showImprovements False imps
+        , (PP.nest 4 . PP.vcat . fmap PP.text . sort . lines $   -- Print alphabetically.
+            showImprovements False imps) PP.<> PP.text "\n"
         ]
 
     -- Test report.
     trReport :: PP.Doc 
-    trReport  = PP.vcat $ fmap (uncurry (<<+>>)) (zip headers values) -- Side by side two spaces.
+    trReport  = (PP.vcat $ fmap (uncurry (<<+>>)) (zip headers values)) PP.<> PP.text "\n" -- Side by side two spaces.
       where
         -- Left side headers.
         headers = fmap PP.text . deggar $  -- 'deggar' them to the same width.
@@ -253,7 +357,9 @@ outputAnalysisReport aOpts tr ar = do
 
     -- Generate the runtime graph:
     graphToFile :: [SimpleResults] -> Maybe SimpleResults -> FilePath -> IO ()
-    graphToFile srs mbls fp = undefined
+    graphToFile srs mbls fp = do 
+      res <- runInputT defaultSettings $ selFitOptions $ fmap (_srIdt &&& _srFits) srs
+      print "here"
 
 
 -- | Output quick analysis results.

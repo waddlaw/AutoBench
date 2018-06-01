@@ -22,7 +22,9 @@
    ----------------------------------------------------------------------------
    <TO-DO>:
    ----------------------------------------------------------------------------
-   - Commenting
+   - Commenting;
+   - Gen 0  <--- breaks logs;
+   -
 -}
 
 
@@ -129,9 +131,7 @@ instance Default QuickOpts where
           , _qAnalOpts = def 
           , _qRuns     = 1
           }
-
-
-
+          
 -- * QuickBench: no EQ
 
 -- ** QuickBench top-level functions: default 'QuickOpts'
@@ -243,8 +243,6 @@ quickBenchWhnf2With qOpts ps = do
   let dats = unGen' seed (genSizedBin $ _qGenRange qOpts)
   qReps <- dats `deepseq` quickBenchWhnfBin qOpts ps dats
   quickAnalyseWith (_qAnalOpts qOpts) False qReps
-
-
 
 -- * QuickBench: with EQ.
 
