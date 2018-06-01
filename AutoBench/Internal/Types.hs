@@ -418,7 +418,6 @@ simpleReportToCoord sr = case _size sr of
   SizeUn n      -> Left  (fromIntegral n, _runtime sr)
   SizeBin n1 n2 -> Right (fromIntegral n1, fromIntegral n2, _runtime sr)
 
-
 -- ** QuickBench 
 
 -- | A report to summarise the system's analysis phase for QuickBenching.
@@ -830,7 +829,6 @@ docQuickResult units qr = title PP.$$ (PP.nest 2 $ PP.vcat
       Left  cs -> max (length . show . round' . maximum $ fmap fst cs) 7
       Right cs -> max (maximum $ fmap (\(x1, x2, _) -> 
         length (show $ round' x1) + length (show $ round' x2) + 5) cs) 7
-
 
 -- | Pretty print the equations of linear fits in a tabular layout of a given 
 -- width.
