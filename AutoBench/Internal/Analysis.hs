@@ -41,7 +41,8 @@ import           System.IO.Unsafe      (unsafePerformIO)
 import           System.Random         (randomRIO)
 
 import AutoBench.Internal.AbstractSyntax  (Id)    
-import AutoBench.Internal.IO              (outputAnalysisReport)
+import AutoBench.Internal.IO              ( outputAnalysisReport
+                                          , outputQuickAnalysis )
 import AutoBench.Internal.Regression      ( generateLinearCandidate
                                           , fitRidgeRegress )
 import AutoBench.Internal.UserInputChecks ( validateAnalOpts
@@ -83,12 +84,10 @@ quickAnalyseWith aOpts qrs -- Don't check 'QuickReport's because users can't man
   | notNull aOptsErrs = do  
       putStrLn "Cannot analyse results due to one or more errors:"
       mapM_ print aOptsErrs
-  | otherwise = undefined
-  where 
-    -- Validate the 'AnalOpts'.
-    aOptsErrs = validateAnalOpts aOpts
-    quickAnly = quickAnalysis aOpts qrs
-
+  | otherwise = outputQuickAnalysis aOpts $ quickAnalysis aOpts qrs
+  where aOptsErrs = validateAnalOpts aOpts -- Validate the 'AnalOpts'.
+    
+    
 -- * AutoBench Top-level 
 
 analyse :: TestReport -> IO ()                                                                        -- <TO-DO> ** COMMENT **

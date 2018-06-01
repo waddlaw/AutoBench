@@ -45,6 +45,7 @@ module AutoBench.Internal.IO
                                         -- input errors, in this case users can review the 'UserInputs'
                                         -- data structure /using this function/.
   , outputAnalysisReport                -- Output the results of statistical analysis.
+  , outputQuickAnalysis                 -- Output quick analysis results.
   -- * IO for benchmarking files
   , generateBenchmarkingFile            -- Generate a benchmarking file to benchmark all the test programs in a given test suite
   , generateTestReport                  -- Generate a 'TestReport' that summarises the system's testing phase.
@@ -119,17 +120,17 @@ import AutoBench.Internal.Types
   ( AnalOpts(..)
   , AnalysisReport(..)
   , BenchReport(..)
-  , Coord 
-  , Coord3
   , DataOpts(..)
   , DataSize(..)
   , InputError(..)
+  , QuickAnalysis(..)
   , SimpleReport(..)
   , SimpleResults(..)
   , SystemError(..)
   , TestReport(..)
   , TestSuite(..)
   , UserInputs(..)
+  , docCoords
   , docSimpleResults
   , docTestSuite
   , docUserInputs
@@ -325,37 +326,43 @@ outputAnalysisReport aOpts tr ar = do
     coordsToFile :: [SimpleResults] -> Maybe SimpleResults -> FilePath -> IO ()
     coordsToFile srs mbls fp = writeToFile fp "Coords file" $ PP.render $ 
       PP.vcat $ fmap (\sr -> PP.vcat $ [ PP.text $ "\n" ++ (_srIdt sr),
-        ppCoords $ _srRaws sr]) (srs ++ maybe [] return mbls)
-      
-      where 
-        -- Pretty printing for coordinates.
-        ppCoords :: Either [Coord] [Coord3] -> PP.Doc 
-        ppCoords (Left  cs) = PP.vcat $ fmap (\(s, t) -> PP.int (round s) PP.<> 
-          PP.char ',' PP.<> PP.double t) cs
-        ppCoords (Right cs) = PP.vcat $ fmap (\(s1, s2, t) -> PP.int (round s1) 
-          PP.<> PP.char ',' PP.<> PP.int (round s2) PP.<> PP.char ',' PP.<>
-          PP.double t) cs
+        docCoords $ _srRaws sr]) (srs ++ maybe [] return mbls)
 
     -- Generate the runtime graph:
     graphToFile :: [SimpleResults] -> Maybe SimpleResults -> FilePath -> IO ()
     graphToFile srs mbls fp = undefined
 
-    -- Helpers: ---------------------------------------------------------------
 
-    -- Write output to file.
-    writeToFile :: FilePath -> String -> String -> IO ()
-    writeToFile fp prompt doc = 
-     ( do writeFile fp doc
-          b <- doesFileExist fp 
-          if b
-          then putStrLn $ prompt ++ " created: " ++ fp
-          else putStrLn $ prompt ++ " could not be created."
-     ) `catch` (\(e :: SomeException) -> putStrLn $ 
-         prompt ++ " could not be created: " ++ show e)
-  
 
      
 
+
+{-
+
+-- | A report to summarise the system's analysis phase for QuickBenching.
+data QuickAnalysis = 
+  QuickAnalysis
+    {
+      _qAnlys :: [QuickResults]    -- ^ Quick results per test program.   
+    , _qImps  :: [Improvement]     -- ^ Improvement results.
+    }
+
+-- | Simple statistical analysis results for each test program for QuickBenching.
+data QuickResults = 
+  QuickResults 
+   {
+     _qrIdt   :: Id                           -- ^ Name of test program.
+   , _qrRaws  :: Either [Coord] [Coord3]      -- ^ Raw input size/runtime results.
+   , _qrFits  :: [LinearFit]                  -- ^ Fitting statistics for each candidate model.
+   }
+
+
+
+-}
+
+-- | Output quick analysis results.
+outputQuickAnalysis :: AnalOpts -> QuickAnalysis -> IO ()
+outputQuickAnalysis aOpts qanyls = undefined
 
 
 
@@ -815,6 +822,18 @@ generateBenchmarkingFilename s = do
 discoverInputFiles :: IO [FilePath]
 discoverInputFiles  = filter ((== ".hs") . takeExtension) <$> getDirectoryContents "."
 
--- Say goodbye.
+-- | Say goodbye.
 printGoodbyeMessage :: IO () 
 printGoodbyeMessage  = putStrLn "Leaving AutoBench."
+
+-- | Write output to file with a success/fail prompt and catch and print any 
+-- errors.
+writeToFile :: FilePath -> String -> String -> IO ()
+writeToFile fp prompt output = 
+ ( do writeFile fp output
+      b <- doesFileExist fp 
+      if b
+      then putStrLn $ prompt ++ " created: " ++ fp
+      else putStrLn $ prompt ++ " could not be created."
+ ) `catch` (\(e :: SomeException) -> putStrLn $ 
+     prompt ++ " could not be created: " ++ show e)

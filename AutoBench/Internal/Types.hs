@@ -78,6 +78,7 @@ module AutoBench.Internal.Types
   , InputError(..)         -- User input errors.
   -- * Helpers 
   -- ** Pretty printing
+  , docCoords              -- Generate a 'PP.Doc' for list of 'Coord's or 'Coord3's.
   , docImprovement         -- Generate a 'PP.Doc' for an 'Improvement'.
   , docSimpleReport        -- Generate a 'PP.Doc' for a 'SimpleReport'.
   , docSimpleResults       -- Generate a 'PP.Doc' for list of 'SimpleResults'.
@@ -798,3 +799,11 @@ docSimpleResult units sr = title PP.$$ (PP.nest 2 $ PP.vcat
     -- Just for typing information.
     round' :: Double -> Int 
     round'  = round
+
+-- | Pretty printing for coordinates.
+docCoords :: Either [Coord] [Coord3] -> PP.Doc 
+docCoords (Left  cs) = PP.vcat $ fmap (\(s, t) -> PP.int (round s) PP.<> 
+  PP.char ',' PP.<> PP.double t) cs
+ppCoords (Right cs) = PP.vcat $ fmap (\(s1, s2, t) -> PP.int (round s1) 
+  PP.<> PP.char ',' PP.<> PP.int (round s2) PP.<> PP.char ',' PP.<>
+  PP.double t) cs
