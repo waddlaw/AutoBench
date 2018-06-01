@@ -15,6 +15,7 @@ import qualified Text.PrettyPrint.HughesPJ    as PP
 
 import AutoBench.Internal.Analysis        (analyseWith)
 import AutoBench.Internal.UserInputChecks (qCheckTestPrograms, userInputCheck)
+import AutoBench.Internal.UserIO          (selTestSuiteOptiong)
 import AutoBench.Internal.Utils           (filepathToModuleName)
 import AutoBench.Internal.IO              
   ( compileBenchmarkingFile
@@ -23,8 +24,7 @@ import AutoBench.Internal.IO
   , generateBenchmarkingFilename 
   , generateBenchmarkingFile
   , generateTestReport
-  , printGoodbyeMessage
-  , selTestSuiteOption 
+  , printGoodbyeMessage 
   )
 import AutoBench.Internal.Types          
   ( DataOpts(..)

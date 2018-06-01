@@ -41,7 +41,7 @@ import           System.IO.Unsafe      (unsafePerformIO)
 import           System.Random         (randomRIO)
 
 import AutoBench.Internal.AbstractSyntax  (Id)    
-import AutoBench.Internal.IO              ( outputAnalysisReport
+import AutoBench.Internal.UserIO          ( outputAnalysisReport
                                           , outputQuickAnalysis )
 import AutoBench.Internal.Regression      ( generateLinearCandidate
                                           , fitRidgeRegress )

@@ -296,7 +296,7 @@ data QuickReport =
     {
       _qName     :: Id                        -- ^ Name of test program.
     , _qRuntimes :: Either [Coord] [Coord3]   -- ^ [(Input size(s), mean runtime)].
-    }
+    } deriving Show
 
 -- * Statistical analysis
 
@@ -743,7 +743,7 @@ docSimpleResult units sr = title PP.$$ (PP.nest 2 $ PP.vcat
     
     -- Output input sizes and runtime measurements in a tabular format with
     -- maximum width of ~80.
-    (sizes, runtimes) = docCoordsTabular maxWidth 60 units (_srRaws sr)
+    (sizes, runtimes) = docCoordsTabular 60 maxWidth units (_srRaws sr)
     
     -- Pretty print the equations of 'LinearFits'.
     fits :: PP.Doc 
@@ -778,8 +778,8 @@ docSimpleResult units sr = title PP.$$ (PP.nest 2 $ PP.vcat
 -- This makes it easier to compare runtimes at a glance of the raw results on 
 -- the command line.
 docQuickResults :: [QuickResults] -> PP.Doc 
-docQuickResults qrs = PP.vcat $ PP.punctuate (PP.text "\n") $ 
-  fmap (docQuickResult units) qrs
+docQuickResults qrs = (PP.vcat $ PP.punctuate (PP.text "\n") $ 
+  fmap (docQuickResult units) qrs) PP.<> PP.text "\n"
   where 
     maxRuntime = maximum $ fmap (maxFromCoords . _qrRaws) qrs  -- Maximum runtime of all test cases.
     (_, units) = secs maxRuntime                               -- Display all runtimes in the same /units/.
@@ -795,9 +795,10 @@ docQuickResults qrs = PP.vcat $ PP.punctuate (PP.text "\n") $
 -- (This makes it easier to compare runtimes as they are all in the same units.)
 docQuickResult :: String -> QuickResults -> PP.Doc 
 docQuickResult units qr = title PP.$$ (PP.nest 2 $ PP.vcat 
-  [ PP.text size   PP.<+> sizes    -- Input sizes.
-  , PP.text time   PP.<+> runtimes -- Runtimes.
-  , fits -- 'LinearFits'.
+  [ 
+    PP.text size PP.<+> sizes                        -- Input sizes.
+  , PP.text time PP.<+> runtimes PP.<> PP.text "\n"  -- Runtimes.
+  , fits                                             -- 'LinearFits'.
   ])
 
   where 
@@ -809,7 +810,7 @@ docQuickResult units qr = title PP.$$ (PP.nest 2 $ PP.vcat
     
     -- Output input sizes and runtime measurements in a tabular format with
     -- maximum width of ~80.
-    (sizes, runtimes) = docCoordsTabular maxWidth 60 units (_qrRaws qr)
+    (sizes, runtimes) = docCoordsTabular 60 maxWidth units (_qrRaws qr)
     
     -- Pretty print the equations of 'LinearFits'.
     fits :: PP.Doc 
