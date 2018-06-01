@@ -18,6 +18,7 @@ import AutoBench.Internal.UserInputChecks (qCheckTestPrograms, userInputCheck)
 import AutoBench.Internal.UserIO          ( selTestSuiteOption
                                           , printGoodbyeMessage )
 import AutoBench.Internal.Utils           (filepathToModuleName)
+
 import AutoBench.Internal.IO              
   ( compileBenchmarkingFile
   , deleteBenchmarkingFiles
@@ -25,8 +26,8 @@ import AutoBench.Internal.IO
   , generateBenchmarkingFilename 
   , generateBenchmarkingFile
   , generateTestReport
-
   )
+
 import AutoBench.Internal.Types          
   ( DataOpts(..)
   , TestSuite(..)

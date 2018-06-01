@@ -334,9 +334,9 @@ generateTestReport mn ts fp eql = do
 -- the names of test programs and input sizes are encoded into the titles of 
 -- benchmarks. The 'Report' titles are decoded here and checked against the 
 -- settings of the 'TestSuite used to generate the benchmarks initially. 
-generateBenchmarkingReport                                                                            -- <TO-DO>: check input size against the 'UserInputs' data structure.
+generateBenchmarkingReport                                                                          -- <TO-DO>: Check input size against the 'UserInputs' data structure.
   :: ModuleName -- Module name of user input file. 
-  -> TestSuite  -- TestSuite used to generate benchmarking file.                                      -- <TO-DO>: are these checks sufficient?
+  -> TestSuite  -- TestSuite used to generate benchmarking file.                                    -- <TO-DO>: Are these checks sufficient?
   -> FilePath   -- Filepath of Criterion's JSON report.
   -> IO BenchReport 
 generateBenchmarkingReport mn ts fp = do 
@@ -414,7 +414,7 @@ generateBenchmarkingReport mn ts fp = do
         if | not (allEq $ sort (fmap snd nBls) : sizes) -> Nothing                        -- (1) Make sure same number of measurements for each program 
                                                                                           --     and all have same input sizes.
            | not $ (sort $ fmap (fst . head) nNonBlss) == progs -> Nothing                -- (2) Make sure test programs match those in the 'TestSuite's '_progs' list. 
-                                                                                          -- (3) <TO-DO>: Some form of input size check against 'UserInputs' data structure.
+                                                                                                    -- (3) <TO-DO>: Some form of input size check against 'UserInputs' data structure.
            | otherwise -> Just (nBls, nNonBls)
 
       -- Parse the report titles of just the test program measurements.
@@ -431,7 +431,7 @@ generateBenchmarkingReport mn ts fp = do
         if | not (allEq sizes) -> Nothing                                                 -- (1) Make sure same number of measurements for each program 
                                                                                           --     and all have same input sizes. 
            | not $ (sort $ fmap (fst . head) xss) == progs -> Nothing                     -- (2) Make sure test programs match those in the 'TestSuite's '_progs' list.
-                                                                                          -- (3) <TO-DO>: Some form of input size check against 'UserInputs' data structure.                                                        
+                                                                                                    -- (3) <TO-DO>: Some form of input size check against 'UserInputs' data structure.                                                        
            | otherwise -> Just xs
  
       -- Convert a set of Criterion 'Report's from the same test into a 

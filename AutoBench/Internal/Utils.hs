@@ -77,7 +77,6 @@ import           Text.Printf                  (printf)
 import qualified Text.PrettyPrint.HughesPJ    as PP
 
 
-
 -- * AutoBench specific
 
 -- | Convert a filepath to a module name.
