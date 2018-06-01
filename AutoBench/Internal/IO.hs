@@ -234,10 +234,9 @@ outputAnalysisReport aOpts tr ar = do
   putStrLn ""
 
   -- File output:
-  --maybe (return ()) (plotGraph   _sas)        (graphFP  aOpts)
-  
   maybe (return ()) (reportToFile fullReport)             (_reportFP aOpts)
   maybe (return ()) (coordsToFile (_anlys ar) (_blAn ar)) (_coordsFP aOpts)
+  maybe (return ()) (graphToFile  (_anlys ar) (_blAn ar)) (_graphFP  aOpts)
 
   where 
      
@@ -315,7 +314,33 @@ outputAnalysisReport aOpts tr ar = do
                else wrapPPList 64 ", " (_tGhcFlags tr)
           ]
 
-    -- Helpers:
+    -- File output: -----------------------------------------------------------
+    
+    -- Write full report to file.
+    reportToFile :: PP.Doc -> FilePath -> IO ()
+    reportToFile doc fp = writeToFile fp "Report" $ replace "\ESC[3m" "" 
+      . replace "\ESC[0m" "" $ "\n" ++ PP.render doc
+
+    -- Write coordinates of each test case to file.
+    coordsToFile :: [SimpleResults] -> Maybe SimpleResults -> FilePath -> IO ()
+    coordsToFile srs mbls fp = writeToFile fp "Coords file" $ PP.render $ 
+      PP.vcat $ fmap (\sr -> PP.vcat $ [ PP.text $ "\n" ++ (_srIdt sr),
+        ppCoords $ _srRaws sr]) (srs ++ maybe [] return mbls)
+      
+      where 
+        -- Pretty printing for coordinates.
+        ppCoords :: Either [Coord] [Coord3] -> PP.Doc 
+        ppCoords (Left  cs) = PP.vcat $ fmap (\(s, t) -> PP.int (round s) PP.<> 
+          PP.char ',' PP.<> PP.double t) cs
+        ppCoords (Right cs) = PP.vcat $ fmap (\(s1, s2, t) -> PP.int (round s1) 
+          PP.<> PP.char ',' PP.<> PP.int (round s2) PP.<> PP.char ',' PP.<>
+          PP.double t) cs
+
+    -- Generate the runtime graph:
+    graphToFile :: [SimpleResults] -> Maybe SimpleResults -> FilePath -> IO ()
+    graphToFile srs mbls fp = undefined
+
+    -- Helpers: ---------------------------------------------------------------
 
     -- Write output to file.
     writeToFile :: FilePath -> String -> String -> IO ()
@@ -328,26 +353,6 @@ outputAnalysisReport aOpts tr ar = do
      ) `catch` (\(e :: SomeException) -> putStrLn $ 
          prompt ++ " could not be created: " ++ show e)
   
-    -- Write the full report to file, catch and print any file errors.
-    reportToFile :: PP.Doc -> FilePath -> IO ()
-    reportToFile doc fp = writeToFile fp "Report" $ replace "\ESC[3m" "" 
-      . replace "\ESC[0m" "" $ "\n" ++ PP.render doc
-
-    -- Write the coordinates of each test case to file.
-    coordsToFile :: [SimpleResults] -> Maybe SimpleResults -> FilePath -> IO ()
-    coordsToFile srs mbls fp = writeToFile fp "Coords file" $ "\n" ++ (PP.render $ 
-      PP.vcat $ fmap (\sr -> PP.vcat $ [PP.text $ _srIdt sr, ppCoords $ _srRaws sr])
-      (srs ++ maybe [] return mbls))
-      
-      where 
-        -- Pretty printing for coordinates.
-        ppCoords :: Either [Coord] [Coord3] -> PP.Doc 
-        ppCoords (Left  cs) = PP.vcat $ fmap (\(s, t) -> PP.int (round s) PP.<> 
-          PP.char ',' PP.<> PP.double t) cs
-        ppCoords (Right cs) = PP.vcat $ fmap (\(s1, s2, t) -> PP.int (round s1) 
-          PP.<> PP.char ',' PP.<> PP.int (round s2) PP.<> PP.char ',' PP.<>
-          PP.double t) cs
-
 
      
 
