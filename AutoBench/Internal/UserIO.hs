@@ -49,6 +49,7 @@ import           Data.Char                 (toLower)
 import           Data.List                 (sort)
 import           Data.List.Utils           (replace)
 import           Data.Maybe                (catMaybes)
+import qualified Data.Vector.Storable      as V
 import           System.Console.Haskeline  ( InputT, MonadException 
                                            , defaultSettings, getInputLine
                                            , runInputT )
@@ -57,12 +58,14 @@ import qualified Text.PrettyPrint.HughesPJ as PP
 import           Text.Printf               (printf)
 
 
+
 import AutoBench.Internal.AbstractSyntax (Id)
 import AutoBench.Internal.Expr           (wrapDocExpr)
 import AutoBench.Internal.Utils          ((<<+>>), deggar, strip, wrapPPList)
 import AutoBench.Internal.Types 
   ( AnalOpts(..)
   , AnalysisReport(..)
+  , Coord
   , LinearFit(..)
   , QuickAnalysis(..)
   , QuickResults(..)
@@ -357,9 +360,16 @@ outputAnalysisReport aOpts tr ar = do
 
     -- Generate the runtime graph:
     graphToFile :: [SimpleResults] -> Maybe SimpleResults -> FilePath -> IO ()
-    graphToFile srs mbls fp = do 
-      res <- runInputT defaultSettings $ selFitOptions $ fmap (_srIdt &&& _srFits) srs
-      print "here"
+    graphToFile [] _ _ = return ()
+    graphToFile srs mbls fp = case _srRaws $ head srs of 
+      Right{} -> putStrLn "3D graphs coming soon."
+      Left{}  -> do 
+        (progFits, blsFit) <- runInputT defaultSettings $ do 
+          (,) <$> (selFitOptions $ fmap (_srIdt &&& _srFits) srs)
+              <*> (selFitOptions $ fmap (_srIdt &&& _srFits) $ maybe [] return mbls)
+        let raws  = fmap (_srIdt &&& ((\(Left x) -> x) . _srRaws)) srs
+            plots = fmap (makePlots . (\(idt, coords) -> (idt, coords, lookup idt progFits))) raws
+        print "here"
 
 
 -- | Output quick analysis results.
@@ -428,7 +438,15 @@ outputQuickAnalysis aOpts eql qa = do
 
     -- Generate the runtime graph:
     graphToFile :: [QuickResults] -> FilePath -> IO ()
-    graphToFile qrs fp = undefined
+    graphToFile [] _ = return ()
+    graphToFile qrs fp = case _qrRaws $ head qrs of 
+      Right{} -> putStrLn "3D graphs coming soon."
+      Left {} -> do 
+        fits <- runInputT defaultSettings $ selFitOptions $ fmap (_qrIdt &&& _qrFits) qrs
+        let raws  = fmap (_qrIdt &&& ((\(Left x) -> x) . _qrRaws)) qrs
+            plots = fmap (makePlots . (\(idt, coords) -> (idt, coords, lookup idt fits))) raws
+        _
+  
 
 
 -- | Say goodbye.
@@ -448,3 +466,12 @@ writeToFile fp prompt output =
       else putStrLn $ prompt ++ " could not be created."
  ) `catch` (\(e :: SomeException) -> putStrLn $ 
      prompt ++ " could not be created: " ++ show e)
+
+
+                                                                                 -- COMMENT
+makePlots :: (Id, [Coord], Maybe LinearFit) -> (Id, [Coord], Maybe [Coord])
+makePlots (idt, coords, Nothing) = (idt, coords, Nothing)
+makePlots (idt, coords, Just lf) = (idt, coords, Just $ zip xs ys)
+  where 
+    (xs, _) = unzip coords 
+    ys      = V.toList $ (_yhat lf) (V.fromList xs)
