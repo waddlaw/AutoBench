@@ -105,7 +105,7 @@ import qualified Text.PrettyPrint.HughesPJ as PP
 
 import qualified AutoBench.Internal.Expr  as E
 import           AutoBench.Internal.Utils ( (.*), bySide, deggar
-                                          , forceSecs, secs )
+                                          , forceSecs, secs, wrapPPList )
 import           AutoBench.Types  -- Re-export.
 
 import AutoBench.Internal.AbstractSyntax 
@@ -519,8 +519,8 @@ showImprovements b imps = bySide (fmap PP.vcat $ transpose docImps) " "
 docTestSuite :: TestSuite -> PP.Doc                                                                        
 docTestSuite ts = PP.vcat 
   [ 
-    PP.hcat $ PP.punctuate (PP.text ", ") $ fmap PP.text $ _progs ts
-  , PP.text $ show $ _dataOpts ts
+    wrapPPList 60 ", " (_progs ts)   -- Names of test programs.
+  , PP.text $ show $ _dataOpts ts    -- Data options.
   ]
 
 -- | Pretty printing for the 'UserInputs' data structure. 

@@ -37,8 +37,21 @@ import System.FilePath.Posix                  (makeValid)
 import Data.Colour.Names
 import Graphics.Rendering.Chart                    
 
-import AutoBench.Internal.Types (Coord)
+import AutoBench.Internal.AbstractSyntax (Id)
+import AutoBench.Internal.Types          (Coord)
 
+
+
+
+plotAndSaveAnalGraph 
+  :: FilePath
+  -> [(Id, [Coord], Maybe String, Maybe [Coord])]
+  -> Maybe (Id, [Coord], Maybe String, Maybe [Coord])
+  -> IO () 
+plotAndSaveAnalGraph = undefined
+
+
+{-
 -- | Plot a graph of runtimes measurements from test programs along with 
 -- models of best fit for each respective srt of data points.
 -- 
@@ -203,3 +216,5 @@ plotAndSaveAnalGraph fp ps ls =
     -- Note: this should probably be a user setting?
     fileOpts :: FileOptions
     fileOpts  = FileOptions (2560, 1600) PNG
+
+    -}
