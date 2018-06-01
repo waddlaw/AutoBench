@@ -17,10 +17,9 @@
 
   This module deals with all AutoBench's internal IO, including:
 
-  * Saving to/loading from files;
+  * System saving to/loading from files;
   * Generating/compiling/executing benchmarking files;
   * Cleaning up temporary files created for/during benchmarking;
-  * Handling user interactions.
 
 -}
 
@@ -47,7 +46,6 @@ module AutoBench.Internal.IO
   , discoverInputFiles                  -- Discover potential input files in the working directory.
   , execute                             -- Execute a file, capturing its output to STDOUT and printing it to the command line.
   , generateBenchmarkingFilename        -- Generate a valid filename for the benchmarking file from the filename of the user input file.
-  , printGoodbyeMessage                 -- Say goodbye.
 
   ) where
 
@@ -567,7 +565,3 @@ generateBenchmarkingFilename s = do
 -- | Discover potential input files in the working directory.
 discoverInputFiles :: IO [FilePath]
 discoverInputFiles  = filter ((== ".hs") . takeExtension) <$> getDirectoryContents "."
-
--- | Say goodbye.
-printGoodbyeMessage :: IO () 
-printGoodbyeMessage  = putStrLn "Leaving AutoBench."

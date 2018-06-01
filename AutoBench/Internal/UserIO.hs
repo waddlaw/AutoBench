@@ -38,6 +38,7 @@ module AutoBench.Internal.UserIO
   -- * User outputs
   , outputAnalysisReport                -- Output the results of statistical analysis.
   , outputQuickAnalysis                 -- Output quick analysis results.
+  , printGoodbyeMessage                 -- Say goodbye.
 
   ) where
 
@@ -323,6 +324,10 @@ outputQuickAnalysis aOpts eql qa = do
     graphToFile :: [QuickResults] -> FilePath -> IO ()
     graphToFile qrs fp = undefined
 
+
+-- | Say goodbye.
+printGoodbyeMessage :: IO () 
+printGoodbyeMessage  = putStrLn "Leaving AutoBench."
 
 -- * Helper functions
 
