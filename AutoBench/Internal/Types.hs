@@ -773,7 +773,7 @@ docSimpleResult units sr = title PP.$$ (PP.nest 2 $ PP.vcat
       [lf] -> PP.text ("Fit" ++ replicate (length units + 8) ' ') 
         PP.<+> PP.text "y =" PP.<+> E.docExpr (_ex lf)
       lfs  -> PP.text ("Fits" ++ replicate (length units + 7) ' ') 
-        PP.<+> (PP.vcat $ fmap ((PP.text "y =" PP.<+>) . E.docExpr . _ex) lfs)
+        PP.<+> (PP.vcat $ fmap ((PP.text "y =" PP.<+>) . E.wrapDocExpr 55 . _ex) lfs)
 
     -- Helpers:
 
@@ -791,9 +791,9 @@ docSimpleResult units sr = title PP.$$ (PP.nest 2 $ PP.vcat
       Moderate   -> "moderately inflated"
       Severe     -> "severely inflated"
  
-    -- 70/maxWidth columns and then display chunks horizontally. 
+    -- 60/maxWidth columns and then display chunks horizontally. 
     hsepChunks :: [PP.Doc] -> [PP.Doc]
-    hsepChunks  = fmap PP.hsep . chunksOf (70 `div` (maxWidth + 2))
+    hsepChunks  = fmap PP.hsep . chunksOf (60 `div` maxWidth)
     
     -- Just for typing information.
     round' :: Double -> Int 

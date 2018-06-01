@@ -49,9 +49,11 @@ module AutoBench.Internal.Utils
   , CLArgs(..)           -- Command line arguments.
   , clArgsParser         -- Options parser for command line arguments.
   -- * Pretty printing
+  , (<<+>>)              -- Put two spaces between two 'PP.Doc's.
   , forceSecs            -- Force a positive number of seconds to be displayed in the given spacing and in the given units.
   , bySide               -- Put a list of multi-line 'PP.Doc's side by side and output as a 'String'.
   , secs                 -- Convert a number of seconds to a string.
+  , wrapPPList           -- Pretty print a list of strings by wrapping it to a maximum width.
   -- * Misc.
   , Padme(..)            -- Padded lists.
   , (.*)                 -- Generalised function composition.
@@ -253,6 +255,44 @@ forceSecs i s k = case s of
           | t >= 1e2  = printf ("%-" ++ show i ++ ".1f") t
           | t >= 1e1  = printf ("%-" ++ show i ++ ".2f") t
           | otherwise = printf ("%-" ++ show i ++ ".3f") t
+
+
+-- | Pretty print a list of strings by wrapping it to a maximum width.
+-- Arguments are the wrap width and the list delimiter.  
+wrapPPList :: Int -> String -> [String] -> PP.Doc 
+wrapPPList _ _ [] = PP.empty
+wrapPPList width delim ss = PP.vcat sssDelim
+  where 
+
+    sss = fmap (fmap PP.text . reverse) $ go 0 [] ss
+
+    sssDelim = case sss of 
+      [_] -> fmap (PP.hcat . PP.punctuate (PP.text delim)) sss
+      _   -> fmap punctuateEnd (init sss) ++ 
+        fmap (PP.hcat . PP.punctuate (PP.text delim)) ([last sss])
+
+    -- All lines except the last have a delimiter at the end too.
+    punctuateEnd xs = PP.hcat $ PP.punctuate (PP.text delim) xs ++ [PP.text delim]
+
+    -- If there's a list item that's wider than the width, readjust.
+    maxWidth = max width (maximum $ fmap (length . show) ss)   
+    sep      = length delim
+
+    -- Split the list into appropriately sized sublists in reverse order.
+    go :: Int -> [String] -> [String] -> [[String]]
+    go _ acc [] = [acc]
+    go currWidth [] (x : xs)
+      | currWidth + l > maxWidth = error "maxWidth too small"
+      | otherwise = go (currWidth + l) [x] xs 
+        where l = length x
+    go currWidth acc (x : xs)
+      | currWidth + l + sep > maxWidth = acc : go 0 [] (x : xs) 
+      | otherwise = go (currWidth + l + sep) (x : acc) xs 
+        where l = length x
+
+-- | Put two spaces between 'PP.Doc's.
+(<<+>>) :: PP.Doc -> PP.Doc -> PP.Doc
+x <<+>> y = x PP.<> PP.text "  " PP.<> y
 
 -- * Misc.
 

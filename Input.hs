@@ -29,7 +29,7 @@ fastRev xs = go xs []
 
 
 ts :: TestSuite 
-ts  = def { _progs = ["slowRev", "fastRev"], _baseline = True, _ghcFlags = ["lol"] }
+ts  = def { _progs = ["slowRev", "fastRev"], _baseline = True }
 
 
 const :: Int -> Int -> Int

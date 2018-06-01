@@ -312,7 +312,7 @@ instance NFData DataOpts
 
 instance Show DataOpts where 
   show (Manual idt) = "Manual " ++ "\"" ++ idt ++ "\""
-  show (Gen l s u)  = "Gen " ++ show l ++ " " ++ show s  ++ " " ++ show u
+  show (Gen l s u)  = "Random, size range [" ++ show l ++ "," ++ show s  ++ ".." ++ show u ++ "]"
 
 instance Default DataOpts where 
   def = Gen 5 5 100

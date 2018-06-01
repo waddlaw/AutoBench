@@ -110,8 +110,8 @@ import Criterion.Types
  , reportMeasured
  )
 
-import AutoBench.Internal.Utils          ( Parser, allEq, bySide, integer
-                                         , strip, symbol )
+import AutoBench.Internal.Utils          ( Parser, (<<+>>), allEq, deggar 
+                                         , integer, strip, symbol, wrapPPList )
 import AutoBench.Internal.AbstractSyntax (Id, ModuleName, prettyPrint, qualIdt)
 import AutoBench.Internal.Types 
   ( AnalOpts(..)
@@ -215,73 +215,100 @@ selTestSuiteOption inps = case _testSuites inps of
 
 
 
+
+
+
+
 -- | Output the results of statistical analysis.
 outputAnalysisReport :: AnalOpts -> TestReport -> AnalysisReport -> IO ()
 outputAnalysisReport aOpts tr ar = do 
-  putStrLn ""
-  print $ PP.nest 1 $ PP.text $ "-- \ESC[3mTest summary\ESC[0m " ++ replicate 64 '-'
-  putStrLn ""
-  print $ PP.nest 2 trSummary
-  putStrLn ""
-  print $ PP.nest 1 $ PP.text $ "-- \ESC[3mAnalysis\ESC[0m " ++ replicate 68 '-'
-  putStrLn ""
-  print $ PP.nest 2 $ docSimpleResults (_anlys ar ++ blAn)
-  printImprovements
-  putStrLn ""
-  putStrLn $ " " ++ replicate 65 '-' ++ " \ESC[3mAutoBench\ESC[0m --"
-  putStrLn ""
 
+  -- Console output:
+  putStrLn ""
+  print fullReport
+
+  -- File output:
+
+  maybe (return ()) (plotGraph   _sas) (graphFP  aOpts)
+  maybe (return ()) (writeCoords _sas) (coordsFP aOpts)
+  maybe (return ()) genReport          (repFP aOpts)
 
   where 
-    blAn = case _blAn ar of 
-      Nothing -> []
-      Just sr -> [sr]
-    
 
-    -- Print improvements.
-    printImprovements :: IO () 
-    printImprovements  = case (_eql tr, _imps ar) of 
-      (_, [])       -> return ()
-      (True, imps)  -> do 
-        putStrLn ""
-        if length imps == 1 
-           then print $ PP.nest 2 $ PP.text "Optimisation:"
-           else print $ PP.nest 2 $ PP.text "Optimisations:"
-        putStrLn ""
-        print . PP.nest 4 . PP.vcat . fmap PP.text . sort . lines $ 
-          showImprovements True imps 
-      (False, imps) -> do
-        putStrLn ""
-        if length imps == 1 
-           then print $ PP.nest 2 $ PP.text "Improvement:"
-           else print $ PP.nest 2 $ PP.text "Improvements:"
-        putStrLn ""
-        print . PP.nest 4 . PP.vcat . fmap PP.text . sort . lines $ 
-          showImprovements False imps
+    fullReport :: PP.Doc 
+    fullReport = PP.vcat 
+      [ -- Test report in case 'TestReport' has been loaded from file.
+        PP.nest 1 $ PP.text $ "-- \ESC[3mTest summary\ESC[0m " ++ replicate 64 '-'  -- Headers are 80 wide.
+      , PP.text "\n"
+      , PP.nest 2 trReport
+      , PP.text " "
+      -- Analysis of results.
+      , PP.nest 1 $ PP.text $ "-- \ESC[3mAnalysis\ESC[0m " ++ replicate 68 '-'
+      , PP.text "\n"
+      -- Measurements for each individual test program.
+      , PP.nest 2 $ docSimpleResults $ _anlys ar ++ case _blAn ar of 
+          Nothing -> []
+          Just sr -> [sr] -- Display baseline measurements if there are any.
+      -- Improvements report.
+      , improvementsReport
+      , PP.text " "
+      -- Footer 
+      , PP.text $ " " ++ replicate 65 '-' ++ " \ESC[3mAutoBench\ESC[0m --"
+      ]
 
-    -- Print test summary.
-    trSummary :: PP.Doc 
-    trSummary  = PP.vcat $ fmap PP.text $ lines $ bySide [headers, values] "  "
+    -- Report of improvements/optimisations.
+    improvementsReport :: PP.Doc 
+    improvementsReport  = case (_eql tr, _imps ar) of 
+      (_, [])       -> PP.empty  -- No improvements/optimisations.
+      (True, imps)  -> PP.vcat   -- One or more optimisations.
+        [ 
+          PP.text "\n"
+        , if length imps == 1 
+             then PP.nest 2 $ PP.text "Optimisation:"
+             else PP.nest 2 $ PP.text "Optimisations:"
+        , PP.text "\n"
+        , PP.nest 4 . PP.vcat . fmap PP.text . sort . lines $    -- Print alphabetically.
+            showImprovements True imps  -- 'showImprovements' returns a string because of 'deggar'ing.
+        ] 
+      (False, imps) -> PP.vcat   -- One or more improvements.
+        [ 
+          PP.text "\n"
+        , if length imps == 1 
+             then PP.nest 2 $ PP.text "Improvement:"
+             else PP.nest 2 $ PP.text "Improvements:"
+        , PP.text "\n"
+        , PP.nest 4 . PP.vcat . fmap PP.text . sort . lines $   -- Print alphabetically.
+            showImprovements False imps
+        ]
+
+    -- Test report.
+    trReport :: PP.Doc 
+    trReport  = PP.vcat $ fmap (uncurry (<<+>>)) (zip headers values) -- Side by side two spaces.
       where
-        -- Left headers.
-        headers =  PP.vcat 
-          [ PP.text "Programs", PP.text "Data", PP.text "Normalisation"
-          , PP.text "QuickCheck", PP.text "GHC flags" ]
-
-        -- Summary values.
-        values = PP.vcat 
-          [ PP.hcat (PP.punctuate (PP.text ", ") $ fmap PP.text $ _tProgs tr)
-          , PP.text (show $ _tDataOpts tr)
-          , if _tNf tr then PP.text "nf" else PP.text "whnf"
-          , if _eql tr then PP.text "==" else PP.text "=/="
-          , ppList (_tGhcFlags tr)
+        -- Left side headers.
+        headers = fmap PP.text . deggar $  -- 'deggar' them to the same width.
+          [ "Programs"
+          , "Data"
+          , "Normalisation"
+          , "QuickCheck"
+          , "GHC flags" 
           ]
 
-         -- Pretty print list.
-        ppList :: [String] -> PP.Doc 
-        ppList [] = PP.text "N/A"
-        ppList xs = 
-          PP.hcat $ PP.punctuate (PP.text ", ") $ fmap PP.text xs
+        -- Values for each heading.
+        values =
+          [ wrapPPList 64 ", " (_tProgs tr)   -- Test programs.
+          , PP.text (show $ _tDataOpts tr)    -- Data options.
+          , if _tNf tr                        -- Normal form/weak head normal form.
+               then PP.text "nf" 
+               else PP.text "whnf"  
+          , if _eql tr                        -- QuickCheck equal.
+               then PP.text "\10004" 
+               else PP.text "\10007"
+          , if null (_tGhcFlags tr)           -- GHC flags.
+               then PP.text "n/a" 
+               else wrapPPList 64 ", " (_tGhcFlags tr)
+          ]
+
 
 
 
