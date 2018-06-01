@@ -367,9 +367,15 @@ outputAnalysisReport aOpts tr ar = do
         (progFits, blsFit) <- runInputT defaultSettings $ do 
           (,) <$> (selFitOptions $ fmap (_srIdt &&& _srFits) srs)
               <*> (selFitOptions $ fmap (_srIdt &&& _srFits) $ maybe [] return mbls)
-        let raws  = fmap (_srIdt &&& ((\(Left x) -> x) . _srRaws)) srs
-            plots = fmap (makePlots . (\(idt, coords) -> (idt, coords, lookup idt progFits))) raws
+        let raws    = fmap (_srIdt &&& ((\(Left x) -> x) . _srRaws)) srs
+            plots   = fmap (makePlots . (\(idt, coords) -> (idt, coords, lookup idt progFits))) raws
+            blPlots = case mbls of 
+               Nothing  -> []
+               Just bls -> let idt     = _srIdt bls 
+                               Left cs = _srRaws bls 
+                           in [makePlots (idt, cs, lookup idt blsFit)]
         print "here"
+        -- saveGraph fp plots blPlots
 
 
 -- | Output quick analysis results.
@@ -384,7 +390,7 @@ outputQuickAnalysis aOpts eql qa = do
   -- File output:
   maybe (return ()) (reportToFile fullReport)   (_reportFP aOpts)
   maybe (return ()) (coordsToFile $ _qAnlys qa) (_coordsFP aOpts)
-  --maybe (return ()) (graphToFile  $ _qAnlys qa) (_graphFP  aOpts) 
+  maybe (return ()) (graphToFile  $ _qAnlys qa) (_graphFP  aOpts) 
   
   where 
  
@@ -445,7 +451,8 @@ outputQuickAnalysis aOpts eql qa = do
         fits <- runInputT defaultSettings $ selFitOptions $ fmap (_qrIdt &&& _qrFits) qrs
         let raws  = fmap (_qrIdt &&& ((\(Left x) -> x) . _qrRaws)) qrs
             plots = fmap (makePlots . (\(idt, coords) -> (idt, coords, lookup idt fits))) raws
-        _
+        print "here"
+        -- saveGraph fp plots []
   
 
 
