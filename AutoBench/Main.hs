@@ -44,11 +44,13 @@ import AutoBench.Internal.Types
    ----------------------------------------------------------------------------
    <TO-DO>:
    ----------------------------------------------------------------------------
-   - Which system files to delete?
-   - Sanitise runtimes, max 0 ..
+   - Sanitise runtimes, max 0;
+   - Use PP here;
+   -
 -}
 
 
+-- | Top-level AutoBench function.
 main :: IO () 
 main  = flip catch catchSomeException $ do 
 
@@ -165,4 +167,4 @@ main  = flip catch catchSomeException $ do
     -- If '_critCfg' in 'TestSuite' doesn't contain a JSON benchmarking report 
     -- file, then use AutoBench's default to interface with Criterion.
     benchRepFilename :: TestSuite -> String
-    benchRepFilename ts = fromMaybe defBenchRepFilename (reportFile $ _critCfg ts) 
+    benchRepFilename ts = fromMaybe defBenchRepFilename (reportFile $ _critCfg ts)
