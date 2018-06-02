@@ -4,17 +4,12 @@
 module Input where 
 
 import AutoBench.Types 
-import Data.Default 
-import Data.List
+import Data.Default
 
 
 
 
 
-import AutoBench.Internal.IO 
-import AutoBench.Internal.UserInputChecks
-import AutoBench.Internal.Types
-import AutoBench.Internal.Analysis
 
 import AutoBench.QuickBench
 
@@ -59,6 +54,8 @@ const2 x y = x
 sort :: [Int] -> [Int] 
 sort  = List.sort
 
-sort2 = Input.sort
+sort2 :: [Int] -> [Int]
+sort2  = sort
+
 sort3333 = Input.sort
 sort4 = Input.sort

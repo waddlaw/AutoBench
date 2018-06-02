@@ -4,10 +4,13 @@
 
 -- import qualified Options.Applicative as OPTS
 
-import           Control.Exception.Base       (finally, throwIO)
+import           Control.Exception.Base       ( SomeException, catch, finally 
+                                              , fromException, throwIO )
 import           Criterion.Types              (reportFile)
-import           Data.Maybe                   (fromMaybe)
-import           Language.Haskell.Interpreter (runInterpreter)
+import           Data.List                    (nub)
+import           Data.Maybe                   (catMaybes, fromMaybe)
+import           Language.Haskell.Interpreter ( InterpreterError(..)
+                                              , errMsg, runInterpreter )
 import           System.Console.Haskeline     (defaultSettings, runInputT)
 import           System.FilePath.Posix        (dropExtension)
 import qualified Text.PrettyPrint.HughesPJ    as PP
@@ -17,7 +20,7 @@ import AutoBench.Internal.Analysis        (analyseWith)
 import AutoBench.Internal.UserInputChecks (qCheckTestPrograms, userInputCheck)
 import AutoBench.Internal.UserIO          ( selTestSuiteOption
                                           , printGoodbyeMessage )
-import AutoBench.Internal.Utils           (filepathToModuleName)
+import AutoBench.Internal.Utils           (strip, filepathToModuleName)
 
 import AutoBench.Internal.IO              
   ( compileBenchmarkingFile
@@ -30,6 +33,8 @@ import AutoBench.Internal.IO
 
 import AutoBench.Internal.Types          
   ( DataOpts(..)
+  , InputError(..)
+  , SystemError(..)
   , TestSuite(..)
   , UserInputs
   , defBenchRepFilename
@@ -47,8 +52,8 @@ import AutoBench.Internal.Types
 
 
 main :: IO () 
-main = do
-  
+main  = flip catch catchSomeException $ do 
+
   --args <- OPTS.customExecParser (OPTS.prefs OPTS.showHelpOnError) $ clArgsParser
 
   let fp = "./Input.hs"
@@ -100,6 +105,57 @@ main = do
     _ -> printGoodbyeMessage
 
   where 
+
+    catchSomeException :: SomeException -> IO ()
+    catchSomeException e = do 
+      putStrLn "\n"
+      case catMaybes [ catchInterpreterError e
+                     , catchSystemError      e 
+                     , catchInputError       e] of 
+        []      -> catchOtherError e >> putStrLn "Testing cancelled."
+        (m : _) -> m >> putStrLn "Testing cancelled."
+
+
+    catchInterpreterError :: SomeException -> Maybe (IO ())
+    catchInterpreterError e = case fromException e of 
+      Just (UnknownError  s) -> Just $ putStrLn s 
+      Just (WontCompile  es) -> 
+        Just $ putStrLn $ unlines . fmap strip . nub . map errMsg $ es
+      Just (NotAllowed    s) -> Just $ putStrLn s  
+      Just (GhcException  s) -> Just $ putStrLn s  
+      _ -> Nothing
+
+    catchSystemError :: SomeException -> Maybe (IO ())
+    catchSystemError e = case fromException e of 
+      Just (InternalErr s) -> Just $ putStrLn s 
+      _ -> Nothing
+
+    catchInputError :: SomeException -> Maybe (IO ())
+    catchInputError e = case fromException e of 
+      Just (FilePathErr   s) -> Just $ putStrLn s    
+      Just (FileErr       s) -> Just $ putStrLn s        
+      Just (TestSuiteErr  s) -> Just $ putStrLn s       
+      Just (DataOptsErr   s) -> Just $ putStrLn s       
+      Just (AnalOptsErr   s) -> Just $ putStrLn s       
+      Just (TypeErr       s) -> Just $ putStrLn s      
+      Just (InstanceErr   s) -> Just $ putStrLn s      
+      Just (TestReportErr s) -> Just $ putStrLn s     
+      _ -> Nothing
+    
+    catchOtherError :: SomeException -> IO ()
+    catchOtherError e = print e
+
+
+
+
+
+
+
+
+
+
+
+
     -- Runner for the 'hint' monad but throw any errors in IO.
     processUserInputFile :: FilePath -> IO UserInputs
     processUserInputFile  = 
