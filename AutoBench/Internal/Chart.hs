@@ -141,9 +141,11 @@ plotAnalGraph progPlots blPlot = fillBackground def . gridToRenderable $
       layout_y_axis . laxis_generate                             .= scaledAxis axis (yMin, yMax)
       
       -- Legend:
-      layout_legend . _Just . legend_margin    .= 30.0
-      layout_legend . _Just . legend_plot_size .= 40.0
-      layout_legend . _Just . legend_position  .= LegendBelow
+      layout_legend . _Just . legend_margin      .= 20.0
+      layout_legend . _Just . legend_plot_size   .= 20.0
+      layout_legend . _Just . legend_position    .= LegendBelow
+      layout_legend . _Just . legend_orientation .= LORows 4
+
 
       -- Plots:
       mapM_ (uncurry graphProgPlots) (zip scaledProgPlots colours) -- Raw measurements and trend lines.
@@ -201,9 +203,9 @@ plotAnalGraph progPlots blPlot = fillBackground def . gridToRenderable $
       (maybe [] getCoords scaledBlPlot)
 
     -- Min/max for axes /post scaling/.
-    xMin = minimum $ fmap fst allScaledCoords
+    xMin = max 0 $ minimum $ fmap fst allScaledCoords
     xMax = maximum $ fmap fst allScaledCoords
-    yMin = minimum $ fmap snd allScaledCoords
+    yMin = max 0 $ minimum $ fmap snd allScaledCoords
     yMax = maximum $ fmap snd allScaledCoords
     
     -- Axis scaling: END ------------------------------------------------------

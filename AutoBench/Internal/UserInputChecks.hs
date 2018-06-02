@@ -158,6 +158,7 @@ import AutoBench.Internal.Types
 -- | Parse, validate and classify user inputs.
 userInputCheck :: MonadInterpreter m => FilePath -> m UserInputs 
 userInputCheck fp  = do 
+
   let mn = filepathToModuleName fp
   -- Load the user input file.
   loadFileSetTopLevelModule fp

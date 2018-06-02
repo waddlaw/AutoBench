@@ -87,6 +87,9 @@ main = do
                   analyseWith (_analOpts ts) testRep 
 
 
+                  printGoodbyeMessage
+
+
 
               ) (deleteBenchmarkingFiles benchFP fp $ tempSysFiles ts)                               -- (X) Finally delete benchmarking files.  *** WHICH SYS FILES? ***
 
@@ -127,8 +130,8 @@ main = do
     poorNest n = (replicate n ' ' ++)
       
     -- Temporary system files to delete after benchmarking.
-    tempSysFiles ts = [] 
-     --reportFile (_critCfg ts) == Nothing = [defBenchRepFilename] ******** TO DO !!
+    tempSysFiles ts = []
+     -- | reportFile (_critCfg ts) == Nothing = [defBenchRepFilename]
      -- | otherwise = []
 
     benchRepFilename ts = fromMaybe defBenchRepFilename (reportFile $ _critCfg ts) 

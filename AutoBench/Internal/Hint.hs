@@ -48,7 +48,8 @@ import Language.Haskell.Interpreter
   , typeOf
   )
 
-import AutoBench.Internal.AbstractSyntax (Id, ModuleElem(..), ModuleName, TypeString)
+import AutoBench.Internal.AbstractSyntax ( Id, ModuleElem(..), ModuleName
+                                         , TypeString, prettyPrint, qualIdt )
 import AutoBench.Internal.Types          (InputError(..), SystemError(..))
 import AutoBench.Internal.Utils          (filepathToModuleName)
 
@@ -103,8 +104,9 @@ extractElemsAndTypes
 extractElemsAndTypes mn = do     
   defs <- getModuleExports mn     -- Get the module definitions.
   tys  <- mapM (\case             -- Can only get typing information from 'Fun's.
-    Nothing  -> return Nothing 
-    Just idt -> Just <$> typeOf idt) (fmap funIdt defs)
+    Nothing  -> return Nothing    -- Qualify identifier with module name.
+    Just idt -> Just <$> (typeOf $ prettyPrint $ qualIdt mn idt)) 
+      (fmap funIdt defs)
   return (zip defs tys)
   where 
     -- Extract the identifiers from 'Fun's.
