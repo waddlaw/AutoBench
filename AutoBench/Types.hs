@@ -267,7 +267,7 @@ type UnaryTestData a = [(Int, IO a)]
 type BinaryTestData a b = [(Int, Int, IO a, IO b)]
 
 -- | Test data can either be specified by users or generated automatically by 
--- the system. Note: the default setting for 'DataOpts' is @Gen 5 5 100@.
+-- the system. Note: the default setting for 'DataOpts' is @Gen 0 5 100@.
 --
 -- If users choose to specify their own inputs, then the 'Manual' data option 
 -- simply tells the system the name of the test data in the user input file.
@@ -294,7 +294,7 @@ type BinaryTestData a b = [(Int, Int, IO a, IO b)]
 -- @u@, and a step @s@. This is converted to a Haskell range 
 -- @[l, (l + s) .. u]@ and a test input is generated for each size in this
 -- list. 
--- For example: @Gen 5 5 100@ corresponds to the range @[5, 10, 15 .. 100]@. 
+-- For example: @Gen 0 5 100@ corresponds to the range @[0, 5, 10 .. 100]@. 
 --
 -- 'TestSuite's require a minimum number of /distinctly sized/ inputs: see 
 -- 'minInputs'.
@@ -315,7 +315,7 @@ instance Show DataOpts where
   show (Gen l s u)  = "Random, size range [" ++ show l ++ "," ++ show s  ++ ".." ++ show u ++ "]"
 
 instance Default DataOpts where 
-  def = Gen 5 5 100
+  def = Gen 0 5 100
 
 -- ** Statistical analysis options                                                  -- ** NEEDS COMMENTS ** 
 
@@ -399,9 +399,9 @@ instance Default AnalOpts where
   def = AnalOpts
           {
             _linearModels = fmap Poly [0..4] ++ [Log 2 1, Log 2 2, PolyLog 2 1, Exp 2]
-          , _cvIters      = 100
+          , _cvIters      = 200
           , _cvTrain      = 0.7
-          , _topModels    = 10
+          , _topModels    = 5
           , _statsFilt    = defaultStatsFilt                                                                   
           , _statsSort    = defaultStatsSort                                                                    
           , _improv       = defaultImprov                                                              
@@ -410,11 +410,34 @@ instance Default AnalOpts where
           , _coordsFP     = Nothing
           }
 
-defaultStatsFilt :: Stats -> Bool                                                   -- TO DO!!
-defaultStatsFilt  = const True
+-- | The default method for discarding models that \"do not\" fit a given
+-- data set. This is achieved by filtering associated fitting 'Stats'. 
+--
+-- For the default option we discard any model whose R^2/adjusted R^2 value 
+-- is outside of the range [0..1], as this is a strong indicator that the 
+-- model is a \"bad fit\" for the data.
+--
+-- Of course, users may disagree with this in which case they can set their 
+-- own predicate in their 'TestOpts', e.g., maybe change it to @const True@.
+defaultStatsFilt :: Stats -> Bool                                                  
+defaultStatsFilt s = _r2 s >= 0 && _r2 s <= 1 && _a_r2 s >= 0 && _a_r2 s <= 1
 
-defaultStatsSort :: Stats -> Stats -> Ordering                                      -- TO DO !!!
-defaultStatsSort _ _  = EQ
+-- In general we want the model with the /lowest/ predicted mean squared error 
+-- '_p_mse'. However, through testing we have found that in the case where two 
+-- models have '_p_mse' with relative error <= 0.15, it seems appropriate to 
+-- pick the one with the /highest predicted/ R^2 value '_p_r2'.
+--
+-- Of course, users may disagree with this in which case they can set their 
+-- own ordering in their 'TestOpts'. In order to be facilitate different 
+-- methods for ordering 'Stats', we have included a range of best-fit 
+-- indicators, see 'Stats' for more information.
+defaultStatsSort :: Stats -> Stats -> Ordering 
+defaultStatsSort s1 s2                      -- Note: we want the highest predicted R^2.
+  -- | relativeError p_mse_1 p_mse_2 <= 0.15 = compare (_p_r2 s2) (_p_r2 s1)
+  = compare p_mse_1 p_mse_2        
+  where 
+    p_mse_1 = _p_mse s1 
+    p_mse_2 = _p_mse s2
 
 -- | The default way to generate improvement results by comparing the runtimes
 -- of two test programs /pointwise/.

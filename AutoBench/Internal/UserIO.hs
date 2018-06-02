@@ -55,6 +55,7 @@ import           System.Console.Haskeline  ( InputT, MonadException
                                            , defaultSettings, getInputLine
                                            , runInputT )
 import           System.Directory          (doesFileExist)
+import           System.FilePath.Posix     (makeValid) 
 import qualified Text.PrettyPrint.HughesPJ as PP
 import           Text.Printf               (printf)
 
@@ -533,13 +534,14 @@ makePlots (idt, coords, Just lf) =
 -- errors.
 writeToFile :: FilePath -> String -> String -> IO ()
 writeToFile fp prompt output = 
- ( do writeFile fp output
-      b <- doesFileExist fp 
+ ( do writeFile fp' output
+      b <- doesFileExist fp'
       if b
-      then putStrLn $ prompt ++ " created: " ++ fp
+      then putStrLn $ prompt ++ " created: " ++ fp'
       else putStrLn $ prompt ++ " could not be created."
  ) `catch` (\(e :: SomeException) -> putStrLn $      -- Catch all errors here.
      prompt ++ " could not be created: " ++ show e)  -- Show error.
+ where fp' = makeValid fp
 
 -- | Say goodbye.
 printGoodbyeMessage :: IO () 

@@ -20,7 +20,9 @@
    ----------------------------------------------------------------------------
    <TO-DO>:
    ----------------------------------------------------------------------------
-   - Combine setters;
+   - More user options for graphing, plot just raws/just trends/etc.;
+   - Combine lens setters;
+   - SANITISE RUNTIMES???;
    -
 -}
 
@@ -61,15 +63,16 @@ plotAndSaveAnalGraph fp = saveAnalGraph fp .* plotAnalGraph
 -- them, don't allow errors to be thrown.
 saveAnalGraph :: FilePath -> Renderable a -> IO ()
 saveAnalGraph fp r = 
-  ( do void $ renderableToFile fileOpts (makeValid fp) r 
-       b <- doesFileExist fp 
+  ( do void $ renderableToFile fileOpts fp' r 
+       b <- doesFileExist fp' 
        if b
-       then putStrLn $ "Runtime graph created: " ++ fp
+       then putStrLn $ "Runtime graph created: " ++ fp'
        else putStrLn $ "Runtime graph could not be created."
   ) `catch` (\(e :: SomeException) -> putStrLn $         -- Catch all errors here.
       "Runtime graph could not be created: " ++ show e)  -- Show error.
 
   where 
+    fp' = makeValid fp
     -- Compatible resolution with my MacBook at least?
     -- Note: this should probably be a user setting?
     fileOpts :: FileOptions

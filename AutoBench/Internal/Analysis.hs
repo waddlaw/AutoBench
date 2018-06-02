@@ -264,15 +264,16 @@ candidateFit
   -> Maybe LinearFit                  
 candidateFit ff split iters coords c
   | length coords < maxPredictors + 1 = Nothing     -- Need a minimum of (maxPredictors + 1) coordinates.
+  | V.null coeffs = Nothing                         -- If coefficients are null, can't use model.
   | otherwise = Just
-  LinearFit 
-    {
-      _lft  = _lct   c 
-    , _cfs  = coeffs
-    , _ex   = _fex   c coeffs
-    , _yhat = _fyhat c coeffs
-    , _sts  = sts
-    }
+      LinearFit 
+        {
+          _lft  = _lct   c 
+        , _cfs  = coeffs
+        , _ex   = _fex   c coeffs
+        , _yhat = _fyhat c coeffs
+        , _sts  = sts
+        }
   where 
     -- Model coefficients when fit to /entire/ data set.
     -- This is for e.g., R^2, Adj. R^2, BIC, AIC CP.

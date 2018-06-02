@@ -94,7 +94,7 @@ import AutoBench.Internal.Utils          (allEq)
 data GenRange = GenRange Int Int Int 
 
 instance Default GenRange where 
-  def = GenRange 1 5 100
+  def = GenRange 0 5 100
 
 -- | QuickBench user options. These include:
 --
@@ -129,7 +129,7 @@ instance Default QuickOpts where
             _qProgs    = fmap (('P' :) . show) ([1..] :: [Int]) 
           , _qGenRange = def 
           , _qAnalOpts = def 
-          , _qRuns     = 1
+          , _qRuns     = 10
           }
           
 -- * QuickBench: no EQ
