@@ -299,9 +299,10 @@ outputAnalysisReport aOpts tr ar = do
   putStrLn ""
 
   -- File output:
+  maybe (return ()) (graphToFile  (_anlys ar) (_blAn ar)) (_graphFP  aOpts) -- Graph to PNG file.
   maybe (return ()) (reportToFile fullReport)             (_reportFP aOpts) -- Full report to TXT file.
   maybe (return ()) (coordsToFile (_anlys ar) (_blAn ar)) (_coordsFP aOpts) -- Coords CSV.
-  maybe (return ()) (graphToFile  (_anlys ar) (_blAn ar)) (_graphFP  aOpts) -- Graph to PNG file.
+
 
   where 
 
@@ -436,9 +437,9 @@ outputQuickAnalysis aOpts eql qa = do -- 'eql' is whether test programs give sam
   putStrLn ""
 
   -- File output:
+  maybe (return ()) (graphToFile  $ _qAnlys qa) (_graphFP  aOpts) 
   maybe (return ()) (reportToFile fullReport)   (_reportFP aOpts)
   maybe (return ()) (coordsToFile $ _qAnlys qa) (_coordsFP aOpts)
-  maybe (return ()) (graphToFile  $ _qAnlys qa) (_graphFP  aOpts) 
   
   where 
  
