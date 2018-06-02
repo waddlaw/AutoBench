@@ -401,7 +401,7 @@ instance Default AnalOpts where
             _linearModels = fmap Poly [0..4] ++ [Log 2 1, Log 2 2, PolyLog 2 1, Exp 2]
           , _cvIters      = 200
           , _cvTrain      = 0.7
-          , _topModels    = 5
+          , _topModels    = 1
           , _statsFilt    = defaultStatsFilt                                                                   
           , _statsSort    = defaultStatsSort                                                                    
           , _improv       = defaultImprov                                                              

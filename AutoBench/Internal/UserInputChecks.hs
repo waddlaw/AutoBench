@@ -72,10 +72,10 @@
 module AutoBench.Internal.UserInputChecks 
   ( 
     
-    qCheckTestPrograms    -- Check whether test programs are semantically equal using QuickCheck.
-  , userInputCheck        -- Parse, validate and classify user inputs.
-  , validateAnalOpts      -- Validate 'AnalOpts'.
-  , validateTestReport    -- Validate a 'TestReport'.
+    quickCheckTestPrograms  -- Check whether test programs are semantically equal using QuickCheck.
+  , userInputCheck          -- Parse, validate and classify user inputs.
+  , validateAnalOpts        -- Validate 'AnalOpts'.
+  , validateTestReport      -- Validate a 'TestReport'.
 
   ) where 
 
@@ -928,14 +928,14 @@ expandTestSuites inps =
 -- | Check whether test programs are semantically equal using QuickCheck.
 -- Note: this check is only available for 'TestSuite's that use generated test 
 -- data.
-qCheckTestPrograms 
+quickCheckTestPrograms 
   :: MonadInterpreter m 
   => FilePath   -- User input file.
   -> [String]   -- Names of test programs.
   -> UserInputs -- User inputs data structure (for cross-referencing).
   -> m Bool 
-qCheckTestPrograms _ [] _ = return False
-qCheckTestPrograms fp ps inps = do 
+quickCheckTestPrograms _ [] _ = return False
+quickCheckTestPrograms fp ps inps = do 
   let mn  = filepathToModuleName fp
       ps' = fmap (prettyPrint . qualIdt mn) ps -- Qualify the programs with module name to avoid ambiguity.
   -- Load the user input file with dynamic check helper module.

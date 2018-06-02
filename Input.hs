@@ -7,10 +7,6 @@ import AutoBench.Types
 import Data.Default
 
 
-
-
-
-
 import AutoBench.QuickBench
 
 import Prelude hiding (id, const)
@@ -42,7 +38,7 @@ fastRev xs = go xs []
 
 
 ts :: TestSuite 
-ts  = def { _dataOpts = Gen 5 5 100, _progs = ["sort", "sort2", "sort3333", "sort4" ]}
+ts  = def { _dataOpts = Gen 5 5 100, _progs = ["sort"], _ghcFlags = ["loll", "lolll", "llllol", "lllloll", "lolll", "lollll", "lopppl", "oolol", "loiiil", "loooiol", "loyyhl"] }
 
 
 const :: Int -> Int -> Int
