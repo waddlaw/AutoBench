@@ -42,6 +42,7 @@ import AutoBench.Internal.Types
    ----------------------------------------------------------------------------
    - Which system files to delete?
    - Sanitise runtimes, max 0 ..
+   - Handle CTRL-C?
 -}
 
 
