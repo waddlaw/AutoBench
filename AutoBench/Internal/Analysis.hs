@@ -41,7 +41,7 @@ import           Control.Arrow         ((&&&))
 import           Criterion.Types       (OutlierEffect(..))
 import           Data.Default          (def)
 import           Data.List             (genericLength, sort, sortBy)
-import           Data.Maybe            (catMaybes, fromMaybe)
+import           Data.Maybe            (catMaybes)
 import qualified Data.Vector.Storable  as V
 import           Numeric.LinearAlgebra (Vector, norm_1, norm_2)
 import           System.IO.Unsafe      (unsafePerformIO)

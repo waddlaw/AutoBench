@@ -1,5 +1,6 @@
 
-{-# OPTIONS_GHC -Wall #-} 
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# OPTIONS_GHC -Wall            #-} 
 
 {-|
 
@@ -19,13 +20,17 @@
    ----------------------------------------------------------------------------
    <TO-DO>:
    ----------------------------------------------------------------------------
-   - Combine setters.
+   - Combine setters;
+   -
 -}
+
+
 module AutoBench.Internal.Chart (plotAndSaveAnalGraph) where 
 
+import Control.Exception                      (SomeException, catch)
 import Control.Lens                           ((.=), (%=), _Just)
 import Control.Monad                          (void)
-import Data.Colour                            (AlphaColour, opaque)
+import Data.Colour                            (AlphaColour, opaque, withOpacity)
 import Data.Default.Class                     (def)
 import Data.Tuple.Select                      (sel1)
 import Graphics.Rendering.Chart.Backend.Cairo ( FileFormat(..), FileOptions(..)
@@ -33,30 +38,54 @@ import Graphics.Rendering.Chart.Backend.Cairo ( FileFormat(..), FileOptions(..)
 import Graphics.Rendering.Chart.Grid          ( Grid, gridToRenderable, overlay
                                               , tspan )
 import Graphics.Rendering.Chart.State         (EC, execEC, plot, liftEC)
-import System.FilePath.Posix                  (makeValid)
-            
+import System.Directory                       (doesFileExist)
+import System.FilePath.Posix                  (makeValid)     
 import Data.Colour.Names
 import Graphics.Rendering.Chart                    
 
 import AutoBench.Internal.AbstractSyntax (Id)
 import AutoBench.Internal.Types          (Coord)
+import AutoBench.Internal.Utils          ((.*))
 
 
 
-
+-- | Plot and save graph of runtime measurements.
 plotAndSaveAnalGraph 
   :: FilePath
-  -> [(Id, [Coord], Maybe String, Maybe [Coord])]          -- (Program name, raw measurements, model's pretty name, model's predictions).
-  -> Maybe (Id, [Coord], Maybe String, Maybe [Coord])      -- As above but for baseline measurements.
+  -> [(Id, [Coord], Maybe String, Maybe [Coord])]     -- (Program name, raw measurements, model's pretty name, model's predictions).
+  -> Maybe (Id, [Coord], Maybe String, Maybe [Coord]) -- As above but for baseline measurements.
   -> IO () 
-plotAndSaveAnalGraph fp progPlots blPlot = 
-  void 
-    . renderableToFile fileOpts (makeValid fp) 
-    . fillBackground def 
-    . gridToRenderable 
-    $ tspan xAxisLabel (8, 7) `overlay` tspan logo (8, 8) `overlay` graphGrid
+plotAndSaveAnalGraph fp = saveAnalGraph fp .* plotAnalGraph 
+
+-- | Save graph and check file has been created. Catch all errors and print
+-- them, don't allow errors to be thrown.
+saveAnalGraph :: FilePath -> Renderable a -> IO ()
+saveAnalGraph fp r = 
+  ( do void $ renderableToFile fileOpts (makeValid fp) r 
+       b <- doesFileExist fp 
+       if b
+       then putStrLn $ "Runtime graph created: " ++ fp
+       else putStrLn $ "Runtime graph could not be created."
+  ) `catch` (\(e :: SomeException) -> putStrLn $         -- Catch all errors here.
+      "Runtime graph could not be created: " ++ show e)  -- Show error.
+
+  where 
+    -- Compatible resolution with my MacBook at least?
+    -- Note: this should probably be a user setting?
+    fileOpts :: FileOptions
+    fileOpts  = FileOptions (2560, 1600) PNG
+
+-- | Plot graph of runtime measurements.
+plotAnalGraph 
+  :: [(Id, [Coord], Maybe String, Maybe [Coord])]     -- (Program name, raw measurements, model's pretty name, model's predictions).
+  -> Maybe (Id, [Coord], Maybe String, Maybe [Coord]) -- As above but for baseline measurements.
+  -> Renderable (LayoutPick Double Double Double) 
+plotAnalGraph progPlots blPlot = fillBackground def . gridToRenderable $
+  tspan xAxisLabel (8, 7) `overlay` tspan logo (8, 8) `overlay` graphGrid
 
   where
+    
+    -- Graph elements: START --------------------------------------------------
 
     -- The spacing for the x-axis title is annoying, and doesn't seem to be 
     -- modifiable. So we've hacked it.
@@ -117,16 +146,8 @@ plotAndSaveAnalGraph fp progPlots blPlot =
       mapM_ (uncurry graphProgPlots) (zip scaledProgPlots colours) -- Raw measurements and trend lines.
       graphBlPlot scaledBlPlot                                     -- Baseline measurements.
 
-
-
-
-
-
-
-
-
-
-
+    -- Graph elements: END ----------------------------------------------------
+   
     -- Axis scaling: START ----------------------------------------------------
 
     -- All the coordinates from every plot /pre scaling/, including baseline 
@@ -204,9 +225,7 @@ plotAndSaveAnalGraph fp progPlots blPlot =
       :: Maybe (Id, [Coord], Maybe String, Maybe [Coord]) 
       -> EC (Layout Double Double) ()
     graphBlPlot (Just (_, _, Just modelIdt, Just modelCs)) = 
-      plot $ plotDashedLines modelIdt modelCs (opaque black)  -- Just plot trend line for      
-    graphBlPlot (Just (idt, cs, Nothing, _)) =  
-      plot $ plotDashedLines idt cs (opaque black)                                                  -- <TO-DO>: If no baseline trend, plot raw values as a dashed line? Is that what users want?
+      plot $ plotDashedLines modelIdt modelCs (withOpacity black 0.7)  -- Just plot trend line for baseline measurements.
     graphBlPlot _ = return ()                                                                      
 
     -- Points for raw runtime measurements.
@@ -244,7 +263,7 @@ plotAndSaveAnalGraph fp progPlots blPlot =
     plotDashedLines title coords colour = liftEC $ do
       plot_lines_title  .= title
       plot_lines_values .= [coords]
-      plot_lines_style  .= solidLine 3.0 colour                                                     -- <TO-DO>: Make dashed.
+      plot_lines_style  .= dashedLine 3.0 [40.0, 15.0] colour                                           -- <TO-DO>: Make dashed.
 
     -- Other helpers: --------------------------------------------------------- 
 
@@ -265,200 +284,7 @@ plotAndSaveAnalGraph fp progPlots blPlot =
       , coral
       ]
 
-    -- Compatible resolution with my MacBook at least?
-    -- Note: this should probably be a user setting?
-    fileOpts :: FileOptions
-    fileOpts  = FileOptions (2560, 1600) PNG
-
     -- Get the coordinates from each plot.
     getCoords :: (Id, [Coord], Maybe String, Maybe [Coord]) -> [Coord]
     getCoords (_, cs, _, Just modelCs) = cs ++ modelCs
     getCoords (_, cs, _, _) = cs
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-{-
--- | Plot a graph of runtimes measurements from test programs along with 
--- models of best fit for each respective srt of data points.
--- 
--- * Runtime measurements are plotted as points;
--- * Models are plotted as trend lines;
--- * X-axis is input size;
--- * Y-axis is runtime.
---
--- Note: this function includes some hacks to modify the spacing of the x-axis 
--- title.
-plotAndSaveAnalGraph 
-  :: FilePath         -- ^ Save to.
-  -> [(Id, [Coord])]  -- ^ Points.
-  -> [(Id, [Coord])]  -- ^ Curves of best fit.
-  -> IO ()
-plotAndSaveAnalGraph fp ps ls = 
-  void 
-    . renderableToFile fileOpts (makeValid fp) 
-    . fillBackground def 
-    . gridToRenderable 
-    $ tspan xAxisLabel (8, 7) `overlay` tspan logo (8, 8) `overlay` graphGrid
-
-  where
-    -- The spacing for the x-axis title is annoying, and doesn't seem to be 
-    -- modifiable. So we've hacked it.
-    xAxisLabel = setPickFn nullPickFn $
-      label (def {_font_size = 40 }) HTA_Centre VTA_BaseLine "Input Size"
-    
-    -- Add an AutoBench logo.
-    logo = setPickFn nullPickFn 
-            $ label (def { _font_size = 30.0
-                         , _font_slant = FontSlantOblique
-                         , _font_color = opaque grey 
-                         }
-                    ) HTA_Right VTA_Bottom "Generated by AutoBench."
-
-    -- The actual graph to plot with its titles, labels etc.
-    graphGrid :: Grid (Renderable (LayoutPick Double Double Double))
-    graphGrid  = layoutToGrid . execEC $ do 
-
-      -- Basics:
-      layout_margin     .= 40.0
-      layout_foreground .= opaque black
-
-      -- Font size:
-      layout_axes_title_styles . font_size %= (* 1.2)
-      layout_all_font_styles   . font_size %= (* 3.5)
-
-      -- Title:
-      layout_title .= foldr1 (\s1 acc -> s1 ++ " vs. " ++ acc) (fmap fst ps)
-
-      -- Axes:
-
-      -- Note: hacked the x-axis title because the spacing was an issue.
-      -- We set the title to empty string for the spacing, then placed a label 
-      -- underneath it.
-      layout_x_axis . laxis_title .= " "
-      -- Edit the font size to change distance between x-axis labels and title.
-      layout_x_axis . laxis_title_style . font_size .= 15.0 
-      -- Rest of settings are standard
-      layout_x_axis . laxis_style . axis_line_style . line_width .= 3.0
-      layout_x_axis . laxis_style . axis_grid_style . line_width .= 3.0
-      layout_x_axis . laxis_style . axis_label_gap               .= 20.0
-      layout_x_axis . laxis_generate                             .= scaledAxis axis (xMin, xMax)
-
-      -- y-axis doesn't need to be hacked.
-      layout_y_axis . laxis_title                                .=  "Time (" ++ yUnits ++ ")"
-      layout_y_axis . laxis_title_style . font_size              .= 40.0
-      layout_y_axis . laxis_style . axis_line_style . line_width .= 3.0
-      layout_y_axis . laxis_style . axis_grid_style . line_width .= 3.0
-      layout_y_axis . laxis_style . axis_label_gap               .= 20.0
-      layout_y_axis . laxis_generate                             .= scaledAxis axis (yMin, yMax)
-      
-      -- Legend:
-      layout_legend . _Just . legend_margin    .= 30.0
-      layout_legend . _Just . legend_plot_size .= 40.0
-      layout_legend . _Just . legend_position  .= LegendBelow
-
-      -- Plots:
-      mapM_ (\((s, c), cl) -> plot (plotPoints s c cl)) (zip ps' colours)
-      mapM_ (\((s, c), cl) -> plot (plotLines  s c cl)) (zip ls' colours)
-
-    -- Helpers: ---------------------------------------------------------------
-    
-    (yScale, yUnits) = calcYAxisScaleAndUnits $ concat [ fmap snd cs | (_, cs) <- ps ]
-
-    -- Min/max for axes scaling.
-    xMin = minimum $ concatMap (fmap fst . snd) ps'
-    xMax = maximum $ concatMap (fmap fst . snd) ps'
-    yMin = minimum $ concatMap (fmap snd . snd) ps'
-    yMax = maximum $ concatMap (fmap snd . snd) ps'
-    
-    -- Runtime measurements are in seconds, so we scale them to ms, μs, ns, etc. 
-    -- so the scaling on the y-axis isn't, e.g., 0.0000001 seconds.
-    ps' = [ (s, scaleYCoords yScale cs) | (s, cs) <- ps ]
-    ls' = [ (s, scaleYCoords yScale cs) | (s, cs) <- ls ]
-
-    scaleYCoords = fmap . fmap . (*)
-
-    -- Runtime measurement are plotted as points.
-    plotPoints 
-      :: String 
-      -> [(Double, Double)] 
-      -> AlphaColour Double 
-      -> EC l (PlotPoints Double Double)
-    plotPoints title coords colour = liftEC $ do
-      plot_points_values                     .= coords
-      plot_points_title                      .= title
-      plot_points_style . point_color        .= colour
-      plot_points_style . point_border_color .= colour
-      plot_points_style . point_border_width .= 2.0
-      plot_points_style . point_shape        .= PointShapeCross
-      plot_points_style . point_radius       .= 10.0
-
-    -- Models are plotted as trend lines.
-    plotLines 
-      :: String 
-      -> [(Double, Double)] 
-      -> AlphaColour Double 
-      -> EC l (PlotLines Double Double)
-    plotLines title coords colour = liftEC $ do
-      plot_lines_title  .= title
-      plot_lines_values .= [coords]
-      plot_lines_style  .= solidLine 3.0 colour
-
-    -- We want ~10 labels on each axis and ~100 ticks.
-    -- We use scaledAxis anyway, so can generate more labels if needed.
-    axis = def {_la_nLabels = 10, _la_nTicks = 100 }
-
-    -- Calculate the y-axis scale and units for plotting runtime measurements.
-    -- Note: runtimes should be sanitised first to ensure that they are all 
-    -- non-negative, see 'sanitiseRuntimes'.
-    calcYAxisScaleAndUnits ds = scale_ dsMin
-      where 
-        dsMin = maximum ds
-        scale_ d
-          | d < 0      = error "negative runtime: calcYAxisScaleAndUnits"
-          | d >= 1     = (1,     "s")
-          | d >= 1e-3  = (1e3,  "ms")
-          | d >= 1e-6  = (1e6,  "μs")
-          | d >= 1e-9  = (1e9,  "ns")
-          | d >= 1e-12 = (1e12, "ps")
-          | d >= 1e-15 = (1e15, "fs")
-          | d >= 1e-18 = (1e18, "as")
-          | otherwise  = (1,     "s")
-
-    -- | Opaque colours for points/lines.
-    colours :: [AlphaColour Double]
-    colours  = fmap opaque
-      [
-        blue
-      , red
-      , forestgreen
-      , darkmagenta
-      , deeppink
-      , darkorange
-      , black
-      , coral
-      ]
-
-    -- Compatible resolution with my MacBook at least?
-    -- Note: this should probably be a user setting?
-    fileOpts :: FileOptions
-    fileOpts  = FileOptions (2560, 1600) PNG
-
-    -}
