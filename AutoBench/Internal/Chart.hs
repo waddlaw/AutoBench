@@ -5,14 +5,16 @@
 {-|
 
   Module      : AutoBench.Internal.Chart
-  Description : ???
+  Description : Produce graphs of runtime measurements and trend lines 
+                predicted by linear regression
   Copyright   : (c) 2018 Martin Handley
   License     : BSD-style
   Maintainer  : martin.handley@nottingham.ac.uk
   Stability   : Experimental
   Portability : GHC
 
-  ???
+  This module is responsible for producing graphs of runtime measurements and 
+  trend lines predicted by linear regression. Graphs are saved to file.
 
 -}
 
@@ -22,7 +24,7 @@
    ----------------------------------------------------------------------------
    - More user options for graphing, plot just raws/just trends/etc.;
    - Combine lens setters;
-   - SANITISE RUNTIMES???;
+   - Add more colours;
    -
 -}
 
@@ -160,7 +162,7 @@ plotAnalGraph progPlots blPlot = fillBackground def . gridToRenderable $
     allCoords :: [Coord]
     allCoords  = (concatMap getCoords progPlots) ++ (maybe [] getCoords blPlot)
 
-    -- Calculate the y-axis scale and units for plotting runtime measurements.                      -- <TO-DO>: SANITISE RUNTIMES!!!
+    -- Calculate the y-axis scale and units for plotting runtime measurements.                      -- <TO-DO>: Sanitise runtimes to avoid error?
     -- Note: runtimes should be sanitised first to ensure that they are all 
     -- non-negative, see 'sanitiseRuntimes'.
     calcYAxisScaleAndUnits :: [Double] -> (Double, String)
@@ -268,7 +270,7 @@ plotAnalGraph progPlots blPlot = fillBackground def . gridToRenderable $
     plotDashedLines title coords colour = liftEC $ do
       plot_lines_title  .= title
       plot_lines_values .= [coords]
-      plot_lines_style  .= dashedLine 3.0 [40.0, 15.0] colour                                           -- <TO-DO>: Make dashed.
+      plot_lines_style  .= dashedLine 3.0 [40.0, 15.0] colour                                       
 
     -- Other helpers: --------------------------------------------------------- 
 
@@ -278,7 +280,7 @@ plotAnalGraph progPlots blPlot = fillBackground def . gridToRenderable $
 
     -- | Opaque colours for points/lines.
     colours :: [AlphaColour Double]                                                                 -- <TO-DO>: Add more colours.
-    colours  = fmap opaque    
+    colours  = fmap opaque                                                                          -- Number of colours = number of test programs so 7 isn't enough!
       [
         blue
       , red

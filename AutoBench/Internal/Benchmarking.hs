@@ -1,7 +1,6 @@
 
 {-# OPTIONS_GHC -Wall #-}
 
-
 {-|
 
   Module      : AutoBench.Internal.Benchmarking
@@ -18,17 +17,25 @@
   generating appropriate benchmark inputs using 
   'AutoBench.Internal.DataGeneration'.
 
-  Also included is AutoBench's top-level function for running benchmarks:
-  see 'runBenchmarks'.
+  Also included is AutoBench's top-level function for running benchmarks,
+  see 'runBenchmarks'. Note this function passes a user-specified 
+  configuration to Criterion, see '_critCfg' in 'TestSuite'.
 
   Due to Arbitrary/NFData typing constraints, one generation function is 
   required for each possible configuration of:
 
-  -- Generated or user-specified test data
-  -- Results of test programs evaluated to weak head normal form or normal form;
-  -- Unary or binary test programs
+  * Generated or user-specified test data ('Gen' or 'Man' suffix);
+  * Results of test programs evaluated to weak head normal form or normal form 
+    ('Nf' or 'Whnf' suffix);
+  * Unary or binary test programs ('Un' or 'Bin' suffix).
 
-  Therefore eight generation functions are required in total.
+  Therefore eight generation functions are required in total. 
+
+  For example, 'genBenchmarksGenNfUn' means:
+
+  "Generate benchmarks for 'Un'ary test programs, that require 'Gen'erated test 
+  data whereby test cases (i.e., the results of test programs) are evaluated
+  to 'N'ormal 'f'orm".
 
 -}
 
@@ -36,7 +43,8 @@
    ----------------------------------------------------------------------------
    <TO-DO>:
    ----------------------------------------------------------------------------
-   - I'm all for aligning syntax, but there's too much white space!
+   - I'm all for aligning syntax, but there's too much white space here;
+   - 
 -}
 
 module AutoBench.Internal.Benchmarking 

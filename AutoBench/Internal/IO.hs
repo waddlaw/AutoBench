@@ -31,7 +31,7 @@
    - It would be nice for the generating benchmarking file to be nicely
      formatted;
    - Add more validation to generateBenchmarkingReport;
-   -
+   - Handle CTRL-C?
 -}
 
 module AutoBench.Internal.IO 

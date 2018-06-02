@@ -5,14 +5,19 @@
 {-|
 
   Module      : AutoBench.Internal.Regression
-  Description : <TO-DO>
+  Description : Generating and fitting models for regression analysis.
   Copyright   : (c) 2018 Martin Handley
   License     : BSD-style
   Maintainer  : martin.handley@nottingham.ac.uk
   Stability   : Experimental
   Portability : GHC
 
-  <TO-DO>
+  This module is responsible for generating and fitting regression models.
+  See 'LinearType', 'LinearCandidate' and 'LinearFit' for more details.
+
+  The system uses ridge regression because it has a closed-form solution so 
+  is fast. Previously used LASSO implemented using the HVX library but 
+  it was too computationally expensive, (see bottom of this file).
 
 -}
 
@@ -20,9 +25,12 @@
    ----------------------------------------------------------------------------
    <TO-DO>:
    ----------------------------------------------------------------------------
-   - It breaks if logbase 0 for size 0
-   - what happens for Poly 0??
-   - The amount of white space in this file irritates me.
+   - Too much white space;
+   - LogBase x 0 = -Infinity. So input size 0 effectively breaks for logarithmic
+     models. Right now we 'cleanse' -Infinity to 0, but there must be a better
+     way. Basically: don't use test data of size 0 if you're bothered about 
+     logs.
+   -
 -}
 
 module AutoBench.Internal.Regression
@@ -459,6 +467,11 @@ vecLogPow b pow = cmap (\x -> (logBase b x) ** pow)
 -- Works similarly to 'tails'.
 vecToMatrix :: (V.Storable a, Element a) => Vector a -> Int -> Matrix a
 vecToMatrix v j = fromRows [ subVector i j v | i <- [0..j - 1] ]
+
+
+
+
+
 
 
 

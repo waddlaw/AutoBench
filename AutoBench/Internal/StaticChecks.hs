@@ -66,8 +66,7 @@ module AutoBench.Internal.StaticChecks
   , isUnaryTestData     -- Does a 'HsType' correspond to @UnaryTestData x@ for some type @x@?
   , isBinaryTestData    -- Does a 'HsType' correspond to @BinaryTestData x y@ for some types @x@ and @y@?
   , isTestSuite         -- Does a 'HsType' correspond to @TestSuite@?
-
-  -- * Helpers
+  -- * Helper functions
   , testDataTyFunInps   -- Extract the input types from the abstract representations of /UnaryTestData/ and /BinaryTestData/.
 
   ) where 
@@ -162,7 +161,7 @@ isBinaryTestData _ = False
 isTestSuite :: HsType -> Bool 
 isTestSuite ty = ty == testSuiteTyCon
 
--- * Helpers 
+-- * Helper functions
 
 -- | Extract the input types from the abstract representations of 
 -- /UnaryTestData/ and /BinaryTestData/.

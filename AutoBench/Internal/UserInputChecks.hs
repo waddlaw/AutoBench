@@ -71,6 +71,7 @@
 
 module AutoBench.Internal.UserInputChecks 
   ( 
+    
     qCheckTestPrograms    -- Check whether test programs are semantically equal using QuickCheck.
   , userInputCheck        -- Parse, validate and classify user inputs.
   , validateAnalOpts      -- Validate 'AnalOpts'.

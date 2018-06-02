@@ -4,14 +4,17 @@
 {-|
 
   Module      : AutoBench.Internal.Expr
-  Description : <TO-DO>
+  Description : Mathematical expressions used for regression analysis.
   Copyright   : (c) 2018 Martin Handley
   License     : BSD-style
   Maintainer  : martin.handley@nottingham.ac.uk
   Stability   : Experimental
   Portability : GHC
 
-  <TO-DO>
+  This module defines the type of mathematical expressions used for regression 
+  analysis and associated pretty printing functions that are compatible 
+  /with the needs of the system/. Warning: the pretty printing functions 
+  defined here are /not/ generic for the 'Expr' datatype.
 
 -}
 
@@ -38,6 +41,8 @@ import           Text.Printf               (printf)
 import AutoBench.Internal.Utils (subNum, superNum, wrapPPList)
 
 -- | Mathematical expressions used for regression analysis.
+-- Note: expressions used by the system are either literals ('Num's) or 
+-- additions ('Add's) of multiplications ('Mul's) of expressions ('Expr's).
 data Expr a = 
     Num a
   | Var String
@@ -59,7 +64,7 @@ docExpr (Add ex1 ex2) =
   where 
     -- If the term contains a negation, then 'add' using " - ", otherwise
     -- use " + ".
-    addTerms (False, s) acc
+    addTerms (False, s) acc   -- Note: False := '+', True := '-'.
       | acc == PP.empty = s
       | otherwise       = acc PP.<+> PP.char '+' PP.<+> s
     addTerms (True, s) acc
@@ -83,7 +88,8 @@ wrapDocExpr width expr =
 
     -- Add signs in front of each term: True := '+', False := '-'.
     
-    -- Special case for first term.
+    -- Special case for first term as no spacing between '-' and term and no
+    -- '+' sign.
     signDoc' :: Bool -> PP.Doc -> PP.Doc 
     signDoc' False  doc = doc
     signDoc' True doc = PP.char '-' PP.<> doc
@@ -93,8 +99,8 @@ wrapDocExpr width expr =
     signDoc False  doc = PP.char '+' PP.<+> doc
     signDoc True doc = PP.char '-' PP.<+> doc
 
-    -- List all terms and whether they contain a negation.
-    listDocExpr :: Expr Double -> [(Bool, PP.Doc)]
+    -- List all expression terms and whether they contain a negation.
+    listDocExpr :: Expr Double -> [(Bool, PP.Doc)]             
     listDocExpr (Num n) = [(False, PP.text (printf "%.2g" n))]
     listDocExpr (Add ex1 ex2) = reverse $ fmap docExpr' $ 
       collectAdds ex2 [] ++ [ex1]

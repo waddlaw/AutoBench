@@ -60,7 +60,9 @@
    ----------------------------------------------------------------------------
    <TO-DO>:
    ----------------------------------------------------------------------------
-   -
+   - Can hint return an IO type?
+   - Semantically equal test for manual test data?
+   - 
 -}
 
 module AutoBench.Internal.DynamicChecks
@@ -134,8 +136,8 @@ sizeBinaryTestData  = fmap (\(s1, s2, _, _) -> (s1, s2))
 
 -- | Check whether test programs are semantically equal using QuickCheck.
 -- For unary test programs.
-quickCheckUn :: (Arbitrary a, Eq b) => [a -> b] -> Bool
-quickCheckUn ps = unsafePerformIO $ do                          -- I'm not sure whether hint can handle @IO Bool@?
+quickCheckUn :: (Arbitrary a, Eq b) => [a -> b] -> Bool                                             -- <TO-DO>: can hint return IO types?
+quickCheckUn ps = unsafePerformIO $ do                          -- I'm not sure whether hint can handle @IO Bool@?             
   tDats <- sample' arbitrary                                    -- Generate some inputs.
   isSuccess <$> quickCheckWithResult stdArgs { chatty = False } -- Turn off QuickCheck output.
     (and [ allEq [ p tDat | p <- ps ] | tDat <- tDats ])        -- Check whether test programs give same results.

@@ -5,16 +5,16 @@
 {-|
 
   Module      : AutoBench.Internal.AbstractSyntax
-  Description : Abstract syntactic representation of user inputs.
+  Description : Abstract representation of user inputs.
   Copyright   : (c) 2018 Martin Handley
   License     : BSD-style
   Maintainer  : martin.handley@nottingham.ac.uk
   Stability   : Experimental
   Portability : GHC
 
-  In order to statically validate and classify user inputs, the system uses 
-  an abstract representation of Haskell 98. This module provides simple 
-  functions to manipulate this representation.
+  In order to statically/dynamically validate and classify user inputs, the 
+  system uses an abstract representation of Haskell 98. This module provides 
+  simple functions to manipulate this representation.
 
 -}
 
@@ -34,11 +34,12 @@ module AutoBench.Internal.AbstractSyntax
   , unaryTestDataTyCon    -- Abstract type constructor for the 'UnaryTestData' datatype.
   , binaryTestDataTyCon   -- Abstract type constructor for the 'BinaryTestData' datatype.
   , testSuiteTyCon        -- Abstract type constructor for the 'TestSuite' datatype.
-  -- ** Helpers
+  -- * Helpers
   , hasTyVars             -- Check whether a 'HsType' contains type variables.
   , tyFunInps             -- Extract the input types from unary/binary function types.
   , unqualTyToTy          -- Convert an unqualified 'HsQualType' to a 'HsType'.
   , qualIdt               -- Add a qualifying module name to an identifier.
+  , unqualIdt             -- Remove a qualifying module names from an identifier.
   -- * Re-exports
   , Id
   , HsDecl(..)
@@ -73,16 +74,20 @@ import Language.Haskell.Syntax
 -- | The string representation of a type.
 type TypeString = String 
 
--- We use this to group definitions by their types. (It's naive but seems 
--- to work okay in practice.)
+-- Use this to group definitions by their types. (Naive but seems to work okay 
+-- in practice.)
 instance Ord HsType where 
   compare t1 t2 = compare (prettyPrint t1) (prettyPrint t2)
 
 -- ** Type constructor definitions
 
+-------------------------------------------------------------------------------
+-- CHANGING THESE NAMES WILL BREAK THE SYSTEM: --
+-------------------------------------------------------------------------------
+
 -- | Abstract type constructor for the 'UnaryTestData' datatype.
 unaryTestDataTyCon :: HsType 
-unaryTestDataTyCon  = HsTyCon (UnQual (HsIdent "UnaryTestData"))
+unaryTestDataTyCon  = HsTyCon (UnQual (HsIdent "UnaryTestData"))                 
 
 -- | Abstract type constructor for the 'BinaryTestData' datatype.
 binaryTestDataTyCon :: HsType 
@@ -92,7 +97,11 @@ binaryTestDataTyCon  = HsTyCon (UnQual (HsIdent "BinaryTestData"))
 testSuiteTyCon :: HsType 
 testSuiteTyCon  = HsTyCon (UnQual (HsIdent "TestSuite"))
 
--- ** Helpers
+-------------------------------------------------------------------------------
+-- CHANGING THESE NAMES WILL BREAK THE SYSTEM: --
+-------------------------------------------------------------------------------
+
+-- * Helpers
 
 -- | Check whether a 'HsType' contains one or more type variables.
 hasTyVars :: HsType -> Bool 
@@ -125,3 +134,7 @@ tyFunInps _ = HsTyTuple []
 -- | Add a qualifying module name to an identifier.
 qualIdt :: ModuleName -> Id -> HsExp
 qualIdt mn idt = HsVar (Qual (Module mn) (HsIdent idt))
+
+-- | Remove a qualifying module names from an identifier.
+unqualIdt :: Id -> Id 
+unqualIdt  = reverse . takeWhile (/= '.') . reverse

@@ -15,7 +15,14 @@
   Stability   : Experimental
   Portability : GHC
 
-  This module deals with all AutoBench's user IO
+  This module deals with all AutoBench's user IO, including: 
+
+  * Users selecting test suites to fun and linear models of best fit;
+  * Outputting analysis results to the console and to file.
+
+  Note: these functions are separated from 'AutoBench.Internal.IO' because that 
+  file uses hidden GHC functions that require the @-package ghc@ flag. This
+  /shouldn't/ be a requirement of QuickBench.
 
 -}
 
