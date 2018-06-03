@@ -66,8 +66,7 @@ import Control.DeepSeq        (NFData(..), deepseq)
 import Criterion.Measurement  (measure)
 import Data.Default           (Default(..))
 import Data.Maybe             (catMaybes)
-import Test.QuickCheck        ( Arbitrary(..), Args(..)
-                              , quickCheckWithResult 
+import Test.QuickCheck        ( Arbitrary(..), Args(..), quickCheckWithResult 
                               , resize, stdArgs )
 import Test.QuickCheck.Gen    (Gen, sample', unGen)
 import Test.QuickCheck.Random (QCGen, newQCGen)
@@ -531,24 +530,14 @@ quickCheckBin ps = do
   isSuccess <$> quickCheckWithResult stdArgs { chatty = False } 
     (and [ allEq [ p tDat1 tDat2 | p <- ps ] | (tDat1, tDat2) <- tDats ])  
 
--- ** Misc.
-
--- | Generate an infinite number of test program names.
-genNames :: [String] -> [String]
-genNames ns = ns ++ fmap (('P' :) . show) ([l..] :: [Int])
-  where l = length ns + 1
-
--- | Convert a 'QGen' to a Haskell range.
-toHRange :: QGen -> [Int]
-toHRange (QGen l s u) = [l, (l + s) .. u]
+-- ** Validation 
 
 -- | Validate 'QuickOpts' to ensure test settings are acceptable.
 validateQuickOpts :: Bool -> QuickOpts -> [InputError] 
 validateQuickOpts unary qOpts = 
-  validQGen unary     (_qGen qOpts)
+  validQGen unary     (_qGen      qOpts)
   ++ validateAnalOpts (_qAnalOpts qOpts)  -- See AutoBench.Internal.UserInputChecks.
-  ++ validRuns        (_qRuns qOpts)
-
+  ++ validRuns        (_qRuns     qOpts)
 
   where
     -- '_qRuns' must be strictly positive.
@@ -573,8 +562,6 @@ validateQuickOpts unary qOpts =
     qGenParErr  = QuickOptsErr "Invalid values for 'QGen' bounds and/or step." 
     qGenSizeErr = QuickOptsErr $ "A minimum of " ++ show minInputs ++ " test inputs are required."
 
--- ** Error messages
-
 -- | Output error for no test programs.
 noTestProgramsError :: IO ()
 noTestProgramsError  = print $ QuickBenchErr "No test programs."
@@ -582,3 +569,14 @@ noTestProgramsError  = print $ QuickBenchErr "No test programs."
 -- | Output 'QuickOpts' errors.
 quickOptsErrors :: [InputError] -> IO ()
 quickOptsErrors  = mapM_ print 
+
+-- ** Misc.
+
+-- | Generate an infinite number of test program names.
+genNames :: [String] -> [String]
+genNames ns = ns ++ fmap (('P' :) . show) ([l..] :: [Int])
+  where l = length ns + 1
+
+-- | Convert a 'QGen' to a Haskell range.
+toHRange :: QGen -> [Int]
+toHRange (QGen l s u) = [l, (l + s) .. u]

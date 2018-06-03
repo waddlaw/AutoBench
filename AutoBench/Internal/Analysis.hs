@@ -56,12 +56,9 @@ import           System.IO.Unsafe      (unsafePerformIO)
 import           System.Random         (randomRIO)
 
 import AutoBench.Internal.AbstractSyntax  (Id)    
-import AutoBench.Internal.UserIO          ( outputAnalysisReport
-                                          , outputQuickAnalysis )
-import AutoBench.Internal.Regression      ( generateLinearCandidate
-                                          , fitRidgeRegress )
-import AutoBench.Internal.UserInputChecks ( validateAnalOpts
-                                          , validateTestReport )
+import AutoBench.Internal.UserIO          (outputAnalysisReport, outputQuickAnalysis)
+import AutoBench.Internal.Regression      (generateLinearCandidate, fitRidgeRegress)
+import AutoBench.Internal.UserInputChecks (validateAnalOpts, validateTestReport)
 import AutoBench.Internal.Utils           (notNull, uniqPairs)
 
 import AutoBench.Internal.Types  
@@ -72,6 +69,7 @@ import AutoBench.Internal.Types
   , Coord3
   , CVStats(..)
   , Improvement
+  , InputError(..)
   , LinearCandidate(..)
   , LinearFit(..)
   , SimpleReport(..)
@@ -94,13 +92,10 @@ import AutoBench.Internal.Types
 -- depending on the 'AnalOpts'. The boolean parameter is whether the 
 -- test programs have the same results according to QuickCheck testing.
 -- Note: this function is not exposed to users.
-quickAnalyseWith :: AnalOpts -> Bool -> [QuickReport] -> IO ()                                     
-quickAnalyseWith aOpts eql qrs -- Don't check 'QuickReport's because users can't manipulate them.
-  | notNull aOptsErrs = do  
-      putStrLn "Cannot analyse results due to one or more errors:"
-      mapM_ print aOptsErrs
-  | otherwise = outputQuickAnalysis aOpts eql $ quickAnalysis aOpts qrs
-  where aOptsErrs = validateAnalOpts aOpts -- Validate the 'AnalOpts'.
+quickAnalyseWith :: AnalOpts -> Bool -> [QuickReport] -> IO ()
+quickAnalyseWith _ _ [] = print $ QuickBenchErr "No results to analyse."                                      
+quickAnalyseWith aOpts eql qrs = outputQuickAnalysis aOpts eql $ 
+  quickAnalysis aOpts qrs
     
 -- * AutoBench Top-level 
 
