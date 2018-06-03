@@ -806,7 +806,7 @@ docQuickResult units qr = title PP.$$ (PP.nest 2 $ PP.vcat
 
   where 
     -- Side headings with some manual spacing so everything aligns properly.
-    title = PP.text (_qrIdt qr) PP.<> PP.char ':'                 -- Name of program.
+    title = PP.text (unqualIdt $ _qrIdt qr)                       -- Name of program.
     size   = "Size    " ++ replicate (length sUnits) ' ' ++ " "   -- Input sizes.
     time   = "Time    " ++ sUnits ++ " "                          -- Runtime measurements.
     sUnits  = "(" ++ units ++ ")"                                 -- Forced units.

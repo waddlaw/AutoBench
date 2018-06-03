@@ -1,6 +1,7 @@
 
-{-# LANGUAGE FlexibleInstances #-}  
-{-# OPTIONS_GHC -Wall #-}
+{-# LANGUAGE FlexibleInstances    #-}  
+{-# OPTIONS_GHC -Wall             #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 {-|
 
@@ -28,8 +29,6 @@ module AutoBench.QuickCheck where
 import Test.QuickCheck 
   ( Arbitrary
   , arbitrary
-  , generate
-  , resize
   , sized
   , vectorOf
   )
