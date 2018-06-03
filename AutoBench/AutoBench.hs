@@ -28,7 +28,7 @@ import           Data.List                    ((\\), nub)
 import           Data.Maybe                   (fromMaybe)
 import           Language.Haskell.Interpreter ( InterpreterError(..)
                                               , errMsg, runInterpreter )
-import           System.Console.Haskeline     ( defaultSettings, runInputT )
+import           System.Console.Haskeline     (defaultSettings, runInputTg)
 import           System.FilePath.Posix        (dropExtension)
 import qualified Text.PrettyPrint.HughesPJ    as PP
 
