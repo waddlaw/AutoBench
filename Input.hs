@@ -3,6 +3,7 @@
 
 module Input where 
 
+import Prelude hiding (id)
 import AutoBench.Types 
 import Data.Default
 
@@ -17,6 +18,7 @@ instance {-# OVERLAPPING #-} Arbitrary [Int] where
   arbitrary = sized $ \n -> vectorOf n arbitrary
 
 
+{-
 slowRev :: [Int] -> [Int]
 slowRev []       = []
 slowRev (x : xs) = slowRev xs ++ [x]
@@ -26,6 +28,10 @@ fastRev xs = go xs []
   where 
     go [] ys       = ys 
     go (x : xs) ys = go xs (x : ys) 
+-}
+
+id :: Int -> Int 
+id x = x
 
 ts :: TestSuite 
 ts  = def 

@@ -420,7 +420,7 @@ instance Default AnalOpts where
 -- Of course, users may disagree with this in which case they can set their 
 -- own predicate in their 'TestOpts', e.g., maybe change it to @const True@.
 defaultStatsFilt :: Stats -> Bool                                                  
-defaultStatsFilt s = _r2 s >= 0 && _r2 s <= 1 && _a_r2 s >= 0 && _a_r2 s <= 1
+defaultStatsFilt = const True -- s = _r2 s >= 0 && _r2 s <= 1 && _a_r2 s >= 0 && _a_r2 s <= 1
 
 -- In general we want the model with the /lowest/ predicted mean squared error 
 -- '_p_mse'. However, through testing we have found that in the case where two 

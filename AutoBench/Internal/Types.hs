@@ -102,10 +102,9 @@ import           Numeric.LinearAlgebra     (Vector)
 import           Text.Printf               (printf)
 import qualified Text.PrettyPrint.HughesPJ as PP
 
-
 import qualified AutoBench.Internal.Expr  as E
-import           AutoBench.Internal.Utils ( (.*), bySide, deggar
-                                          , forceSecs, secs, wrapPPList )
+import           AutoBench.Internal.Utils ( bySide, deggar, forceSecs, secs 
+                                          , wrapPPList )
 import           AutoBench.Types  -- Re-export.
 
 import AutoBench.Internal.AbstractSyntax 
@@ -114,6 +113,7 @@ import AutoBench.Internal.AbstractSyntax
   , ModuleElem(..)
   , TypeString
   , prettyPrint
+  , unqualIdt
   )
 
 
@@ -491,7 +491,8 @@ instance Exception InputError
 
 -- | Pretty printing for 'Improvement's.
 docImprovement :: Bool -> Improvement -> PP.Doc 
-docImprovement  = PP.hsep .* docImprovement'
+docImprovement b (idt1, ord, idt2, d) = 
+  PP.hsep $ docImprovement' b (unqualIdt idt1, ord, unqualIdt idt2, d)
 
 -- | Pretty printing helper for 'Improvement's.
 docImprovement' :: Bool -> Improvement -> [PP.Doc] 
@@ -512,7 +513,10 @@ docImprovement' False (idt1, GT, idt2, d) =
 -- | Pretty printing for a list of 'Improvement's.
 showImprovements :: Bool -> [Improvement] -> String 
 showImprovements b imps = bySide (fmap PP.vcat $ transpose docImps) " "
-  where docImps = fmap (docImprovement' b) imps
+  where 
+    imps' = fmap (\(idt1, ord, idt2, d) -> 
+      (unqualIdt idt1, ord, unqualIdt idt2, d)) imps
+    docImps = fmap (docImprovement' b) imps'
 
 -- | Simplified pretty printing for the 'TestSuite' data structure.
 -- Note: prints test programs and 'DataOpts' only.

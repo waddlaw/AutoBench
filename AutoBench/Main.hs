@@ -12,7 +12,7 @@ import           Data.List                    ((\\), nub)
 import           Data.Maybe                   (fromMaybe)
 import           Language.Haskell.Interpreter ( InterpreterError(..)
                                               , errMsg, runInterpreter )
-import           System.Console.Haskeline     (defaultSettings, runInputT)
+import           System.Console.Haskeline     ( defaultSettings, runInputT )
 import           System.FilePath.Posix        (dropExtension)
 import qualified Text.PrettyPrint.HughesPJ    as PP
 
@@ -60,12 +60,12 @@ main  = flip catch catchSomeException $ do
       mn = filepathToModuleName fp
   
   putStrLn ""
-  putStr $ poorNest 2 $ "\9656 Processing input file \ESC[3m" ++ fp ++ "\ESC[0m"         -- (1) Process user input file.
+  putStr $ poorNest 2 $ "\9656 Processing \ESC[3m" ++ fp ++ "\ESC[0m"         -- (1) Process user input file.
   inps <- processUserInputFile fp
   putStrLn $ poorNest 1 "\10004"
   (runInputT defaultSettings $ selTestSuiteOption inps) >>= \case                         -- (2) Select test suite.
     [(idt, ts)] -> do 
-      putStrLn $ poorNest 2 $ "\9656 Running test suite \ESC[3m" ++ idt ++ "\ESC[0m"      
+      putStrLn $ poorNest 2 $ "\9656 Running \ESC[3m" ++ idt ++ "\ESC[0m"      
       putStr   $ poorNest 5 $ "\8226 QuickChecking test programs"
       eql <- quickCheck fp ts inps                                                        -- (3) Check whether test programs are semantically
       if eql                                                                              --     equal using QuickCheck, if applicable.
@@ -92,7 +92,9 @@ main  = flip catch catchSomeException $ do
                   analyseWith (_analOpts ts) testRep 
                   putStrLn ""
                   putStr "Press any key to exit... "
-                  void $ getChar
+                  -- Note: want to use Haskeline here but can't.
+                  -- https://github.com/judah/haskeline/issues/74
+                  void getChar
                   printGoodbyeMessage                                                     -- (9) Print goodbye message.
               ) (deleteBenchmarkingFiles benchFP fp $ tempSysFiles ts)                    -- (X) Finally delete benchmarking files.
     _ -> printGoodbyeMessage
