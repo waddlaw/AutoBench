@@ -83,12 +83,15 @@ import           Control.Category          ((>>>))
 import           Control.Monad             ((>=>), filterM, foldM, void)
 import           Control.Monad.Catch       (catch, catchAll)
 import qualified Criterion.Types           as Criterion
+import           Data.Char                 (toLower)
 import           Data.Either               (partitionEithers)
 import           Data.List                 ( (\\), groupBy, intersect, nub, sort
                                            , sortBy )
 import           Data.Ord                  (comparing)
 import           Data.Typeable             (Typeable)
+import           System.FilePath.Posix     (takeExtension)
 import qualified Text.PrettyPrint.HughesPJ as PP
+
 
 import Language.Haskell.Interpreter 
   (InterpreterError
@@ -660,13 +663,15 @@ checkValidTestData mn inps = do
 -- 
 -- * Ensure the linear models have <= maximum number of allowed predictors. 
 -- * Check the '_cvIters', '_cvTrain', and '_topModels' values are in the 
---   correct range.
+--   correct range. Check the reports '_graphFP', '_coordsFP', and '_reportFP'
+--   have the correct extensions.
 validateAnalOpts :: AnalOpts -> [InputError]
 validateAnalOpts aOpts = 
   checkModels (_linearModels aOpts) 
     ++ checkCVIters   (_cvIters   aOpts) 
     ++ checkCVTrain   (_cvTrain   aOpts)
     ++ checkTopModels (_topModels aOpts)
+    ++ checkExts (_graphFP aOpts) (_coordsFP aOpts) (_reportFP aOpts)
   where 
     -- Maximum number of predictors for linear models.
     checkModels :: [LinearType] -> [InputError]
@@ -689,11 +694,34 @@ validateAnalOpts aOpts =
       | n > 0 = []
       | otherwise = [aOptsTopModelsErr]
 
+    -- '_graphFP', '_coordsFP', and '_reportFP' correct extensions.
+    checkExts graphFP coordsFP reportFP = checkGraphFPExt graphFP ++
+      checkCoordsFPExt coordsFP ++ checkReportFPExt reportFP
+      where 
+
+      -- '_graphFP'.
+      checkGraphFPExt Nothing = []
+      checkGraphFPExt (Just fp) 
+        | (fmap toLower $ takeExtension fp) == ".png" = []
+        | otherwise = [aOptsExtErr fp]
+      -- '_coordsFP'.
+      checkCoordsFPExt  Nothing = []
+      checkCoordsFPExt (Just fp) 
+        | (fmap toLower $ takeExtension fp) == ".csv" = []
+        | otherwise = [aOptsExtErr fp]
+      -- '_reportFP' .
+      checkReportFPExt Nothing = []
+      checkReportFPExt (Just fp) 
+        | (fmap toLower $ takeExtension fp) == ".txt" = []
+        | otherwise = [aOptsExtErr fp]
+
+
     -- Error messages:
     aOptsModelErr     = AnalOptsErr $ "Linear regression models can have a maximum of " ++ show maxPredictors ++ " predictors."
     aOptsCVItersErr   = AnalOptsErr $ "The number of cross-validation iterators must be " ++ show minCVIters ++ " <= x <= " ++ show maxCVIters ++ "." 
     aOptsCVTrainErr   = AnalOptsErr $ "The percentage of cross-validation training data must be " ++ show minCVTrain ++ " <= x <= " ++ show maxCVTrain ++ "." 
     aOptsTopModelsErr = AnalOptsErr $ "The number of models to review must be strictly positive."
+    aOptsExtErr fp    = AnalOptsErr $ "Incorrect extension for output file: " ++ fp
 
 
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------

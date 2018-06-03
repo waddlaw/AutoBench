@@ -91,11 +91,7 @@ main  = flip catch catchSomeException $ do
                   putStrLn ""
                   analyseWith (_analOpts ts) testRep 
                   putStrLn ""
-                  putStr "Press any key to exit... "
-                  -- Note: want to use Haskeline here but can't.
-                  -- https://github.com/judah/haskeline/issues/74
-                  void getChar
-                  printGoodbyeMessage                                                     -- (9) Print goodbye message.
+                  anyKeyExit                                                              -- (9) Any key to exit and goodbye.
               ) (deleteBenchmarkingFiles benchFP fp $ tempSysFiles ts)                    -- (X) Finally delete benchmarking files.
     _ -> printGoodbyeMessage
 
@@ -109,8 +105,14 @@ main  = flip catch catchSomeException $ do
     catchSomeException e = do 
       putStrLn "\n"
       case catchInterpreterError e of 
-        Nothing -> print e >> putStrLn "Testing cancelled, leaving AutoBench."
-        Just m  -> m >> putStrLn "Testing cancelled, leaving AutoBench."
+        Nothing -> do 
+          print e
+          putStr "Testing cancelled. "
+          anyKeyExit
+        Just m -> do 
+          m
+          putStr "Testing cancelled. "
+          anyKeyExit
 
     -- Exception handling for hint 'InterpreterError's.
     catchInterpreterError :: SomeException -> Maybe (IO ())
@@ -123,6 +125,16 @@ main  = flip catch catchSomeException $ do
       _ -> Nothing
 
     -- IO helpers: ------------------------------------------------------------
+
+    -- Any key to exit.
+    anyKeyExit :: IO ()
+    anyKeyExit  = do 
+      putStr "Press any key to exit... "
+      -- Note: want to use Haskeline here but can't.
+      -- https://github.com/judah/haskeline/issues/74
+      void getChar
+      printGoodbyeMessage
+
 
     -- Use QuickCheck testing to check if test programs are semantically 
     -- equal. Note: doesn't work for manual test data currently.

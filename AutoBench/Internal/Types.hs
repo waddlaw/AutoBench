@@ -531,21 +531,21 @@ docTestSuite ts = PP.vcat
 -- Prints all fields; invalids are printed last.                                               
 docUserInputs :: UserInputs -> PP.Doc 
 docUserInputs inps = PP.vcat $ PP.punctuate (PP.text "\n")
-  [ PP.text "All module elements:"     PP.$$ (PP.nest 2 $ showElems             $ _allElems          inps)
-  , PP.text "Valid module elements:"   PP.$$ (PP.nest 2 $ showTypeableElems     $ _validElems        inps)
-  , PP.text "Nullary functions:"       PP.$$ (PP.nest 2 $ showTypeableElems     $ _nullaryFuns       inps)
-  , PP.text "Unary functions:"         PP.$$ (PP.nest 2 $ showTypeableElems     $ _unaryFuns         inps)
-  , PP.text "Binary functions:"        PP.$$ (PP.nest 2 $ showTypeableElems     $ _binaryFuns        inps)
-  , PP.text "Benchmarkable functions:" PP.$$ (PP.nest 2 $ showTypeableElems     $ _benchFuns         inps)
-  , PP.text "Arbitrary functions:"     PP.$$ (PP.nest 2 $ showTypeableElems     $ _arbFuns           inps)
-  , PP.text "NFData functions:"        PP.$$ (PP.nest 2 $ showTypeableElems     $ _nfFuns            inps)
-  , PP.text "Unary test data:"         PP.$$ (PP.nest 2 $ showTypeableElems     $ fmap (sel1 &&& sel2) $ _unaryData  inps) -- Don't print sizing information.
-  , PP.text "Binary test data:"        PP.$$ (PP.nest 2 $ showTypeableElems     $ fmap (sel1 &&& sel2) $ _binaryData inps) -- Don't print sizing information.
-  , PP.text "Test suites:"             PP.$$ (PP.nest 2 $ showTestSuites        $ _testSuites        inps)
+  [ PP.text "All module elements"     PP.$$ (PP.nest 2 $ showElems             $ _allElems          inps)
+  , PP.text "Valid module elements"   PP.$$ (PP.nest 2 $ showTypeableElems     $ _validElems        inps)
+  , PP.text "Nullary functions"       PP.$$ (PP.nest 2 $ showTypeableElems     $ _nullaryFuns       inps)
+  , PP.text "Unary functions"         PP.$$ (PP.nest 2 $ showTypeableElems     $ _unaryFuns         inps)
+  , PP.text "Binary functions"        PP.$$ (PP.nest 2 $ showTypeableElems     $ _binaryFuns        inps)
+  , PP.text "Benchmarkable functions" PP.$$ (PP.nest 2 $ showTypeableElems     $ _benchFuns         inps)
+  , PP.text "Arbitrary functions"     PP.$$ (PP.nest 2 $ showTypeableElems     $ _arbFuns           inps)
+  , PP.text "NFData functions"        PP.$$ (PP.nest 2 $ showTypeableElems     $ _nfFuns            inps)
+  , PP.text "Unary test data"         PP.$$ (PP.nest 2 $ showTypeableElems     $ fmap (sel1 &&& sel2) $ _unaryData  inps) -- Don't print sizing information.
+  , PP.text "Binary test data"        PP.$$ (PP.nest 2 $ showTypeableElems     $ fmap (sel1 &&& sel2) $ _binaryData inps) -- Don't print sizing information.
+  , PP.text "Test suites"             PP.$$ (PP.nest 2 $ showTestSuites        $ _testSuites        inps)
   -- Invalids come last because they have 'InputError's.
-  , PP.text "Invalid module elements:" PP.$$ (PP.nest 2 $ showElems             $ _invalidElems      inps) 
-  , PP.text "Invalid test data:"       PP.$$ (PP.nest 2 $ showInvalidData       $ _invalidData       inps)
-  , PP.text "Invalid test suites:"     PP.$$ (PP.nest 2 $ showInvalidTestSuites $ _invalidTestSuites inps)
+  , PP.text "Invalid module elements" PP.$$ (PP.nest 2 $ showElems             $ _invalidElems      inps) 
+  , PP.text "Invalid test data"       PP.$$ (PP.nest 2 $ showInvalidData       $ _invalidData       inps)
+  , PP.text "Invalid test suites"     PP.$$ (PP.nest 2 $ showInvalidTestSuites $ _invalidTestSuites inps)
   ]
   
   where 
@@ -560,19 +560,19 @@ docUserInputs inps = PP.vcat $ PP.punctuate (PP.text "\n")
         -- Data.
         showDs | null ds   = PP.empty 
                | otherwise = PP.vcat 
-                   [ PP.text "Data:"
+                   [ PP.text "Data"
                    , PP.nest 2 $ PP.vcat $ fmap PP.text $ sort ds
                    ]
         -- Class.
         showCs | null cs   = PP.empty 
                | otherwise = PP.vcat 
-                   [ PP.text "Class:"
+                   [ PP.text "Class"
                    , PP.nest 2 $ PP.vcat $ fmap PP.text $ sort cs
                    ]
         -- Fun.
         showFs | null fs   = PP.empty 
                | otherwise = PP.vcat 
-                   [ PP.text "Fun:"
+                   [ PP.text "Fun"
                    , PP.nest 2 $ PP.vcat $ fmap PP.text $ sort $ 
                        zipWith (\idt ty -> idt ++ " :: " ++ ty) (deggar fs) tys
                    ]
@@ -593,7 +593,7 @@ docUserInputs inps = PP.vcat $ PP.punctuate (PP.text "\n")
         showTestSuite :: Id -> TestSuite -> PP.Doc 
         showTestSuite idt ts = PP.vcat 
           [ PP.text idt PP.<+> PP.text ":: TestSuite"
-          , PP.nest 2 $ PP.vcat $ fmap PP.text (_progs ts)
+          , PP.nest 2 $ docTestSuite ts
           ]
 
     -- Invalids, need additional nesting for input errors: --------------------
@@ -738,7 +738,7 @@ docSimpleResult units sr = title PP.$$ (PP.nest 2 $ PP.vcat
 
   where 
     -- Side headings with some manual spacing so everything aligns properly.
-    title = PP.text (_srIdt sr) PP.<> PP.char ':'                 -- Name of program.
+    title = PP.text (unqualIdt $ _srIdt sr)                       -- Name of program.
     size   = "Size    " ++ replicate (length sUnits) ' ' ++ " "   -- Input sizes.
     time   = "Time    " ++ sUnits ++ " "                          -- Runtime measurements.
     stdDev = "Std dev " ++ sUnits ++ " "                          -- Standard deviation.
