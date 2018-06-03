@@ -201,7 +201,7 @@ calculateSimpleResults aOpts tr = (progResults, blResults)
     -- Analysis for baseline measurements.
     blResults = case _baselines $ _br tr of 
       []  -> Nothing 
-      bls -> Just $ calculateSimpleResult "Baseline Measurements" bls                               -- <TO-DO>: This shouldn't be a string.
+      bls -> Just $ calculateSimpleResult "Baseline measurements" bls                               -- <TO-DO>: This shouldn't be a string.
 
     -- For a set of 'SimpleReport's (i.e., test cases) relating to a 
     -- given test program, perform statistical analysis and generate

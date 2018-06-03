@@ -1,21 +1,19 @@
 
-{-# LANGUAGE FlexibleInstances #-}  
-
 module Input where 
 
-import Prelude hiding (id)
-import AutoBench.Types 
 import Data.Default
+import Prelude hiding (id)
+
+import AutoBench.QuickCheck
+import AutoBench.Types 
 
 
-import Test.QuickCheck (Arbitrary, arbitrary, generate, resize, sized, vectorOf)
+--import AutoBench.Internal.IO 
+--import AutoBench.Internal.Analysis
 
 
--- | We override QuickCheck's Arbitrary instance for [Int] because the standard 
--- implemenetation for [a] (in Test.QuickCheck.Arbitrary) generates lists /up 
--- to/ a certain size, where as we want to /fix/ the size.
-instance {-# OVERLAPPING #-} Arbitrary [Int] where 
-  arbitrary = sized $ \n -> vectorOf n arbitrary
+import AutoBench.QuickBench
+
 
 
 {-
@@ -34,4 +32,7 @@ id :: Int -> Int
 id x = x
 
 ts :: TestSuite 
-ts  = def 
+ts  = def { _baseline = True }
+
+id2 :: Int -> Int 
+id2 = id

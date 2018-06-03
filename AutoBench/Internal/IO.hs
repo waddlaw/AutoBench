@@ -505,7 +505,7 @@ generateBenchmarkingReport mn ts fp = do
       parseBaseline :: Parser (Id, DataSize)
       parseBaseline = do
         void $ (symbol "Input Sizes") MP.<|> (symbol "Input Size")
-        ("Baseline Measurements",) <$> parseDataSize                                                -- <TO-DO>: This is too important to be a string.
+        ("Baseline measurements",) <$> parseDataSize                                                -- <TO-DO>: This is too important to be a string.
 
       -- Parse the encoded data size from the name of a Criterion report.
       -- E.g., (5, 5) or 5.

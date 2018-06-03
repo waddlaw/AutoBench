@@ -174,9 +174,9 @@ main  = flip catch catchSomeException $ do
     poorNest n = (replicate n ' ' ++)
       
     -- Temporary system files to delete after benchmarking.
-    tempSysFiles ts 
-      | reportFile (_critCfg ts) == Nothing = [defBenchRepFilename]
-      | otherwise = []
+    tempSysFiles ts = []
+      -- | reportFile (_critCfg ts) == Nothing = [defBenchRepFilename]
+      -- | otherwise = []
 
     -- If '_critCfg' in 'TestSuite' doesn't contain a JSON benchmarking report 
     -- file, then use AutoBench's default to interface with Criterion.

@@ -233,19 +233,23 @@ selFitOptions xss = catMaybes <$> mapM (uncurry selFitOption) xss
           go = do liftIO $ putStrLn ""
                   liftIO $ putStrLn $ unlines                                                       -- <TO-DO>: PP.
                     [ "  \9656 Select a fit       [1" ++ endRange
-                    , "  \9656 Review statistics  [S]"                                                  -- <TO-DO>: Too much white space.
-                    , "  \9656 Don't plot         [C]" ]
+                    , "  \9656 View fits          [V]"                                                  
+                    , "  \9656 View statistics    [S]"                                              -- <TO-DO>: Too much white space.
+                    , "  \9656 Don't plot         [X]" ]
                   fmap (fmap toLower . strip) <$> getInputLine "> " >>= \case 
                     Nothing  -> do 
                       liftIO $ putStrLn ""                                                          -- <TO-DO>: Fix this manual spacing.
                       return Nothing                                                                -- <TO-DO>: Error handling here?
-                    Just "c" -> do
+                    Just "v" -> do 
                       liftIO $ putStrLn ""
-                      return Nothing    -- Don't plot a line of best fit for this data set.
+                      showFitOptions idt lfs >> go
                     Just "s" -> do 
                       liftIO $ putStrLn ""
                       showStats lfs 
                       go
+                    Just "x" -> do
+                      liftIO $ putStrLn ""
+                      return Nothing    -- Don't plot a line of best fit for this data set.
                     Just inp -> case reads inp :: [(Int, String)] of 
                       []         -> inpErr >> go
                       (n, _) : _ -> if n >= 1 && n <= l
@@ -276,7 +280,7 @@ selFitOptions xss = catMaybes <$> mapM (uncurry selFitOption) xss
       -> InputT m ()
     showStats lfs = liftIO $ do 
       print $ PP.nest 1 $ PP.text $ "\x2015\x2015 \ESC[3mFitting statistics\ESC[0m " ++ 
-        replicate 61 '\x2015' ++ "\n"  -- Headers are 80 wide
+        replicate 56 '\x2015' ++ "\n"  -- Headers are 80 wide
       mapM_ (\lf -> (print $ PP.vcat 
         [
           PP.nest 2 $ PP.text "y =" PP.<+> (wrapDocExpr 70 $ _ex lf)    -- Equation of each model.
@@ -293,7 +297,7 @@ selFitOptions xss = catMaybes <$> mapM (uncurry selFitOption) xss
       -> InputT m ()
     showFitOptions idt lfs = liftIO $ putStrLn $ PP.render $ PP.vcat 
       [
-        PP.nest 2 $ PP.text idt PP.<> PP.char ':'       -- Name of test program.
+        PP.nest 2 $ PP.text (unqualIdt idt)             -- Name of test program.
       , PP.nest 4 $ PP.vcat $ zipWith (<<+>>) idxs fits -- Ranked model's equations.
       ]
 
@@ -429,7 +433,8 @@ outputAnalysisReport aOpts tr ar = do
     graphToFile [] _ _ = return () -- Nothing to generate.                                          -- <TO-DO>: Warning here?
     graphToFile srs mbls fp = case _srRaws $ head srs of 
       Right{} -> putStrLn "3D graphs coming soon."                                                  -- <TO-DO>: 3D GRAPHS!
-      Left{}  -> do 
+      Left{}  -> do
+        putStrLn "  \9656 Select trend lines for graph of results:\n" 
         (progFits, blsFit) <- runInputT defaultSettings $ do                           -- Have users pick the model to plot on the graph.
           (,) <$> (selFitOptions $ fmap (_srIdt &&& _srFits) srs)                      -- Test programs.
               <*> (selFitOptions $ fmap (_srIdt &&& _srFits) $ maybe [] return mbls)   -- Baseline measurements.
@@ -440,13 +445,13 @@ outputAnalysisReport aOpts tr ar = do
         -- Also make the baseline plots but only the trend line will be plotted.
         let raws    = fmap (_srIdt &&& ((\(Left x) -> x) . _srRaws)) srs                            -- <TO-DO>: \(Left x) -> x is hacky.
             plots   = fmap (makePlots . (\(idt, coords) -> 
-              (idt, coords, lookup idt progFits))) raws -- Lookup to see if best fitting model was chosen by user.
+              (unqualIdt idt, coords, lookup idt progFits))) raws -- Lookup to see if best fitting model was chosen by user.
             blPlot = case mbls of 
                Nothing  -> Nothing -- No baselines. 
                Just bls -> let idt     = _srIdt bls   
                                Left cs = _srRaws bls -- Will definitely be a 'Left'.
                -- Only trend line will be plotted.
-                           in Just $ makePlots (idt, cs, lookup idt blsFit)  
+                           in Just $ makePlots (unqualIdt idt, cs, lookup idt blsFit)  
         
         -- Output runtime graph.
         plotAndSaveAnalGraph fp plots blPlot
@@ -489,8 +494,8 @@ outputQuickAnalysis aOpts eql qa = do -- 'eql' is whether test programs give sam
     -- run.
     improvementsReport :: PP.Doc 
     improvementsReport  = case (eql, _qImps qa) of 
-      (_, [])       -> PP.empty  -- No improvements/optimisations.
-      (True, imps)  -> PP.vcat   -- One or more /optimisations/.
+      (_, [])      -> PP.empty  -- No improvements/optimisations.
+      (True, imps) -> PP.vcat   -- One or more /optimisations/.
         [ 
           if length imps == 1 
              then PP.nest 2 $ PP.text "Optimisation:\n"           -- Hack some space.               -- <TO-DO>: More hacked space here.
@@ -528,11 +533,12 @@ outputQuickAnalysis aOpts eql qa = do -- 'eql' is whether test programs give sam
     graphToFile qrs fp = case _qrRaws $ head qrs of 
       Right{} -> putStrLn "3D graphs coming soon."                                                  -- <TO-DO>: 3D GRAPHS!
       Left {} -> do -- User picks zero or one model for each program.
+        putStrLn "  \9656 Select trend lines for graph of results:\n"
         fits <- runInputT defaultSettings $ selFitOptions $ 
           fmap (_qrIdt &&& _qrFits) qrs
         let raws  = fmap (_qrIdt &&& ((\(Left x) -> x) . _qrRaws)) qrs                              -- <TO-DO>: \(Left x) -> x is hacky.
             plots = fmap (makePlots . (\(idt, coords) -> 
-              (idt, coords, lookup idt fits))) raws
+              (unqualIdt idt, coords, lookup idt fits))) raws
         
         -- Output runtime graph.
         plotAndSaveAnalGraph fp plots Nothing
