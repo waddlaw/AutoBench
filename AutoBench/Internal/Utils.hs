@@ -1,6 +1,6 @@
 
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -Wall            #-} 
+{-# LANGUAGE ScopedTypeVariables #-}
 
 {-|
 

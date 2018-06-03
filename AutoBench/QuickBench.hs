@@ -4,17 +4,19 @@
 {-|
 
   Module      : AutoBench.QuickBench
-  Description : <TO-DO>
+  Description : Main module for QuickBenching.
   Copyright   : (c) 2018 Martin Handley
   License     : BSD-style
   Maintainer  : martin.handley@nottingham.ac.uk
   Stability   : Experimental
   Portability : GHC
 
-  <TO-DO>
+  This module exports all of QuickBench's functionality.
 
-  Note that QuickBench only supports testing with automatically generated test
-  data. Use 'AutoBench.Main' for user-specified test data.
+  There is no AutoBench/QuickBench manual yet, but see
+  http://www.cs.nott.ac.uk/~psxmah/ for videos introducing the system.
+  An introductory paper, "AutoBench: comparing the time performance of Haskell 
+  programs", is also accessible via the same link.
 
 -}
 

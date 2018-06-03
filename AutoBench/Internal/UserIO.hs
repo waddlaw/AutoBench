@@ -1,10 +1,7 @@
 
 {-# OPTIONS_GHC -Wall            #-} 
 {-# LANGUAGE LambdaCase          #-}
-{-# LANGUAGE MultiWayIf          #-}
-{-# LANGUAGE TupleSections       #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-
 
 {-|
 

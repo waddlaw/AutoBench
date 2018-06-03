@@ -1,7 +1,7 @@
 
-{-# LANGUAGE DeriveGeneric        #-}
 {-# OPTIONS_GHC -Wall             #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# LANGUAGE DeriveGeneric        #-}
 
 {-|
 

@@ -1,6 +1,5 @@
 
-{-# OPTIONS_GHC -Wall             #-}
-{-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -Wall #-}
 
 {-|
 

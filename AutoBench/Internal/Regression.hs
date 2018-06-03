@@ -1,6 +1,5 @@
 
-{-# LANGUAGE LambdaCase #-}
-{-# OPTIONS_GHC -Wall   #-}  
+{-# OPTIONS_GHC -Wall #-}  
 
 {-|
 

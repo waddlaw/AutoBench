@@ -1,7 +1,6 @@
 
 {-# OPTIONS_GHC -Wall #-}
 
-
 {-|
 
   Module      : AutoBench.Internal.StaticChecks

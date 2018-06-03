@@ -1,7 +1,6 @@
 
-{-# OPTIONS_GHC -Wall     #-}
-{-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE MultiWayIf   #-}
+{-# OPTIONS_GHC -Wall         #-}
+{-# LANGUAGE BangPatterns     #-}
 {-# LANGUAGE FlexibleContexts #-}
 
 {-|

@@ -14,6 +14,11 @@
 
   Main file for AutoBenching.
 
+  There is no AutoBench/QuickBench manual yet, but see
+  http://www.cs.nott.ac.uk/~psxmah/ for videos introducing the system.
+  An introductory paper, "AutoBench: comparing the time performance of Haskell 
+  programs", is also accessible via the same link.
+
 -}
 
 -- import qualified Options.Applicative as OPTS
