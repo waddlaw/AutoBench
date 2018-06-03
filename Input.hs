@@ -8,8 +8,7 @@ import AutoBench.QuickBench
 import AutoBench.QuickCheck
 import AutoBench.Types 
 
-
-
+import Test.QuickCheck
 
 
 
@@ -17,6 +16,7 @@ import AutoBench.Types
 slowRev :: [Int] -> [Int]
 slowRev []       = []
 slowRev (x : xs) = slowRev xs ++ [x]
+
 
 fastRev :: [Int] -> [Int]
 fastRev xs = go xs []
@@ -29,4 +29,3 @@ fastRev xs = go xs []
 
 ts :: TestSuite 
 ts  = def { _baseline = True, _progs = ["fastRev"] }
-

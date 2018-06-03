@@ -26,10 +26,6 @@
    <TO-DO>:
    ----------------------------------------------------------------------------
    - Too much white space;
-   - LogBase x 0 = -Infinity. So input size 0 effectively breaks for logarithmic
-     models. Right now we 'cleanse' -Infinity to 0, but there must be a better
-     way. Basically: don't use test data of size 0 if you're bothered about 
-     logs.
    -
 -}
 
@@ -378,7 +374,7 @@ genFitMatrices coords c = gen (numPredictors (_lct c) - 1)
     -- through the resulting data points. Although this is a straight line on 
     -- the /resulting data/, it corresponds to a logarithmic function on the
     -- /initial/ data. This technique is standard.  
-    vFxs = cleanse $ (_fxs c) (V.fromList xs)                                                       -- <TO-DO>: *** This needs addressing. ***
+    vFxs = (_fxs c) (V.fromList xs)
     vYs  = V.fromList ys
     -- Number of data points.
     n    = length coords
@@ -420,16 +416,6 @@ genFitMatrices coords c = gen (numPredictors (_lct c) - 1)
     -- 'ySums' are the /responders/.
     resps :: [Double] -> Vector Double
     resps  = V.fromList
-
-    -- Cleanse in case transformation produces infinite values.                                     -- <TO-DO> *** This needs addressing. ***
-    -- /This happens when for size 0 only, LogBase _ 0 = -Infinity/.
-    cleanse :: Vector Double -> Vector Double 
-    cleanse  = V.map replaceNaN
-      where 
-        replaceNaN d
-          | isNaN d || isNegativeZero d || isInfinite d = 0.0  -- What to replace with ???
-          | otherwise = d
-
 
 
 -- | Raise each double in a vector of doubles to a given power.

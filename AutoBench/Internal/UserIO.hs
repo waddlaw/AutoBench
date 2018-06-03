@@ -545,9 +545,17 @@ outputQuickAnalysis aOpts eql qa = do -- 'eql' is whether test programs give sam
 
 -- * Helper functions
 
--- | For a given test program, raw measurements and model, generate the                             -- <TO-DO>: 'cleanse' needs addressing.
+-- | For a given test program, raw measurements, and model, generate the
 -- trend line coordinates from equation of the chosen model. Also return 
 -- the 'LinearType's pretty name for the runtime graph's legend.
+-- 
+-- Important note: Runtimes predicted by models are 'cleansed'. Infinite values 
+-- can be predicted by logarithmic models in one particular case: size 0. This 
+-- is because @LogBase _ 0 = -Infinity@. In this case, the @(0, -Infinity)@ 
+-- coordinate is removed from the dataset.
+-- 
+-- As the coordinate is /not/ used for fitting purposes anyway (it also cleansed
+-- in AutoBench.Internal.Analysis), this is OK for now.
 makePlots 
   :: (Id, [Coord], Maybe LinearFit) 
   -> (Id, [Coord], Maybe String, Maybe [Coord])
@@ -556,6 +564,7 @@ makePlots (idt, coords, Just lf) =
   ( idt                        -- Name of test program.
   , coords                     -- Raw measurements.
   , Just $ show $ _lft lf      -- 'LinearType's pretty name.
+  -- Cleanse predicted runtimes.
   , Just $ cleanse $ zip xs ys -- Line of best fit coordinates calculated from model's equation.
   )
   where 
@@ -563,10 +572,12 @@ makePlots (idt, coords, Just lf) =
     ys      = V.toList $ (_yhat lf) (V.fromList xs) -- yhats predicted by the model.
 
     -- Cleanse in case transformation produces infinite values.                                     -- <TO-DO> *** This needs addressing. ***
-    -- /This happens when for size 0 only, LogBase _ 0 = -Infinity/.
+    -- /This happens precisely for size 0 only/, @LogBase _ 0 = -Infinity@.
+    -- Remove the @(0, -Infinity)@ coordinate.
+    -- ** Only cleanse runtimes predicted by models. **
     cleanse :: [Coord] -> [Coord]
     cleanse  = filter (\(_, y) -> not 
-      (isNaN y || isNegativeZero y || isInfinite y))         
+      (isNaN y || isNegativeZero y || isInfinite y))
 
 -- | Write output to file with a success/fail prompt and catch and print /any/ 
 -- errors.

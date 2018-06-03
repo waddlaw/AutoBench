@@ -23,6 +23,7 @@
    ----------------------------------------------------------------------------
    <TO-DO>:
    ----------------------------------------------------------------------------
+   - Address the cleansing of input sizes to remove 0;
    - 
 -}
 
@@ -263,12 +264,12 @@ candidateFit
   -> LinearCandidate                                -- Model to fit.
   -> Maybe LinearFit                  
 candidateFit ff split iters coords c
-  | length coords < maxPredictors + 1 = Nothing     -- Need a minimum of (maxPredictors + 1) coordinates.
-  | V.null coeffs = Nothing                         -- If coefficients are null, can't use model.
+  | length cleansedCoords < maxPredictors + 1 = Nothing     -- Need a minimum of (maxPredictors + 1) coordinates.
+  | V.null coeffs = Nothing                                 -- If coefficients are null, can't use model.
   | otherwise = Just
       LinearFit 
         {
-          _lft  = _lct   c 
+          _lft  = _lct c 
         , _cfs  = coeffs
         , _ex   = _fex   c coeffs
         , _yhat = _fyhat c coeffs
@@ -277,12 +278,20 @@ candidateFit ff split iters coords c
   where 
     -- Model coefficients when fit to /entire/ data set.
     -- This is for e.g., R^2, Adj. R^2, BIC, AIC CP.
-    coeffs = ff coords c                                                                            -- <TO-DO>: can 'ff' fail?
+    coeffs = ff cleansedCoords c                                                                    -- <TO-DO>: can 'ff' fail?
     -- Statistics from cross-validation, e.g., PRESS, PMAE, PMSE.
-    cvSts  = cvCandidateFit ff split iters coords c
+    cvSts  = cvCandidateFit ff split iters cleansedCoords c
     -- Combine statistics from each cross-validation iteration and also compute
     -- other goodness of fit measures.
-    sts    = stats c coords coeffs cvSts
+    sts    = stats c cleansedCoords coeffs cvSts
+
+    -- Cleanse in case transformation produces infinite values.                                     -- <TO-DO> *** This needs addressing. ***
+    -- /This happens when for size 0 only, LogBase _ 0 = -Infinity/.
+    -- Remove the @(0, _)@ coordinate.
+    -- ** Only cleanse runtimes predicted by models. **
+    cleansedCoords = cleanse coords 
+    cleanse :: [Coord] -> [Coord]
+    cleanse  = filter (\(x, _) -> x /= 0)
 
 -- ** Linear fitting cross-validation
 
@@ -336,9 +345,9 @@ cvStats c coords coeffs =
     ybars   = V.replicate n ybar    
     ---------------------------------------------------------------------------
     mse     = ss_res / n'                                 -- Mean squared error       ss_res / n
-    mae     = (norm_1 $ V.zipWith (-) _Y  yhat) / n'      -- Mean absolute error:     (SUM |y_i - f(y_i)|) / n             
-    ss_tot  = (norm_2 $ V.zipWith (-) _Y  ybars) ** 2.0   -- Total sum of squares:    SUM (y_i - avg(y))^2
-    ss_res  = (norm_2 $ V.zipWith (-) _Y  yhat)  ** 2.0   -- Residual sum of squares: SUM (y_i - f(y_i))^2
+    mae     = (norm_1 $ V.zipWith (-) _Y yhat) / n'       -- Mean absolute error:     (SUM |y_i - f(y_i)|) / n             
+    ss_tot  = (norm_2 $ V.zipWith (-) _Y ybars) ** 2.0    -- Total sum of squares:    SUM (y_i - avg(y))^2
+    ss_res  = (norm_2 $ V.zipWith (-) _Y yhat)  ** 2.0    -- Residual sum of squares: SUM (y_i - f(y_i))^2
 
 
 -- | Overall fitting statics for a model and a given data set. Some statistics 
