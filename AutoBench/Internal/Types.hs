@@ -472,6 +472,8 @@ data InputError =
   | TypeErr       String    -- ^ Invalid type signature.
   | InstanceErr   String    -- ^ One or more missing instances
   | TestReportErr String    -- ^ Invalid test report.
+  | QuickOptsErr  String    -- ^ Invalid quick options. See AutoBench.QuickBench.
+  | QuickBenchErr String    -- ^ QuickBench error. See AutoBench.QuickBench.
 
 instance Show InputError where 
   show (FilePathErr   s) = "File path error: "        ++ s
@@ -482,6 +484,9 @@ instance Show InputError where
   show (TypeErr       s) = "Type error: "             ++ s
   show (InstanceErr   s) = "Instance error: "         ++ s
   show (TestReportErr s) = "Test report error: "      ++ s
+  show (QuickOptsErr  s) = "Quick options error: "    ++ s
+  show (QuickBenchErr s) = "QuickBench test error: "  ++ s
+
 
 instance Exception InputError
 

@@ -5,7 +5,6 @@ import Data.Default
 import Prelude hiding (id)
 
 import AutoBench.QuickBench
-import AutoBench.QuickCheck
 import AutoBench.Types 
 
 import Test.QuickCheck

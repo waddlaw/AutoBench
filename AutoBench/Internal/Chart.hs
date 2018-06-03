@@ -298,6 +298,15 @@ plotAnalGraph progPlots blPlot = fillBackground def . gridToRenderable $
       , deeppink
       , darkorange
       , coral
+      , deepskyblue
+      , gainsboro
+      , maroon
+      , orchid
+      , sandybrown
+      , wheat
+      , yellowgreen
+      , gold
+      , indianred
       ]
 
     -- Get the coordinates from each plot.

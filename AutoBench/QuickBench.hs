@@ -23,7 +23,7 @@
    <TO-DO>:
    ----------------------------------------------------------------------------
    - Commenting;
-   - Gen 0  <--- breaks logs;
+   - QGen 0  <--- breaks logs;
    -
 -}
 
@@ -32,7 +32,7 @@ module AutoBench.QuickBench
   (
 
   -- * Datatypes
-    GenRange(..)         -- QuickBench test data size range.
+    QGen(..)              -- QuickBench test data size range.
   , QuickOpts(..)        -- QuickBench options.
   
   -- * QuickBench: no EQ
@@ -63,16 +63,17 @@ module AutoBench.QuickBench
 
   ) where 
 
-import Control.Applicative    (liftA2)
-import Control.DeepSeq        (NFData(..), deepseq)
-import Criterion.Measurement  (measure)
-import Data.Default           (Default(..))
-import Data.Maybe             (catMaybes)
-import Test.QuickCheck        ( Arbitrary(..), Args(..), quickCheckWithResult 
-                              , resize, stdArgs )
-import Test.QuickCheck.Gen    (Gen, sample', unGen)
-import Test.QuickCheck.Random (QCGen, newQCGen)
-import Test.QuickCheck.Test   (isSuccess)
+import           Control.Applicative    (liftA2)
+import           Control.DeepSeq        (NFData(..), deepseq)
+import           Criterion.Measurement  (measure)
+import           Data.Default           (Default(..))
+import           Data.Maybe             (catMaybes)
+import           Test.QuickCheck        ( Arbitrary(..), Args(..)
+                                        , quickCheckWithResult 
+                                        , resize, stdArgs )
+import           Test.QuickCheck.Gen    (Gen, sample', unGen)
+import           Test.QuickCheck.Random (QCGen, newQCGen)
+import           Test.QuickCheck.Test   (isSuccess)
 
 import Criterion.Types        
   ( Benchmarkable
@@ -82,19 +83,21 @@ import Criterion.Types
   , whnf
   )
 
-import AutoBench.Internal.AbstractSyntax (Id)
-import AutoBench.Internal.Analysis       (quickAnalyseWith)
-import AutoBench.Internal.Types          (AnalOpts(..), QuickReport(..))
-import AutoBench.Internal.Utils          (allEq)
+import AutoBench.Internal.AbstractSyntax  (Id)
+import AutoBench.Internal.Analysis        (quickAnalyseWith)
+import AutoBench.Internal.Types           ( AnalOpts(..), InputError(..)
+                                          , QuickReport(..), minInputs)
+import AutoBench.Internal.UserInputChecks (validateAnalOpts)
+import AutoBench.Internal.Utils           (allEq)
 
 -- * Datatypes
 
 -- | Size range of test data to be generated for QuickBenching.
--- Default is: @GenRange 0 5 100@
-data GenRange = GenRange Int Int Int 
+-- Default is: @QGen 0 5 100@
+data QGen = QGen Int Int Int 
 
-instance Default GenRange where 
-  def = GenRange 0 5 100
+instance Default QGen where 
+  def = QGen 0 5 100
 
 -- | QuickBench user options. These include:
 --
@@ -109,7 +112,7 @@ instance Default GenRange where
 -- @ 
 -- QuickOpts
 --   { _qProgs    = [ "P1", "P2"... ]
---   , _qGenRange = GenRange 0 5 100
+--   , _qGen      = QGen 0 5 100
 --   , _qAnalOpts = def { _topModels = 5 }         -- see 'AnalOpts'.
 --   , _qRuns     = 1
 --   }
@@ -118,7 +121,7 @@ data QuickOpts =
   QuickOpts 
     { 
       _qProgs    :: [String]   -- ^ Names of test programs.
-    , _qGenRange :: GenRange   -- ^ Size range of generated test data.
+    , _qGen      :: QGen       -- ^ Size range of generated test data.
     , _qAnalOpts :: AnalOpts   -- ^ Statistical analysis options.
     , _qRuns     :: Int        -- ^ How many times to run each test case.
     }
@@ -127,11 +130,11 @@ instance Default QuickOpts where
   def = QuickOpts 
           { 
             _qProgs    = fmap (('P' :) . show) ([1..] :: [Int]) 
-          , _qGenRange = def 
+          , _qGen      = def 
           , _qAnalOpts = def { _topModels = 5 }
           , _qRuns     = 1
           }
-          
+
 -- * QuickBench: no EQ
 
 -- ** QuickBench top-level functions: default 'QuickOpts'
@@ -193,11 +196,15 @@ quickBenchNfWith
   => QuickOpts
   -> [(a -> b)]
   -> IO ()
-quickBenchNfWith qOpts ps = do 
-  seed <- newQCGen
-  let dats = unGen' seed (genSizedUn $ _qGenRange qOpts)
-  qReps <- dats `deepseq` quickBenchNfUn qOpts ps dats -- QuickReports.
-  quickAnalyseWith (_qAnalOpts qOpts) False qReps
+quickBenchNfWith _ [] = noTestProgramsError
+quickBenchNfWith qOpts ps 
+  | null errs = do 
+      seed <- newQCGen
+      let dats = unGen' seed (genSizedUn $ _qGen qOpts)
+      qReps <- dats `deepseq` quickBenchNfUn qOpts ps dats -- QuickReports.
+      quickAnalyseWith (_qAnalOpts qOpts) False qReps
+  | otherwise = quickOptsErrors errs
+  where errs = validateQuickOpts True qOpts  -- True for unary test programs.
 
 -- | QuickBench a number of unary test programs using generated test data:
 -- 
@@ -208,11 +215,15 @@ quickBenchWhnfWith
   => QuickOpts
   -> [(a -> b)]
   -> IO ()
-quickBenchWhnfWith qOpts ps = do
-  seed <- newQCGen
-  let dats = unGen' seed (genSizedUn $ _qGenRange qOpts)
-  qReps <- dats `deepseq` quickBenchWhnfUn qOpts ps dats
-  quickAnalyseWith (_qAnalOpts qOpts) False qReps
+quickBenchWhnfWith _ [] = noTestProgramsError
+quickBenchWhnfWith qOpts ps 
+  | null errs = do 
+      seed <- newQCGen
+      let dats = unGen' seed (genSizedUn $ _qGen qOpts)
+      qReps <- dats `deepseq` quickBenchWhnfUn qOpts ps dats
+      quickAnalyseWith (_qAnalOpts qOpts) False qReps
+  | otherwise = quickOptsErrors errs
+  where errs = validateQuickOpts True qOpts  -- True for unary test programs.
 
 -- | QuickBench a number of binary test programs using generated test data:
 -- 
@@ -223,11 +234,15 @@ quickBenchNf2With
   => QuickOpts
   -> [(a -> b -> c)]
   -> IO ()
-quickBenchNf2With qOpts ps = do 
-  seed <- newQCGen
-  let dats = unGen' seed (genSizedBin $ _qGenRange qOpts)
-  qReps <- dats `deepseq` quickBenchNfBin qOpts ps dats
-  quickAnalyseWith (_qAnalOpts qOpts) False qReps
+quickBenchNf2With _ [] = noTestProgramsError
+quickBenchNf2With qOpts ps
+  | null errs = do 
+      seed <- newQCGen
+      let dats = unGen' seed (genSizedBin $ _qGen qOpts)
+      qReps <- dats `deepseq` quickBenchNfBin qOpts ps dats
+      quickAnalyseWith (_qAnalOpts qOpts) False qReps
+  | otherwise = quickOptsErrors errs
+  where errs = validateQuickOpts False qOpts  -- False for binary test programs.
 
 -- | QuickBench a number of binary test programs using generated test data:
 -- 
@@ -238,11 +253,15 @@ quickBenchWhnf2With
   => QuickOpts
   -> [(a -> b -> c)]
   -> IO ()
-quickBenchWhnf2With qOpts ps = do 
-  seed <- newQCGen
-  let dats = unGen' seed (genSizedBin $ _qGenRange qOpts)
-  qReps <- dats `deepseq` quickBenchWhnfBin qOpts ps dats
-  quickAnalyseWith (_qAnalOpts qOpts) False qReps
+quickBenchWhnf2With _ [] = noTestProgramsError
+quickBenchWhnf2With qOpts ps
+  | null errs = do 
+      seed <- newQCGen
+      let dats = unGen' seed (genSizedBin $ _qGen qOpts)
+      qReps <- dats `deepseq` quickBenchWhnfBin qOpts ps dats
+      quickAnalyseWith (_qAnalOpts qOpts) False qReps
+  | otherwise = quickOptsErrors errs
+  where errs = validateQuickOpts False qOpts  -- False for binary test programs.
 
 -- * QuickBench: with EQ.
 
@@ -305,12 +324,16 @@ _quickBenchNfWith
   => QuickOpts
   -> [(a -> b)]
   -> IO ()
-_quickBenchNfWith qOpts ps = do 
-  seed <- newQCGen
-  let dats = unGen' seed (genSizedUn $ _qGenRange qOpts)
-  qReps <- dats `deepseq` quickBenchNfUn qOpts ps dats -- QuickReports.
-  b     <- quickCheckUn ps
-  quickAnalyseWith (_qAnalOpts qOpts) b qReps
+_quickBenchNfWith _ [] = noTestProgramsError
+_quickBenchNfWith qOpts ps 
+  | null errs = do 
+      seed <- newQCGen
+      let dats = unGen' seed (genSizedUn $ _qGen qOpts)
+      qReps <- dats `deepseq` quickBenchNfUn qOpts ps dats -- QuickReports.
+      b     <- quickCheckUn ps
+      quickAnalyseWith (_qAnalOpts qOpts) b qReps
+  | otherwise = quickOptsErrors errs
+  where errs = validateQuickOpts True qOpts  -- True for unary test programs.
 
 -- | QuickBench a number of unary test programs using generated test data:
 -- 
@@ -321,12 +344,16 @@ _quickBenchWhnfWith
   => QuickOpts
   -> [(a -> b)]
   -> IO ()
-_quickBenchWhnfWith qOpts ps = do
-  seed <- newQCGen
-  let dats = unGen' seed (genSizedUn $ _qGenRange qOpts)
-  qReps <- dats `deepseq` quickBenchWhnfUn qOpts ps dats
-  b     <- quickCheckUn ps
-  quickAnalyseWith (_qAnalOpts qOpts) b qReps
+_quickBenchWhnfWith _ [] = noTestProgramsError
+_quickBenchWhnfWith qOpts ps
+  | null errs = do 
+      seed <- newQCGen
+      let dats = unGen' seed (genSizedUn $ _qGen qOpts)
+      qReps <- dats `deepseq` quickBenchWhnfUn qOpts ps dats
+      b     <- quickCheckUn ps
+      quickAnalyseWith (_qAnalOpts qOpts) b qReps
+  | otherwise = quickOptsErrors errs
+  where errs = validateQuickOpts True qOpts  -- True for unary test programs.
 
 -- | QuickBench a number of binary test programs using generated test data:
 -- 
@@ -337,12 +364,16 @@ _quickBenchNf2With
   => QuickOpts
   -> [(a -> b -> c)]
   -> IO ()
-_quickBenchNf2With qOpts ps = do 
-  seed <- newQCGen
-  let dats = unGen' seed (genSizedBin $ _qGenRange qOpts)
-  qReps <- dats `deepseq` quickBenchNfBin qOpts ps dats
-  b     <- quickCheckBin ps
-  quickAnalyseWith (_qAnalOpts qOpts) b qReps
+_quickBenchNf2With _ [] = noTestProgramsError
+_quickBenchNf2With qOpts ps
+  | null errs = do 
+      seed <- newQCGen
+      let dats = unGen' seed (genSizedBin $ _qGen qOpts)
+      qReps <- dats `deepseq` quickBenchNfBin qOpts ps dats
+      b     <- quickCheckBin ps
+      quickAnalyseWith (_qAnalOpts qOpts) b qReps
+  | otherwise = quickOptsErrors errs
+  where errs = validateQuickOpts False qOpts  -- False for binary test programs.
 
 -- | QuickBench a number of binary test programs using generated test data:
 -- 
@@ -353,12 +384,16 @@ _quickBenchWhnf2With
   => QuickOpts
   -> [(a -> b -> c)]
   -> IO ()
-_quickBenchWhnf2With qOpts ps = do 
-  seed <- newQCGen
-  let dats = unGen' seed (genSizedBin $ _qGenRange qOpts)
-  qReps <- dats `deepseq` quickBenchWhnfBin qOpts ps dats
-  b     <- quickCheckBin ps
-  quickAnalyseWith (_qAnalOpts qOpts) b qReps
+_quickBenchWhnf2With _ [] = noTestProgramsError
+_quickBenchWhnf2With qOpts ps 
+  | null errs = do 
+      seed <- newQCGen
+      let dats = unGen' seed (genSizedBin $ _qGen qOpts)
+      qReps <- dats `deepseq` quickBenchWhnfBin qOpts ps dats
+      b     <- quickCheckBin ps
+      quickAnalyseWith (_qAnalOpts qOpts) b qReps
+  | otherwise = quickOptsErrors errs
+  where errs = validateQuickOpts False qOpts  -- False for binary test programs.
 
 -- * Helpers 
 
@@ -370,11 +405,11 @@ unGen' :: QCGen -> Gen a -> a
 unGen' seed gen = unGen gen seed 1 
 
 -- | Generator for sized unary test data of a specific type.
-genSizedUn :: Arbitrary a => GenRange -> Gen [a]
+genSizedUn :: Arbitrary a => QGen -> Gen [a]
 genSizedUn  = mapM (flip resize arbitrary) . toHRange
 
 -- | Generator for sized binary test data of specific types.
-genSizedBin :: (Arbitrary a, Arbitrary b) => GenRange -> Gen [(a, b)]
+genSizedBin :: (Arbitrary a, Arbitrary b) => QGen -> Gen [(a, b)]
 genSizedBin range = liftA2 (,) <$> genSizedUn range <*> genSizedUn range
 
 -- ** Benchmarking 
@@ -388,11 +423,12 @@ quickBenchNfUn
   -> [(a -> b)] 
   -> [a]
   -> IO [QuickReport]
+quickBenchNfUn _ _ [] = return []
 quickBenchNfUn qOpts ps dats = do 
   let benchs = [ fmap (nf p) dats | p <- ps ]                           -- Generate Benchmarkables.
       runs   = _qRuns qOpts                                             -- How many times to execute each Benchmarkable?
   times <- mapM (mapM $ qBench runs) benchs                             -- Do the benchmarking.
-  return $ zipWith (flip verifyTimesUn $ _qGenRange qOpts) names times  -- Verify Criterion's measurements and generate 'QuickReport's.
+  return $ zipWith (flip verifyTimesUn $ _qGen qOpts) names times       -- Verify Criterion's measurements and generate 'QuickReport's.
   where names = genNames (_qProgs qOpts)
   
 -- | Benchmark a number of unary test programs on the same test data. 
@@ -404,11 +440,12 @@ quickBenchWhnfUn
   -> [(a -> b)] 
   -> [a]
   -> IO [QuickReport]
+quickBenchWhnfUn _ _ [] = return []
 quickBenchWhnfUn qOpts ps dats = do 
   let benchs = [ fmap (whnf p) dats | p <- ps ]
       runs   = _qRuns qOpts
   times <- mapM (mapM $ qBench runs) benchs
-  return $ zipWith (flip verifyTimesUn $ _qGenRange qOpts) names times
+  return $ zipWith (flip verifyTimesUn $ _qGen qOpts) names times
   where names = genNames (_qProgs qOpts)
 
 -- | Benchmark a number of binary test programs on the same test data. 
@@ -420,11 +457,12 @@ quickBenchNfBin
   -> [(a -> b -> c)] 
   -> [(a, b)]
   -> IO [QuickReport]
+quickBenchNfBin _ _ [] = return []
 quickBenchNfBin qOpts ps dats = do 
   let benchs = [ fmap (nf $ uncurry p) dats | p <- ps ]
       runs   = _qRuns qOpts
   times <- mapM (mapM $ qBench runs) benchs
-  return $ zipWith (flip verifyTimesBin $ _qGenRange qOpts) names times
+  return $ zipWith (flip verifyTimesBin $ _qGen qOpts) names times
   where names = genNames (_qProgs qOpts)
 
 -- | Benchmark a number of binary test programs on the same test data. 
@@ -436,11 +474,12 @@ quickBenchWhnfBin
   -> [(a -> b -> c)] 
   -> [(a, b)]
   -> IO [QuickReport]
+quickBenchWhnfBin _ _ [] = return []
 quickBenchWhnfBin qOpts ps dats = do 
   let benchs = [ fmap (whnf $ uncurry p) dats | p <- ps ]
       runs   = _qRuns qOpts
   times <- mapM (mapM $ qBench runs) benchs
-  return $ zipWith (flip verifyTimesBin $ _qGenRange qOpts) names times
+  return $ zipWith (flip verifyTimesBin $ _qGen qOpts) names times
   where names = genNames (_qProgs qOpts)
 
 -- | Execute a benchmarkable for @n@ iterations measuring the total number of
@@ -453,7 +492,7 @@ qBench n b = (/ fromIntegral n) . measMutatorCpuSeconds .
 
 -- | Verify Criterion measurements while producing a 'QuickReport'
 -- for test results relating to unary test programs.
-verifyTimesUn :: Id -> GenRange -> [Double] -> QuickReport
+verifyTimesUn :: Id -> QGen -> [Double] -> QuickReport
 verifyTimesUn idt range times = 
   QuickReport 
     {
@@ -464,7 +503,7 @@ verifyTimesUn idt range times =
 
 -- | Verify Criterion measurements while producing a 'QuickReport'
 -- for test results relating to binary test programs.
-verifyTimesBin :: Id -> GenRange -> [Double] -> QuickReport
+verifyTimesBin :: Id -> QGen -> [Double] -> QuickReport
 verifyTimesBin idt range times = 
   QuickReport 
     {
@@ -501,6 +540,47 @@ genNames :: [String] -> [String]
 genNames ns = ns ++ fmap (('P' :) . show) ([l..] :: [Int])
   where l = length ns + 1
 
--- | Convert a 'GenRange' to a Haskell range.
-toHRange :: GenRange -> [Int]
-toHRange (GenRange l s u) = [l, (l + s) .. u]
+-- | Convert a 'QGen' to a Haskell range.
+toHRange :: QGen -> [Int]
+toHRange (QGen l s u) = [l, (l + s) .. u]
+
+-- | Validate 'QuickOpts' to ensure test settings are acceptable.
+validateQuickOpts :: Bool -> QuickOpts -> [InputError] 
+validateQuickOpts unary qOpts = 
+  validQGen unary     (_qGen qOpts)
+  ++ validateAnalOpts (_qAnalOpts qOpts)  -- See AutoBench.Internal.UserInputChecks.
+  ++ validRuns        (_qRuns qOpts)
+
+
+  where
+    -- '_qRuns' must be strictly positive.
+    validRuns :: Int -> [InputError]
+    validRuns runs 
+      | runs > 0  = []
+      | otherwise = [qRunsErr]
+
+    -- Minimum of 'minInputs' test cases. 
+    validQGen :: Bool -> QGen -> [InputError]
+    validQGen True (QGen l s u)                                          -- True for unary test programs.
+      | l < 0 || s <= 0 || u <= 0       = [qGenParErr]                   -- l >= 0, s > 0, u > 0.
+      | (u - l) `div` s + 1 < minInputs = [qGenSizeErr]                  -- Size range >= minInputs.
+      | otherwise = []
+    validQGen False (QGen l s u)                                         -- False for binary test programs.
+      | l < 0 || s <= 0 || u <= 0                      = [qGenParErr]    -- l >= 0, s > 0, u > 0.
+      | ((u - l) `div` s + 1) ^ (2 :: Int) < minInputs = [qGenSizeErr]   -- Size range >= minInputs.
+      | otherwise = []
+
+    -- Errors:
+    qRunsErr    = QuickOptsErr "Number of test program runs must be strictly positive."
+    qGenParErr  = QuickOptsErr "Invalid values for 'QGen' bounds and/or step." 
+    qGenSizeErr = QuickOptsErr $ "A minimum of " ++ show minInputs ++ " test inputs are required."
+
+-- ** Error messages
+
+-- | Output error for no test programs.
+noTestProgramsError :: IO ()
+noTestProgramsError  = print $ QuickBenchErr "No test programs."
+
+-- | Output 'QuickOpts' errors.
+quickOptsErrors :: [InputError] -> IO ()
+quickOptsErrors  = mapM_ print 
