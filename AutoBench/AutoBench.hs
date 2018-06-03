@@ -1,8 +1,24 @@
-
-{-# OPTIONS_GHC -Wall   #-} 
+ 
+{-# OPTIONS_GHC -Wall   #-}
 {-# LANGUAGE LambdaCase #-}
 
+{-|
+
+  Module      : AutoBench.AutoBench
+  Description : Main file for AutoBenching.
+  Copyright   : (c) 2018 Martin Handley
+  License     : BSD-style
+  Maintainer  : martin.handley@nottingham.ac.uk
+  Stability   : Experimental
+  Portability : GHC
+
+  Main file for AutoBenching.
+
+-}
+
 -- import qualified Options.Applicative as OPTS
+
+module Main (main) where
 
 import           Control.Exception.Base       ( SomeException, catch, finally 
                                               , fromException, throwIO )
@@ -44,13 +60,12 @@ import AutoBench.Internal.Types
    ----------------------------------------------------------------------------
    <TO-DO>:
    ----------------------------------------------------------------------------
-   - Sanitise runtimes;
+   - Sanitise runtimes?
    - Use PP here;
    -
 -}
 
-
--- | Top-level AutoBench function.
+-- | To AutoBench a file containing test inputs, use @./AutoBench <filename>@
 main :: IO () 
 main  = flip catch catchSomeException $ do 
 
@@ -135,7 +150,7 @@ main  = flip catch catchSomeException $ do
       void getChar
       printGoodbyeMessage
 
-    -- Use QuickCheck testing to check if test programs are semantically 
+    -- Use QuickCheck to check if test programs are semantically 
     -- equal. Note: doesn't work for manual test data currently.
     quickCheck :: FilePath -> TestSuite -> UserInputs -> IO Bool 
     quickCheck fp ts inps = case (_dataOpts ts) of 
