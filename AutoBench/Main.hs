@@ -174,7 +174,7 @@ main  = flip catch catchSomeException $ do
     poorNest n = (replicate n ' ' ++)
       
     -- Temporary system files to delete after benchmarking.
-    tempSysFiles ts = []
+    tempSysFiles ts
       | reportFile (_critCfg ts) == Nothing = [defBenchRepFilename]
       | otherwise = []
 

@@ -151,15 +151,14 @@ plotAnalGraph progPlots blPlot = fillBackground def . gridToRenderable $
 
       -- Plots:
       -- Need to plot points first then lines, otherwise legend looks bad.
-      let (pointPlotss, linePlotss) = unzip $ fmap (uncurry graphProgPlots') 
+      let (pointPlotss, linePlotss) = unzip $ fmap (uncurry graphProgPlots) 
                                        (zip scaledProgPlots colours)
-      mapM_ plot (concat pointPlotss)
-      mapM_ plot (concat linePlotss ++ graphBlPlot' scaledBlPlot)
+      mapM_ plot (concat pointPlotss)                             -- Raw measurements.
+      mapM_ plot (concat linePlotss ++ graphBlPlot scaledBlPlot) -- Trend lines and baseline measurements.
      
 
-
-      --mapM_ (uncurry graphProgPlots) (zip scaledProgPlots colours) -- Raw measurements and trend lines.
-      --graphBlPlot scaledBlPlot                                     -- Baseline measurements.
+      --mapM_ (uncurry graphProgPlots) (zip scaledProgPlots colours)
+      --graphBlPlot scaledBlPlot                                     
 
     -- Graph elements: END ----------------------------------------------------
    
@@ -221,51 +220,29 @@ plotAnalGraph progPlots blPlot = fillBackground def . gridToRenderable $
     -- Axis scaling: END ------------------------------------------------------
 
     -- Plotting: START --------------------------------------------------------
-
+ 
     -- Plot raw measurement from test programs and their trend lines predicted 
     -- by the model in the same colour.
     -- Note: 'Maybes' are both 'Just' or both 'Nothing'.
-    graphProgPlots 
-      :: (Id, [Coord], Maybe String, Maybe [Coord]) 
-      -> AlphaColour Double 
-      -> EC (Layout Double Double) ()
-    graphProgPlots (idt, cs, Just modelIdt, Just modelCs) colour = do 
-      plot $ plotPoints idt      cs      colour      -- Plot raw data.
-      plot $ plotLines  modelIdt modelCs colour      -- Plot model predictions as a line of best fit.
-    graphProgPlots (idt, cs, _, _) colour = do 
-      plot $ plotPoints idt cs colour                -- Just plot raw data, no line of best fit.
-
-    -- Plot baseline measurements, if applicable.
-    graphBlPlot
-      :: Maybe (Id, [Coord], Maybe String, Maybe [Coord]) 
-      -> EC (Layout Double Double) ()
-    graphBlPlot (Just (_, _, Just modelIdt, Just modelCs)) = 
-      plot $ plotDashedLines modelIdt modelCs (withOpacity black 0.7)  -- Just plot trend line for baseline measurements.
-    graphBlPlot _ = return ()   
-
-    
-    -- Plot raw measurement from test programs and their trend lines predicted 
-    -- by the model in the same colour.
-    -- Note: 'Maybes' are both 'Just' or both 'Nothing'.
-    graphProgPlots'
+    graphProgPlots
       :: (Id, [Coord], Maybe String, Maybe [Coord]) 
       -> AlphaColour Double 
       -> ([EC l (PlotPoints Double Double)], [EC l1 (PlotLines Double Double)])
     -- Plot model predictions as a line of best fit.
-    graphProgPlots' (idt, cs, Just modelIdt, Just modelCs) colour =
+    graphProgPlots (idt, cs, Just modelIdt, Just modelCs) colour =
       ( [plotPoints idt cs colour]
       , [plotLines modelIdt modelCs colour] )     
     -- Just plot raw data, no line of best fit.
-    graphProgPlots' (idt, cs, _, _) colour = ([plotPoints idt cs colour], []) 
+    graphProgPlots (idt, cs, _, _) colour = ([plotPoints idt cs colour], []) 
 
     -- Plot baseline measurements, if applicable.
-    graphBlPlot'
+    graphBlPlot
       :: Maybe (Id, [Coord], Maybe String, Maybe [Coord]) 
       -> [EC l1 (PlotLines Double Double)]
     -- Just plot trend line for baseline measurements.
-    graphBlPlot' (Just (_, _, Just modelIdt, Just modelCs)) = 
+    graphBlPlot (Just (_, _, Just modelIdt, Just modelCs)) = 
       [plotDashedLines modelIdt modelCs (withOpacity black 0.7)]
-    graphBlPlot' _ = []
+    graphBlPlot _ = []
 
 
 
