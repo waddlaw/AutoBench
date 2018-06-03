@@ -84,7 +84,7 @@ import Criterion.Types
 
 import AutoBench.Internal.AbstractSyntax (Id)
 import AutoBench.Internal.Analysis       (quickAnalyseWith)
-import AutoBench.Internal.Types          (AnalOpts, QuickReport(..))
+import AutoBench.Internal.Types          (AnalOpts(..), QuickReport(..))
 import AutoBench.Internal.Utils          (allEq)
 
 -- * Datatypes
@@ -110,7 +110,7 @@ instance Default GenRange where
 -- QuickOpts
 --   { _qProgs    = [ "P1", "P2"... ]
 --   , _qGenRange = GenRange 0 5 100
---   , _qAnalOpts = def                 -- see 'AnalOpts'.
+--   , _qAnalOpts = def { _topModels = 5 }         -- see 'AnalOpts'.
 --   , _qRuns     = 1
 --   }
 -- @
@@ -128,8 +128,8 @@ instance Default QuickOpts where
           { 
             _qProgs    = fmap (('P' :) . show) ([1..] :: [Int]) 
           , _qGenRange = def 
-          , _qAnalOpts = def 
-          , _qRuns     = 10
+          , _qAnalOpts = def { _topModels = 5 }
+          , _qRuns     = 1
           }
           
 -- * QuickBench: no EQ

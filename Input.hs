@@ -4,11 +4,12 @@ module Input where
 import Data.Default
 import Prelude hiding (id)
 
+import AutoBench.QuickBench
 import AutoBench.QuickCheck
 import AutoBench.Types 
 
 
-import AutoBench.QuickBench
+
 
 
 
