@@ -23,16 +23,14 @@
    <TO-DO>:
    ----------------------------------------------------------------------------
    - Commenting;
-   - QGen 0  <--- breaks logs;
    -
 -}
-
 
 module AutoBench.QuickBench 
   (
 
   -- * Datatypes
-    QGen(..)              -- QuickBench test data size range.
+    QGen(..)             -- QuickBench test data size range.
   , QuickOpts(..)        -- QuickBench options.
   
   -- * QuickBench: no EQ
@@ -63,17 +61,17 @@ module AutoBench.QuickBench
 
   ) where 
 
-import           Control.Applicative    (liftA2)
-import           Control.DeepSeq        (NFData(..), deepseq)
-import           Criterion.Measurement  (measure)
-import           Data.Default           (Default(..))
-import           Data.Maybe             (catMaybes)
-import           Test.QuickCheck        ( Arbitrary(..), Args(..)
-                                        , quickCheckWithResult 
-                                        , resize, stdArgs )
-import           Test.QuickCheck.Gen    (Gen, sample', unGen)
-import           Test.QuickCheck.Random (QCGen, newQCGen)
-import           Test.QuickCheck.Test   (isSuccess)
+import Control.Applicative    (liftA2)
+import Control.DeepSeq        (NFData(..), deepseq)
+import Criterion.Measurement  (measure)
+import Data.Default           (Default(..))
+import Data.Maybe             (catMaybes)
+import Test.QuickCheck        ( Arbitrary(..), Args(..)
+                              , quickCheckWithResult 
+                              , resize, stdArgs )
+import Test.QuickCheck.Gen    (Gen, sample', unGen)
+import Test.QuickCheck.Random (QCGen, newQCGen)
+import Test.QuickCheck.Test   (isSuccess)
 
 import Criterion.Types        
   ( Benchmarkable
@@ -86,7 +84,7 @@ import Criterion.Types
 import AutoBench.Internal.AbstractSyntax  (Id)
 import AutoBench.Internal.Analysis        (quickAnalyseWith)
 import AutoBench.Internal.Types           ( AnalOpts(..), InputError(..)
-                                          , QuickReport(..), minInputs)
+                                          , QuickReport(..), minInputs )
 import AutoBench.Internal.UserInputChecks (validateAnalOpts)
 import AutoBench.Internal.Utils           (allEq)
 
