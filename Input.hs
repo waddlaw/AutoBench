@@ -13,7 +13,7 @@ import AutoBench.Types
 
 
 
-{-
+
 slowRev :: [Int] -> [Int]
 slowRev []       = []
 slowRev (x : xs) = slowRev xs ++ [x]
@@ -23,13 +23,10 @@ fastRev xs = go xs []
   where 
     go [] ys       = ys 
     go (x : xs) ys = go xs (x : ys) 
--}
 
-id :: Int -> Int 
-id x = x
+
+
 
 ts :: TestSuite 
-ts  = def { _baseline = True }
+ts  = def { _baseline = True, _analOpts = def { _coordsFP = Just "test.csv" } }
 
-id2 :: Int -> Int 
-id2 = id

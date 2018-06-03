@@ -44,7 +44,7 @@ import AutoBench.Internal.Types
    ----------------------------------------------------------------------------
    <TO-DO>:
    ----------------------------------------------------------------------------
-   - Sanitise runtimes, max 0;
+   - Sanitise runtimes;
    - Use PP here;
    -
 -}
@@ -60,7 +60,7 @@ main  = flip catch catchSomeException $ do
       mn = filepathToModuleName fp
   
   putStrLn ""
-  putStr $ poorNest 2 $ "\9656 Processing \ESC[3m" ++ fp ++ "\ESC[0m"         -- (1) Process user input file.
+  putStr $ poorNest 2 $ "\9656 Processing \ESC[3m" ++ fp ++ "\ESC[0m"                     -- (1) Process user input file.
   inps <- processUserInputFile fp
   putStrLn $ poorNest 1 "\10004"
   (runInputT defaultSettings $ selTestSuiteOption inps) >>= \case                         -- (2) Select test suite.
@@ -92,7 +92,7 @@ main  = flip catch catchSomeException $ do
                   analyseWith (_analOpts ts) testRep 
                   putStrLn ""
                   anyKeyExit                                                              -- (9) Any key to exit and goodbye.
-              ) (deleteBenchmarkingFiles benchFP fp $ tempSysFiles ts)                    -- (X) Finally delete benchmarking files.
+              ) (deleteBenchmarkingFiles benchFP fp $ tempSysFiles ts)                    -- (X) Finally delete temporary files.
     _ -> printGoodbyeMessage
 
   where 
@@ -130,11 +130,10 @@ main  = flip catch catchSomeException $ do
     anyKeyExit :: IO ()
     anyKeyExit  = do 
       putStr "Press any key to exit... "
-      -- Note: want to use Haskeline here but can't.
+      -- Want to use Haskeline here but can't.
       -- https://github.com/judah/haskeline/issues/74
       void getChar
       printGoodbyeMessage
-
 
     -- Use QuickCheck testing to check if test programs are semantically 
     -- equal. Note: doesn't work for manual test data currently.
@@ -155,8 +154,8 @@ main  = flip catch catchSomeException $ do
       putStrLn $ poorNest 5 "\8226 Compiled benchmarking file \63"
       putStr $ poorNest 9 $ "Warning, invalid compiler flags:"
       let output1 = wrapPPList 40  ", " xs'
-          output2 = wrapPPList 100 ", " xs'
-      if sum (fmap length xs) > 25 
+          output2 = wrapPPList 100 ", " xs'   
+      if sum (fmap length xs) > 25                                                                  -- Hacky!
       then do 
         putStrLn ""
         putStrLn $ PP.render $ PP.nest 11 output2

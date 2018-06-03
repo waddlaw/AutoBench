@@ -421,7 +421,7 @@ outputAnalysisReport aOpts tr ar = do
     -- Boring PP code.
     coordsToFile :: [SimpleResults] -> Maybe SimpleResults -> FilePath -> IO ()
     coordsToFile srs mbls fp = writeToFile fp "Coords file" $ PP.render $ 
-      PP.vcat $ fmap (\sr -> PP.vcat $ [ PP.text $ "\n" ++ (_srIdt sr),
+      PP.vcat $ fmap (\sr -> PP.vcat $ [ PP.text $ "\n" ++ (unqualIdt $ _srIdt sr),
         docCoords $ _srRaws sr]) (srs ++ maybe [] return mbls)
 
     -- Generate the runtime graph:
@@ -523,7 +523,7 @@ outputQuickAnalysis aOpts eql qa = do -- 'eql' is whether test programs give sam
     -- Boring PP code.
     coordsToFile :: [QuickResults] -> FilePath -> IO ()
     coordsToFile qrs fp = writeToFile fp "Coords file" $ PP.render $ 
-      PP.vcat $ fmap (\qr -> PP.vcat $ [ PP.text $ "\n" ++ (_qrIdt qr),
+      PP.vcat $ fmap (\qr -> PP.vcat $ [ PP.text $ "\n" ++ (unqualIdt $ _qrIdt qr),
         docCoords $ _qrRaws qr]) qrs
 
     -- Generate the runtime graph:
