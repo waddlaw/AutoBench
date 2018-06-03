@@ -110,7 +110,7 @@ instance Default QGen where
 -- QuickOpts
 --   { _qProgs    = [ "P1", "P2"... ]
 --   , _qGen      = QGen 0 5 100
---   , _qAnalOpts = def { _topModels = 5 }         -- see 'AnalOpts'.
+--   , _qAnalOpts = def { _topModels = 3 }         -- see 'AnalOpts'.
 --   , _qRuns     = 1
 --   }
 -- @
@@ -128,7 +128,7 @@ instance Default QuickOpts where
           { 
             _qProgs    = fmap (('P' :) . show) ([1..] :: [Int]) 
           , _qGen      = def 
-          , _qAnalOpts = def { _topModels = 5 }
+          , _qAnalOpts = def { _topModels = 3 }
           , _qRuns     = 1
           }
 
@@ -136,7 +136,7 @@ instance Default QuickOpts where
 
 -- ** QuickBench top-level functions: default 'QuickOpts'
 
--- | QuickBench a number of unary test programs using generated test data:
+-- | QuickBench a number of /unary/ test programs using generated test data:
 -- 
 -- * Test cases are evaluated to normal form;
 -- * Default 'QuickOpts' are used.
@@ -155,14 +155,14 @@ quickBench'
   -> IO ()
 quickBench' ps names = quickBenchNfWith def { _qProgs = names } ps
 
--- | QuickBench a number of unary test programs using generated test data:
+-- | QuickBench a number of /unary/ test programs using generated test data:
 -- 
 -- * Test cases are evaluated to weak head normal form;
 -- * Default 'QuickOpts' are used.
 quickBenchWhnf :: (Arbitrary a, NFData a) => [(a -> b)] -> IO ()
 quickBenchWhnf  = quickBenchWhnfWith def
 
--- | QuickBench a number of binary test programs using generated test data:
+-- | QuickBench a number of /binary/ test programs using generated test data:
 -- 
 -- * Test cases are evaluated to normal form;
 -- * Default 'QuickOpts' are used.
@@ -172,7 +172,7 @@ quickBench2
   -> IO ()
 quickBench2 = quickBenchNf2With def
 
--- | QuickBench a number of binary test programs using generated test data:
+-- | QuickBench a number of /binary/ test programs using generated test data:
 -- 
 -- * Test cases are evaluated to weak head normal form;
 -- * Default 'QuickOpts' are used.
@@ -184,7 +184,7 @@ quickBenchWhnf2 = quickBenchWhnf2With def
 
 -- * QuickBench top-level functions: with 'QuickOpts'
 
--- | QuickBench a number of unary test programs using generated test data:
+-- | QuickBench a number of /unary/ test programs using generated test data:
 -- 
 -- * Test cases are evaluated to normal form;
 -- * User-specified 'QuickOpts'.
@@ -203,7 +203,7 @@ quickBenchNfWith qOpts ps
   | otherwise = quickOptsErrors errs
   where errs = validateQuickOpts True qOpts  -- True for unary test programs.
 
--- | QuickBench a number of unary test programs using generated test data:
+-- | QuickBench a number of /unary/ test programs using generated test data:
 -- 
 -- * Test cases are evaluated to weak head normal form;
 -- * User-specified 'QuickOpts'.
@@ -222,7 +222,7 @@ quickBenchWhnfWith qOpts ps
   | otherwise = quickOptsErrors errs
   where errs = validateQuickOpts True qOpts  -- True for unary test programs.
 
--- | QuickBench a number of binary test programs using generated test data:
+-- | QuickBench a number of /binary/ test programs using generated test data:
 -- 
 -- * Test cases are evaluated to normal form;
 -- * User-specified 'QuickOpts'.
@@ -241,7 +241,7 @@ quickBenchNf2With qOpts ps
   | otherwise = quickOptsErrors errs
   where errs = validateQuickOpts False qOpts  -- False for binary test programs.
 
--- | QuickBench a number of binary test programs using generated test data:
+-- | QuickBench a number of /binary/ test programs using generated test data:
 -- 
 -- * Test cases are evaluated to weak head normal form;
 -- * User-specified 'QuickOpts'.
@@ -264,14 +264,14 @@ quickBenchWhnf2With qOpts ps
 
 -- ** QuickBench top-level functions: default 'QuickOpts'
 
--- | QuickBench a number of unary test programs using generated test data:
+-- | QuickBench a number of /unary/ test programs using generated test data:
 -- 
 -- * Test cases are evaluated to normal form;
 -- * Default 'QuickOpts' are used.
 _quickBench :: (Arbitrary a, NFData a, NFData b, Eq b) => [(a -> b)] -> IO ()
 _quickBench  = _quickBenchNfWith def
 
--- | QuickBench a number of unary test programs using generated test data:
+-- | QuickBench a number of /unary/ test programs using generated test data:
 -- 
 -- * Test cases are evaluated to normal form;
 -- * Default 'QuickOpts' are used.
@@ -283,14 +283,14 @@ _quickBench'
   -> IO ()
 _quickBench' ps names = _quickBenchNfWith def { _qProgs = names } ps
 
--- | QuickBench a number of unary test programs using generated test data:
+-- | QuickBench a number of /unary/ test programs using generated test data:
 -- 
 -- * Test cases are evaluated to weak head normal form;
 -- * Default 'QuickOpts' are used.
 _quickBenchWhnf :: (Arbitrary a, NFData a, Eq b) => [(a -> b)] -> IO ()
 _quickBenchWhnf  = _quickBenchWhnfWith def
 
--- | QuickBench a number of binary test programs using generated test data:
+-- | QuickBench a number of /binary/ test programs using generated test data:
 -- 
 -- * Test cases are evaluated to normal form;
 -- * Default 'QuickOpts' are used.
@@ -300,7 +300,7 @@ _quickBench2
   -> IO ()
 _quickBench2 = _quickBenchNf2With def
 
--- | QuickBench a number of binary test programs using generated test data:
+-- | QuickBench a number of /binary/ test programs using generated test data:
 -- 
 -- * Test cases are evaluated to weak head normal form;
 -- * Default 'QuickOpts' are used.
@@ -312,7 +312,7 @@ _quickBenchWhnf2 = _quickBenchWhnf2With def
 
 -- * QuickBench top-level functions: with 'QuickOpts'
 
--- | QuickBench a number of unary test programs using generated test data:
+-- | QuickBench a number of /unary/ test programs using generated test data:
 -- 
 -- * Test cases are evaluated to normal form;
 -- * User-specified 'QuickOpts'.
@@ -332,7 +332,7 @@ _quickBenchNfWith qOpts ps
   | otherwise = quickOptsErrors errs
   where errs = validateQuickOpts True qOpts  -- True for unary test programs.
 
--- | QuickBench a number of unary test programs using generated test data:
+-- | QuickBench a number of /unary/ test programs using generated test data:
 -- 
 -- * Test cases are evaluated to weak head normal form;
 -- * User-specified 'QuickOpts'.
@@ -352,7 +352,7 @@ _quickBenchWhnfWith qOpts ps
   | otherwise = quickOptsErrors errs
   where errs = validateQuickOpts True qOpts  -- True for unary test programs.
 
--- | QuickBench a number of binary test programs using generated test data:
+-- | QuickBench a number of /binary/ test programs using generated test data:
 -- 
 -- * Test cases are evaluated to normal form;
 -- * User-specified 'QuickOpts'.
@@ -372,7 +372,7 @@ _quickBenchNf2With qOpts ps
   | otherwise = quickOptsErrors errs
   where errs = validateQuickOpts False qOpts  -- False for binary test programs.
 
--- | QuickBench a number of binary test programs using generated test data:
+-- | QuickBench a number of /binary/ test programs using generated test data:
 -- 
 -- * Test cases are evaluated to weak head normal form;
 -- * User-specified 'QuickOpts'.
