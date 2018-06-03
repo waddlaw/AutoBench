@@ -8,10 +8,6 @@ import AutoBench.QuickCheck
 import AutoBench.Types 
 
 
---import AutoBench.Internal.IO 
---import AutoBench.Internal.Analysis
-
-
 import AutoBench.QuickBench
 
 
