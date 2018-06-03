@@ -28,5 +28,5 @@ fastRev xs = go xs []
 
 
 ts :: TestSuite 
-ts  = def { _baseline = True, _analOpts = def { _coordsFP = Just "test.csv" } }
+ts  = def { _baseline = True, _progs = ["fastRev"] }
 

@@ -545,7 +545,7 @@ outputQuickAnalysis aOpts eql qa = do -- 'eql' is whether test programs give sam
 
 -- * Helper functions
 
--- | For a given test program, raw measurements and model, generate the 
+-- | For a given test program, raw measurements and model, generate the                             -- <TO-DO>: 'cleanse' needs addressing.
 -- trend line coordinates from equation of the chosen model. Also return 
 -- the 'LinearType's pretty name for the runtime graph's legend.
 makePlots 
@@ -553,14 +553,20 @@ makePlots
   -> (Id, [Coord], Maybe String, Maybe [Coord])
 makePlots (idt, coords, Nothing) = (idt, coords, Nothing, Nothing)   -- No model chosen/available.
 makePlots (idt, coords, Just lf) = 
-  ( idt                       -- Name of test program.
-  , coords                    -- Raw measurements.
-  , Just $ show $ _lft lf     -- 'LinearType's pretty name.
-  , Just $ zip xs ys          -- Line of best fit coordinates calculated from model's equation.
+  ( idt                        -- Name of test program.
+  , coords                     -- Raw measurements.
+  , Just $ show $ _lft lf      -- 'LinearType's pretty name.
+  , Just $ cleanse $ zip xs ys -- Line of best fit coordinates calculated from model's equation.
   )
   where 
     (xs, _) = unzip coords                          -- Raw x-coordinates.
     ys      = V.toList $ (_yhat lf) (V.fromList xs) -- yhats predicted by the model.
+
+    -- Cleanse in case transformation produces infinite values.                                     -- <TO-DO> *** This needs addressing. ***
+    -- /This happens when for size 0 only, LogBase _ 0 = -Infinity/.
+    cleanse :: [Coord] -> [Coord]
+    cleanse  = filter (\(_, y) -> not 
+      (isNaN y || isNegativeZero y || isInfinite y))         
 
 -- | Write output to file with a success/fail prompt and catch and print /any/ 
 -- errors.

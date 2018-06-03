@@ -398,7 +398,7 @@ instance NFData AnalOpts
 instance Default AnalOpts where
   def = AnalOpts
           {
-            _linearModels = fmap Poly [0..4] ++ [Log 2 1, Log 2 2, PolyLog 2 1, Exp 2]
+            _linearModels = [Log 2 1] -- fmap Poly [0..4] ++ [Log 2 1, Log 2 2, PolyLog 2 1, Exp 2]
           , _cvIters      = 200
           , _cvTrain      = 0.7
           , _topModels    = 5

@@ -154,7 +154,7 @@ plotAnalGraph progPlots blPlot = fillBackground def . gridToRenderable $
       let (pointPlotss, linePlotss) = unzip $ fmap (uncurry graphProgPlots) 
                                        (zip scaledProgPlots colours)
       mapM_ plot (concat pointPlotss)                             -- Raw measurements.
-      mapM_ plot (concat linePlotss ++ graphBlPlot scaledBlPlot) -- Trend lines and baseline measurements.
+      mapM_ plot (concat linePlotss ++ graphBlPlot scaledBlPlot)  -- Trend lines and baseline measurements.
      
 
       --mapM_ (uncurry graphProgPlots) (zip scaledProgPlots colours)
@@ -243,11 +243,6 @@ plotAnalGraph progPlots blPlot = fillBackground def . gridToRenderable $
     graphBlPlot (Just (_, _, Just modelIdt, Just modelCs)) = 
       [plotDashedLines modelIdt modelCs (withOpacity black 0.7)]
     graphBlPlot _ = []
-
-
-
-
-
 
     -- Points for raw runtime measurements.
     plotPoints 
