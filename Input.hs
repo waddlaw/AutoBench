@@ -1,16 +1,9 @@
 
 module Input where 
 
-import Data.Default
-import Prelude hiding (id)
-
+import AutoBench.QuickCheck ()
 import AutoBench.QuickBench
 import AutoBench.Types 
-
-import Test.QuickCheck
-
-
-
 
 slowRev :: [Int] -> [Int]
 slowRev []       = []
@@ -21,10 +14,4 @@ fastRev :: [Int] -> [Int]
 fastRev xs = go xs []
   where 
     go [] ys       = ys 
-    go (x : xs) ys = go xs (x : ys) 
-
-
-
-
-ts :: TestSuite 
-ts  = def { _baseline = True, _progs = ["fastRev"] }
+    go (x : xs) ys = go xs (x : ys)

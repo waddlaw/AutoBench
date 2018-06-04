@@ -131,7 +131,7 @@ instance Default QuickOpts where
             _qProgs    = fmap (('P' :) . show) ([1..] :: [Int]) 
           , _qGen      = def 
           , _qAnalOpts = def { _topModels = 3 }
-          , _qRuns     = 1
+          , _qRuns     = 100
           }
 
 -- * QuickBench: no EQ
