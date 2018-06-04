@@ -1,5 +1,6 @@
 
-{-# OPTIONS_GHC -Wall #-}
+{-# OPTIONS_GHC -Wall     #-}
+{-# LANGUAGE BangPatterns #-}
 
 {-|
 
@@ -92,11 +93,11 @@ import AutoBench.Internal.Utils           (allEq)
 -- * Datatypes
 
 -- | Size range of test data to be generated for QuickBenching.
--- Default is: @QGen 0 5 100@
+-- Default is: @QGen 0 5 200@
 data QGen = QGen Int Int Int 
 
 instance Default QGen where 
-  def = QGen 0 5 100
+  def = QGen 0 5 200
 
 -- | QuickBench user options. These include:
 --
@@ -111,7 +112,7 @@ instance Default QGen where
 -- @ 
 -- QuickOpts
 --   { _qProgs    = [ "P1", "P2"... ]
---   , _qGen      = QGen 0 5 100
+--   , _qGen      = QGen 0 5 200
 --   , _qAnalOpts = def { _topModels = 3 }         -- see 'AnalOpts'.
 --   , _qRuns     = 1
 --   }
@@ -131,7 +132,7 @@ instance Default QuickOpts where
             _qProgs    = fmap (('P' :) . show) ([1..] :: [Int]) 
           , _qGen      = def 
           , _qAnalOpts = def { _topModels = 3 }
-          , _qRuns     = 100
+          , _qRuns     = 1
           }
 
 -- * QuickBench: no EQ
@@ -423,7 +424,7 @@ quickBenchNfUn
   -> [a]
   -> IO [QuickReport]
 quickBenchNfUn _ _ [] = return []
-quickBenchNfUn qOpts ps dats = do 
+quickBenchNfUn qOpts ps !dats = do 
   let benchs = [ fmap (nf p) dats | p <- ps ]                           -- Generate Benchmarkables.
       runs   = _qRuns qOpts                                             -- How many times to execute each Benchmarkable?
   times <- mapM (mapM $ qBench runs) benchs                             -- Do the benchmarking.
@@ -484,8 +485,13 @@ quickBenchWhnfBin qOpts ps dats = do
 -- | Execute a benchmarkable for @n@ iterations measuring the total number of
 -- CPU seconds taken. Then calculate the average.
 qBench :: Int -> Benchmarkable -> IO Double
-qBench n b = (/ fromIntegral n) . measMutatorCpuSeconds . 
-  fst <$> measure b (fromIntegral n)
+qBench n b = do 
+  throwAway <- measMutatorCpuSeconds . fst <$> measure b 1 
+  d <- throwAway `deepseq` (measMutatorCpuSeconds . fst <$> measure b (fromIntegral n))
+  return (d / fromIntegral n)
+
+
+
 
 -- ** Generating reports
 

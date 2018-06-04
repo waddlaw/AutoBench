@@ -352,20 +352,21 @@ instance Default DataOpts where
 -- @
 -- AnalOpts
 --   {
---     _linearModels = [ Poly 0, Poly 1, Poly 2, Poly 3, Poly 4  
---                     , Log 2 1, Log 2 2
---                     , PolyLog 2 1
---                     , Exp 2 
---                     ]
---   , _cvIters    = 100
---   , _cvTrain    = 0.7
---   , _topModels  = 1
---   , _statsFilt  = defaultStatsFilt           -- See 'defaultStatsFilt'.                                                            
---   , _statsSort  = defaultStatsSort           -- See 'defaultStatsSort'.                                 
---   , _improv     = defaultImprov              -- See 'defaultImprov'.                                                    
---   , _graphFP    = Just "./AutoBenched.png"   -- This is always a .png.
---   , _reportFP   = Nothing                    -- This is a .txt.            
---   , _coordsFP   = Nothing                    -- This is a .csv.
+--     _linearModels = 
+--       [ Poly 0, Poly 1, Poly 2, Poly 3, Poly 4  
+--       , Log 2 1, Log 2 2
+--       , PolyLog 2 1
+--       , Exp 2 
+--       ]
+--   , _cvIters   = 200
+--   , _cvTrain   = 0.7
+--   , _topModels = 1
+--   , _statsFilt = defaultStatsFilt           -- See 'defaultStatsFilt'.                                                            
+--   , _statsSort = defaultStatsSort           -- See 'defaultStatsSort'.                                 
+--   , _improv    = defaultImprov              -- See 'defaultImprov'.                                                    
+--   , _graphFP   = Just "./AutoBenched.png"   -- This is always a .png.
+--   , _reportFP  = Nothing                    -- This is a .txt.            
+--   , _coordsFP  = Nothing                    -- This is a .csv.
 --   }
 -- @
 -- 
