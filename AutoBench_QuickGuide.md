@@ -135,7 +135,7 @@ def  =
    , _ghcFlags  = [] 
    }
 ```
-Important note: the most basic check that the system performs on every test suite is to ensure that each of its record fields are initialised: please ensure test suites are fully defined.
+Important note: the most basic check that the system performs on every test suite is to ensure that each of its record fields are initialised. Ensure test suites are fully defined.
 
 #### Test Data
 ##### Random Test Data
