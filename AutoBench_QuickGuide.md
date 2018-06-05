@@ -224,7 +224,7 @@ def  =
   }
 ```
 
-#### Notes
+#### Other Important Notes
 * All test programs *must* have an `NFData` instance for their input types;
 * Pay close attention to the details of the `_progs :: [String]` list;
 * The module names of test files **must** match the filename. For example, a test file named `Input.hs` must have `module Input where` at the top of the file. This is a basic system requirement;
