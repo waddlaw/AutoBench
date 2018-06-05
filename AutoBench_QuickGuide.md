@@ -98,8 +98,7 @@ Get AutoBench up and running in five steps:
 
 1. Download the source files from this GitHub repository;
 2. Run `cabal install AutoBench` in a cabal sandbox;
-3. Compile `AutoBench.hs` in the `AutoBench/` directory and move the binary to a location of your choice inside the sandbox;
-4. Copy and paste the code from the primer above and save it to a file called `Input.hs` in the same directory as the `AutoBench` binary you compiled in step 3;
+4. Copy and paste the code from the primer above and save it to a file called `Input.hs` in the same directory as the `AutoBench` binary you compiled in step 2;
 5. Run `./AutoBench "Input.hs"`
 
 ## Test Files
