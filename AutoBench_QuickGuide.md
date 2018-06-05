@@ -103,7 +103,7 @@ Get AutoBench up and running in five steps:
 5. Run `./AutoBench "Input.hs"`
 
 ## Test Files
-Test files are simply Haskell modules that contain test programs, test data generator (or user-specified test data), and test suites. These are referred to collectively as *test inputs*, and are explained in the following subsection.
+Test files are simply Haskell modules that contain test programs, test data generators (or user-specified test data), and test suites. These are referred to collectively as *test inputs*, and are explained in the following subsection.
 
 ### Test Inputs
 #### Test Suites
