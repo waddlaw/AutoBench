@@ -2,7 +2,6 @@
 {-# OPTIONS_GHC -Wall            #-} 
 {-# LANGUAGE ScopedTypeVariables #-}
 
-
 {-|
 
   Module      : AutoBench.Internal.Chart
@@ -29,7 +28,6 @@
    -
 -}
 
-
 module AutoBench.Internal.Chart (plotAndSaveAnalGraph) where 
 
 import Control.Exception                      (SomeException, catch)
@@ -37,11 +35,13 @@ import Control.Lens                           ((.=), (%=), _Just)
 import Control.Monad                          (void)
 import Data.Colour                            (AlphaColour, opaque, withOpacity)
 import Data.Default.Class                     (def)
-import Data.Tuple.Select                      (sel1)
+import Data.List                              (nub)
+import Data.Maybe                             (catMaybes)
+import Data.Tuple.Select                      (sel1, sel3)
 import Graphics.Rendering.Chart.Backend.Cairo ( FileFormat(..), FileOptions(..)
                                               , renderableToFile )
-import Graphics.Rendering.Chart.Grid          ( Grid, gridToRenderable, overlay
-                                              , tspan )
+import Graphics.Rendering.Chart.Grid         -- ( Grid, above, empty, gridToRenderable, overlay
+                                             -- , tspan )
 import Graphics.Rendering.Chart.State         (EC, execEC, plot, liftEC)
 import System.Directory                       (doesFileExist)
 import System.FilePath.Posix                  (makeValid)     
@@ -87,7 +87,7 @@ plotAnalGraph
   -> Maybe (Id, [Coord], Maybe String, Maybe [Coord]) -- As above but for baseline measurements.
   -> Renderable (LayoutPick Double Double Double) 
 plotAnalGraph progPlots blPlot = fillBackground def . gridToRenderable $
-  tspan xAxisLabel (8, 7) `overlay` tspan logo (8, 8) `overlay` graphGrid
+   tspan logo (8, 8) `overlay` graphGrid `overlay` (tspan xAxisLabel (8, 7)) 
 
   where
     
@@ -95,8 +95,13 @@ plotAnalGraph progPlots blPlot = fillBackground def . gridToRenderable $
 
     -- The spacing for the x-axis title is annoying, and doesn't seem to be 
     -- modifiable. So we've hacked it.
+    -- Hack to move the x-axis title away from the legend.
+    legendWidth = sum $ fmap length $ take 4 $ fmap sel1 progPlots ++ nub 
+      (catMaybes $ fmap sel3 progPlots) ++ maybe [] (\bl -> maybe [] return $ 
+        sel3 bl) blPlot 
     xAxisLabel = setPickFn nullPickFn $
-      label (def {_font_size = 40 }) HTA_Centre VTA_BaseLine "Input Size"
+      label (def {_font_size = 40 }) HTA_Centre VTA_BaseLine $ 
+      concat (replicate (legendWidth - 48) "\t\t") ++ "Input Size"  -- Hack to move the x-axis title away from the legend.
     
     -- Add an AutoBench logo.
     logo = setPickFn nullPickFn 
@@ -148,7 +153,6 @@ plotAnalGraph progPlots blPlot = fillBackground def . gridToRenderable $
       layout_legend . _Just . legend_plot_size   .= 20.0
       layout_legend . _Just . legend_position    .= LegendBelow
       layout_legend . _Just . legend_orientation .= LORows 4
-
 
       -- Plots:
       -- Need to plot points first then lines, otherwise legend looks bad.

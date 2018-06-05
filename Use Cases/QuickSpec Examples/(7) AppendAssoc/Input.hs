@@ -2,7 +2,7 @@
 module Input where 
 
 import Data.Default         (def)
-import AutoBench.Types      
+import AutoBench.Types      (DataOpts(..), TestSuite(..))
 import AutoBench.QuickCheck ()
 
 appAssocLeft :: ([Int], [Int], [Int]) -> [Int]

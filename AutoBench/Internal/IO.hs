@@ -40,7 +40,9 @@ module AutoBench.Internal.IO
     generateBenchmarkingFile            -- Generate a benchmarking file to benchmark all the test programs in a given test suite
   , generateTestReport                  -- Generate a 'TestReport' that summarises the system's testing phase.
   , compileBenchmarkingFile             -- Compile benchmarking file using zero or more user-specified compiler flags.
-  , deleteBenchmarkingFiles             -- Delete any temporary files created for/during the benchmarking phase.
+  , deleteAllFiles                      -- Delete all files created by the system.
+  , deleteBenchmarkingFiles             -- Delete all files created for/during the benchmarking phase.
+  , deleteTemporarySystemFiles          -- Delete temporary system files created for/during the benchmarking phase.
   -- * Helper functions
   , discoverInputFiles                  -- Discover potential input files in the working directory.
   , execute                             -- Execute a file, capturing its output to STDOUT and printing it to the command line.
@@ -279,16 +281,16 @@ compileBenchmarkingFile benchFP userFP flags = do
   unless success (throwIO $ FileErr "Compilation failed.")
   -- Notify user of any invalid flags in case they affect test results.
   return invalidFlags
-                                                                              
--- | Delete any temporary files created for/during the benchmarking phase
+     
+-- | Delete all files created for/during the benchmarking phase
 -- of testing, including:
 -- 
 -- * Benchmarking Haskell module;
 -- * Benchmarking binary;
 -- * *.o, *.hi files;
 -- * Temporary system files e.g., Criterion JSON report file.
-deleteBenchmarkingFiles :: FilePath -> FilePath -> [FilePath] -> IO ()
-deleteBenchmarkingFiles fBench fUser sysTmps = 
+deleteAllFiles :: FilePath -> FilePath -> [FilePath] -> IO ()
+deleteAllFiles fBench fUser sysTmps = 
   mapM_ removeIfExists (fUsers ++ fBenchs ++ sysTmps)
   where 
     fUsers   = fmap (dropExtension fUser ++) exts
@@ -296,6 +298,35 @@ deleteBenchmarkingFiles fBench fUser sysTmps =
     fBenchs  = fBench : fBench' : fmap (fBench' ++ ) exts
     exts     = [".o", ".hi"]
 
+    removeIfExists fp = removeFile fp `catch` handleExists
+      where handleExists e | isDoesNotExistError e = return ()
+                           | otherwise = throwIO e 
+
+-- | Delete files created for/during the benchmarking phase of testing, 
+-- including:
+-- 
+-- * Benchmarking Haskell module;
+-- * Benchmarking binary;
+-- * *.o, *.hi files;
+deleteBenchmarkingFiles :: FilePath -> FilePath -> IO ()
+deleteBenchmarkingFiles fBench fUser = 
+  mapM_ removeIfExists (fUsers ++ fBenchs)
+  where 
+    fUsers   = fmap (dropExtension fUser ++) exts
+    fBench'  = dropExtension fBench
+    fBenchs  = fBench : fBench' : fmap (fBench' ++ ) exts
+    exts     = [".o", ".hi"]
+
+    removeIfExists fp = removeFile fp `catch` handleExists
+      where handleExists e | isDoesNotExistError e = return ()
+                           | otherwise = throwIO e
+
+-- | Delete temporary files created for/during the benchmarking phase
+-- of testing, e.g., Criterion JSON report file.
+deleteTemporarySystemFiles :: [FilePath] -> IO ()
+deleteTemporarySystemFiles systemTemps = 
+  mapM_ removeIfExists systemTemps
+  where 
     removeIfExists fp = removeFile fp `catch` handleExists
       where handleExists e | isDoesNotExistError e = return ()
                            | otherwise = throwIO e

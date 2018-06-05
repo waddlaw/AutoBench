@@ -23,7 +23,9 @@
    - 'DataOpts' Discover setting;
    - Make AnalOpts in TestSuite a maybe type? In case users don't want to 
      analyse right away;
-   - 
+   - 'UserInputs' PP doesn't wrap;
+   - 'TestSuite's PP isn't alphabetical by test program name;
+   -
 -}
 
 module AutoBench.Internal.Types 
@@ -114,7 +116,6 @@ import AutoBench.Internal.AbstractSyntax
   , prettyPrint
   , unqualIdt
   )
-
 
 -- * User inputs
 

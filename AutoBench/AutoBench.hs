@@ -33,7 +33,7 @@ import           Data.List                    ((\\), nub)
 import           Data.Maybe                   (fromMaybe)
 import           Language.Haskell.Interpreter ( InterpreterError(..)
                                               , errMsg, runInterpreter )
-import           System.Console.Haskeline     (defaultSettings, runInputTg)
+import           System.Console.Haskeline     (defaultSettings, runInputT)
 import           System.FilePath.Posix        (dropExtension)
 import qualified Text.PrettyPrint.HughesPJ    as PP
 
@@ -46,7 +46,9 @@ import AutoBench.Internal.Utils           (filepathToModuleName, wrapPPList)
 
 import AutoBench.Internal.IO              
   ( compileBenchmarkingFile
+  , deleteAllFiles
   , deleteBenchmarkingFiles
+  , deleteTemporarySystemFiles
   , execute
   , generateBenchmarkingFilename 
   , generateBenchmarkingFile
@@ -76,7 +78,7 @@ main  = flip catch catchSomeException $ do
 
   --args <- OPTS.customExecParser (OPTS.prefs OPTS.showHelpOnError) $ clArgsParser
 
-  let fp = "./Input.hs"
+  let fp = "./Sieve.hs"
       mn = filepathToModuleName fp
   
   putStrLn ""
@@ -101,18 +103,20 @@ main  = flip catch catchSomeException $ do
                   putStrLn $ poorNest 5 "\8226 Executing benchmarking file..."            -- (6) Execute benchmarking file.
                   putStrLn ""
                   execute (dropExtension benchFP)
-                  putStrLn $ poorNest 5 "\8226 Executed benchmarking file \10004"                    
-                  putStr $ poorNest 5 "\8226 Generating test report"                      -- (7) Generate test report.
+                  putStrLn $ poorNest 5 "\8226 Executed benchmarking file \10004" 
+                  deleteBenchmarkingFiles benchFP fp                                      -- (7) Delete benchmarking files.            
+                  putStr $ poorNest 5 "\8226 Generating test report"                      -- (8) Generate test report.
                   let newFlags = _ghcFlags ts \\ invalidFlags                             --     Note: update compiler flags to remove any invalid ones.
                   testRep <- generateTestReport mn ts { _ghcFlags = newFlags } 
                     (benchRepFilename ts) eql
                   putStrLn $ poorNest 1 "\10004"
-                  putStr $ poorNest 5 "\8226 Analysing results..."                        -- (8) Analyse test results.
+                  putStr $ poorNest 5 "\8226 Analysing results..."                        -- (0) Analyse test results.
                   putStrLn ""
                   analyseWith (_analOpts ts) testRep 
                   putStrLn ""
-                  anyKeyExit                                                              -- (9) Any key to exit and goodbye.
-              ) (deleteBenchmarkingFiles benchFP fp $ tempSysFiles ts)                    -- (X) Finally delete temporary files.
+                  deleteTemporarySystemFiles (tempSystemFiles ts)                         -- (10) Delete temporary system files.
+                  anyKeyExit                                                              -- (11) Any key to exit and goodbye.
+              ) (deleteAllFiles benchFP fp $ tempSystemFiles ts)                          -- (X) Finally delete all files.
     _ -> printGoodbyeMessage
 
   where 
@@ -193,9 +197,9 @@ main  = flip catch catchSomeException $ do
     poorNest n = (replicate n ' ' ++)
       
     -- Temporary system files to delete after benchmarking.
-    tempSysFiles ts
-      | reportFile (_critCfg ts) == Nothing = [defBenchRepFilename]
-      | otherwise = []
+    tempSystemFiles ts
+     | reportFile (_critCfg ts) == Nothing = [defBenchRepFilename]
+     | otherwise = []
 
     -- If '_critCfg' in 'TestSuite' doesn't contain a JSON benchmarking report 
     -- file, then use AutoBench's default to interface with Criterion.

@@ -432,7 +432,7 @@ outputAnalysisReport aOpts tr ar = do
     graphToFile srs mbls fp = case _srRaws $ head srs of 
       Right{} -> putStrLn "3D graphs coming soon."                                                  -- <TO-DO>: 3D GRAPHS!
       Left{}  -> do
-        putStrLn "  \9656 Select trend lines for graph of results:\n" 
+        putStrLn "  \9656 Select trend lines for the graph of results:\n" 
         (progFits, blsFit) <- runInputT defaultSettings $ do                           -- Have users pick the model to plot on the graph.
           (,) <$> (selFitOptions $ fmap (_srIdt &&& _srFits) srs)                      -- Test programs.
               <*> (selFitOptions $ fmap (_srIdt &&& _srFits) $ maybe [] return mbls)   -- Baseline measurements.
@@ -531,7 +531,7 @@ outputQuickAnalysis aOpts eql qa = do -- 'eql' is whether test programs give sam
     graphToFile qrs fp = case _qrRaws $ head qrs of 
       Right{} -> putStrLn "3D graphs coming soon."                                                  -- <TO-DO>: 3D GRAPHS!
       Left {} -> do -- User picks zero or one model for each program.
-        putStrLn "  \9656 Select trend lines for graph of results:\n"
+        putStrLn "  \9656 Select trend lines for the graph of results:\n"
         fits <- runInputT defaultSettings $ selFitOptions $ 
           fmap (_qrIdt &&& _qrFits) qrs
         let raws  = fmap (_qrIdt &&& ((\(Left x) -> x) . _qrRaws)) qrs                              -- <TO-DO>: \(Left x) -> x is hacky.

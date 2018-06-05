@@ -369,7 +369,6 @@ instance Default DataOpts where
 --   , _coordsFP  = Nothing                    -- This is a .csv.
 --   }
 -- @
--- 
 data AnalOpts = 
   AnalOpts
     { 
