@@ -87,6 +87,8 @@ Printed to the console:
 
 Output to file:
 
+It is important to note that there are a number of issues to address when benchmarking the runtimes of programs executed on random data using Criterion. These are explored in the system's introductory paper "AutoBench: comparing the time performance of Haskell programs".
+
 # AutoBench Quick Start Guide
 
 
