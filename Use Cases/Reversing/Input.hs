@@ -1,9 +1,10 @@
 
 module Input where 
 
+
 import AutoBench.QuickCheck ()
 import AutoBench.QuickBench
-import AutoBench.Types 
+import AutoBench.Types
 
 slowRev :: [Int] -> [Int]
 slowRev []       = []

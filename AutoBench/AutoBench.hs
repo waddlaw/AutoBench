@@ -78,7 +78,7 @@ main  = flip catch catchSomeException $ do
 
   --args <- OPTS.customExecParser (OPTS.prefs OPTS.showHelpOnError) $ clArgsParser
 
-  let fp = "./Sieve.hs"
+  let fp = "./Input.hs"
       mn = filepathToModuleName fp
   
   putStrLn ""
