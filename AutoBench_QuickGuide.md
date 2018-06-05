@@ -56,7 +56,7 @@ GHCI> fastRev  [1..100000] `seq` ()
 
 That seems to work, and the first test result suggests that `fastRev` is faster (no surprises there). But one test case should not be enough to convince us that `fastRev` is indeed faster. After all, QuickCheck uses (at least) 100 to check that both functions return the same results! Doing a large number of manual tests seems tedious, if only there was a way to automate it...
 
-AutoBench does exactly this. It generates random test inputs of different sizes using QuickCheck, benchmarks the runtimes of test programs executed on the data using Criterion, and compares the measured runtimes to see which program is faster. It also produces runtime graphs, and approximates the time complexity of each test program using regression analysis.
+AutoBench does exactly this. It generates random test inputs of different sizes using QuickCheck, benchmarks the runtimes of test programs executed on the data using Criterion, and compares the measured runtimes to check which program is faster. It also produces runtime graphs, and approximates the time complexity of each test program using regression analysis.
 
 Invoking `./AutoBench "Input.hs"`, where `Input.hs` is in the working directory and defined:
 
@@ -101,7 +101,7 @@ Get AutoBench up and running in five steps:
 5. Run `./AutoBench "Input.hs"`
 
 ## Test Files
-Once users have experimented with the test file from the primer above, they will naturally want to create their own test files. Test files are simply Haskell modules that contain test programs, test data generator (or user-specified test data), and test suites. These are referred to collectively as *test inputs*, and explained in the following subsection.
+Test files are simply Haskell modules that contain test programs, test data generator (or user-specified test data), and test suites. These are referred to collectively as *test inputs*, and explained in the following subsection.
 
 ### Test Inputs
 #### Test Suites
