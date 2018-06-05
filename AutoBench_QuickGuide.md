@@ -158,9 +158,7 @@ def  = Gen 0 5 100
 ```
 ##### User-specified Test Data
 
-Due to certain benchmarking requirements, test data must be specified in the IO monad. In addition, the system cannot determine the size of user-specified test data automatically. As such, for a test program `p :: a -> b` , user-specified test data is of type `[(Int, IO a)]` where the first element of each tuple is the size of the test input, and the second element is the input itself. 
-
-Concrete example: test program `p :: [Int] -> [Int]`, user-specified test data `tDat`:
+Due to certain benchmarking requirements, test data must be specified in the IO monad. In addition, the system cannot determine the size of user-specified test data automatically. As such, for a test program `p :: a -> b` , user-specified test data is of type `[(Int, IO a)]` where the first element of each tuple is the size of the test input, and the second element is the input itself. Concrete example:
 
 ```
 tDat :: UnaryTestData [Int]
