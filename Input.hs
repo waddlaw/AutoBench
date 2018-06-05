@@ -3,7 +3,7 @@ module Input where
 
 import Data.Default (def)
 import AutoBench.QuickCheck ()
-import AutoBench.QuickBench
+--import AutoBench.QuickBench
 import AutoBench.Types
 
 slowRev :: [Int] -> [Int]

@@ -21,7 +21,14 @@
 
 -}
 
-
+{-
+   ----------------------------------------------------------------------------
+   <TO-DO>:
+   ----------------------------------------------------------------------------
+   - Sanitise runtimes?
+   - Use PP here;
+   -
+-}
 
 module Main (main) where
 
@@ -64,24 +71,15 @@ import AutoBench.Internal.Types
   , UserInputs
   , defBenchRepFilename
   )
-
-
-{-
-   ----------------------------------------------------------------------------
-   <TO-DO>:
-   ----------------------------------------------------------------------------
-   - Sanitise runtimes?
-   - Use PP here;
-   -
--}
+  
 
 -- | To AutoBench a file containing test inputs, use @./AutoBench <filename>@
 main :: IO () 
 main  = flip catch catchSomeException $ do 
 
-  args <- OPTS.customExecParser (OPTS.prefs OPTS.showHelpOnError) $ clArgsParser
+  --args <- OPTS.customExecParser (OPTS.prefs OPTS.showHelpOnError) $ clArgsParser
 
-  let fp = _userInputFile args
+  let fp = "Input.hs" -- _userInputFile args
       mn = filepathToModuleName fp
   
   putStrLn ""
