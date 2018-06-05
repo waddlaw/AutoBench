@@ -186,7 +186,9 @@ ts  = def { _progs = ["tProg"], _dataOpts = Manual "tDat" }
 
 #### Statistical Analysis Options
 
-The system provides a number of user options for statistical analysis, including:
+The system provides a number of user options for statistical analysis.
+
+`AnalOpts`s are constructed as follows:
 
 * `_linearModels :: [LinearType]`: Which types of functions to consider for regression analysis;
 * `_cvIters :: Int`: The number of iterations of cross-validation to perform;
