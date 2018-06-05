@@ -1,15 +1,16 @@
 
 module Input where 
 
-import Data.Default         (def)
-import AutoBench.Types      (DataOpts(..), TestSuite(..))
 import AutoBench.QuickCheck ()
+import AutoBench.QuickBench
+import AutoBench.Types 
 
-appAssocLeft :: ([Int], [Int], [Int]) -> [Int]
-appAssocLeft (xs, ys, zs) = (xs ++ ys) ++ zs
+slowRev :: [Int] -> [Int]
+slowRev []       = []
+slowRev (x : xs) = slowRev xs ++ [x]
 
-appAssocRight :: ([Int], [Int], [Int]) -> [Int]
-appAssocRight (xs, ys, zs) = xs ++ (ys ++ zs)
-
-ts :: TestSuite
-ts  = def { _dataOpts = Gen 0 200 8000 }
+fastRev :: [Int] -> [Int]
+fastRev xs = go xs []
+  where 
+    go [] ys       = ys 
+    go (x : xs) ys = go xs (x : ys)

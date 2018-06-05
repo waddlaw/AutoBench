@@ -187,26 +187,6 @@ instance Default TestSuite where
           , _ghcFlags = []                         -- No optimisation, i.e., -O0. 
           }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 -- ** Test data options
 
 -- | @type UnaryTestData a = [(Int, IO a)]@.
@@ -476,17 +456,6 @@ defaultImprov ds
     eqsPct = genericLength eqs / genericLength ds
     ltsPct = (fromIntegral lts / genericLength ds) :: Double 
     gtsPct = (fromIntegral gts / genericLength ds) :: Double
-
-
-
-
-
-
-
-
-
-
-
 
 -- * Statistical analysis
 
