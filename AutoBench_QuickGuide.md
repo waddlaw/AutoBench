@@ -119,7 +119,7 @@ An advantage of this approach is that users can group multiple test suites in th
 * `_baseline :: Bool`: Whether the system should produce baseline measurements. These measure the time spent evaluating the *results* of test programs to normal form. This can be useful if the runtimes of test programs look odd. For example, if the identity function is tested on lists of integers and test cases are evaluated to normal form, the system will approximate `id` as linear. However, it clearly has constant time complexity. The linear factor comes from the time spent normalising each 
 result list. This can be seen using baseline measurements. Note: the baseline setting can only be used in conjunction with the `_nf = True` setting.
 * `_nf :: Bool`: Whether test cases should be evaluated to normal form `True` or weak head normal form `False`. Typically test cases should be evaluated to normal form to ensure the full cost of applying each test program is reflected in runtime measurements.
-* `_ghcFlags :: [String]`: Any GHC compiler flags to use when compiling benchmarking files. For example, users can specify optimisation flags`-O2`, `-O3`. Note: invalid flags are ignored but displayed to users as warnings.
+* `_ghcFlags :: [String]`: Any GHC compiler flags to use when compiling benchmarking files. For example, users can specify optimisation flags`-O2` `-O3`. Note: invalid flags are ignored but displayed to users as warnings.
 
 All `TestSuite`options and settings are carefully validated. All errors are reported to users and invalid `TestSuite`s cannot be run by the system. The system provides the following default `TestSuite`:
 
