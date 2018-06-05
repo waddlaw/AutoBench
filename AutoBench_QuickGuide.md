@@ -171,7 +171,7 @@ tDat  =
 
 Here the size of each `[Int]` is determined by its number of elements: `5` and `10`, respectively.
 
-If users choose to specify their own inputs, then the `Manual ...` data option simply tells the system the name of the test data in the user input file. Concrete example:
+If users choose to specify their own inputs, then the `Manual ...` data option simply tells the system the name of the test data in the test file. Concrete example:
 
 ```
 tProg :: [Int] -> [Int]
