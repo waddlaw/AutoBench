@@ -1,5 +1,5 @@
 
-{-# OPTIONS_GHC -Wall   #-} 
+{-# OPTIONS_GHC -Wall   #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiWayIf #-}
 
@@ -13,7 +13,7 @@
   Stability   : Experimental
   Portability : GHC
 
-  This module is responsible for dynamically interpreting user input files, 
+  This module is responsible for dynamically interpreting user input files,
   for example:
 
   * Loading files and setting top level modules;
@@ -26,7 +26,7 @@
    ----------------------------------------------------------------------------
    <TO-DO>:
    ----------------------------------------------------------------------------
-   - 
+   -
 -}
 
 module AutoBench.Internal.Hint
@@ -39,7 +39,7 @@ module AutoBench.Internal.Hint
 
 import Control.Monad.Catch (throwM)
 import Data.List           (intersect)
-import Language.Haskell.Interpreter 
+import Language.Haskell.Interpreter
   ( MonadInterpreter
   , getLoadedModules
   , getModuleExports
@@ -57,9 +57,9 @@ import AutoBench.Internal.Utils          (filepathToModuleName)
 -- from the filename by simply dropping the \'.hs\' extension. For example, if
 -- the given file is named \'Input.hs\', then module name is assumed to be
 -- \'Input\'.
--- 
+--
 -- If the file doesn't have a module name that matches the filename, an
--- 'InputError' is thrown. 
+-- 'InputError' is thrown.
 --
 -- N.B. the system requires that module names match filenames.
 loadFileSetTopLevelModule :: MonadInterpreter m => FilePath -> m ()
@@ -68,21 +68,21 @@ loadFileSetTopLevelModule fp = do
   loadModules [fp]
   mods <- getLoadedModules          -- Make sure module is successfully loaded.
   if mn `elem` mods
-  then setTopLevelModules [mn]        
-  else throwM (FileErr "Invalid module name.")
+    then setTopLevelModules [mn]
+    else throwM (FileErr "Invalid module name.")
 
--- | Similar to 'loadFileSetTopLevelModule' but loads additional helper 
+-- | Similar to 'loadFileSetTopLevelModule' but loads additional helper
 -- modules. In practice, this is used for dynamically checking user input files:
 -- see AutoBench.Internal.UserInputChecks.
 --
 -- For AutoBench purposes:
--- 'hint' requires that all modules are loaded at the same, so the system cannot 
+-- 'hint' requires that all modules are loaded at the same, so the system cannot
 -- simply load additional modules when they are required (e.g., for the dynamic
--- checking phase). Instead, all modules have to be (re-)loaded, including the 
+-- checking phase). Instead, all modules have to be (re-)loaded, including the
 -- user input file.
-loadFileSetTopLevelModuleWithHelpers 
-  :: MonadInterpreter m 
-  => FilePath 
+loadFileSetTopLevelModuleWithHelpers
+  :: MonadInterpreter m
+  => FilePath
   -> [ModuleName]  -- Helper modules.
   -> m ()
 loadFileSetTopLevelModuleWithHelpers fp helpers = do
@@ -90,26 +90,26 @@ loadFileSetTopLevelModuleWithHelpers fp helpers = do
   loadModules (fp : helpers)
   mods <- getLoadedModules
   if | mn `notElem` mods ->                                             -- Firstly check the user input file is loaded.
-         throwM (FileErr "Invalid module name.")                       
+         throwM (FileErr "Invalid module name.")
      | length (mods `intersect` helpers) /= length helpers ->           -- Then check all the AutoBench helper modules are loaded.
          throwM (InternalErr $ "loadFileSetTopLevelModuleWithHelpers: failed to load one or more helper modules: " ++ show helpers)
-     | otherwise -> setTopLevelModules (mn : helpers)        
+     | otherwise -> setTopLevelModules (mn : helpers)
 
--- | From a previously loaded file, extract all the definitions and their 
+-- | From a previously loaded file, extract all the definitions and their
 -- corresponding types, if appropriate.
 extractElemsAndTypes
-  :: MonadInterpreter m 
-  => ModuleName 
-  -> m [(ModuleElem, Maybe TypeString)] 
-extractElemsAndTypes mn = do     
+  :: MonadInterpreter m
+  => ModuleName
+  -> m [(ModuleElem, Maybe TypeString)]
+extractElemsAndTypes mn = do
   defs <- getModuleExports mn     -- Get the module definitions.
   tys  <- mapM (\case             -- Can only get typing information from 'Fun's.
     Nothing  -> return Nothing    -- Qualify identifier with module name.
-    Just idt -> Just <$> (typeOf $ prettyPrint $ qualIdt mn idt)) 
+    Just idt -> Just <$> (typeOf $ prettyPrint $ qualIdt mn idt))
       (fmap funIdt defs)
   return (zip defs tys)
-  where 
+  where
     -- Extract the identifiers from 'Fun's.
     funIdt :: ModuleElem -> Maybe Id
-    funIdt (Fun idt) = Just idt 
+    funIdt (Fun idt) = Just idt
     funIdt _         = Nothing
