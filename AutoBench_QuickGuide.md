@@ -197,14 +197,11 @@ The system provides a number of user options for statistical analysis.
 * `_statsFilt :: Stats -> Bool   `: A function to discard models that \"do not\" fit a given data set based on the fitting statistics produced by the system;
 * `_statsSort :: Stats -> Stats -> Ordering`: A function to rank models according to how they fit a given data set based on the fitting statistics produced by the system;
 * `_improv :: [(Double, Double)] -> Maybe (Ordering, Double)`: A function to calculate efficiency improvement results by comparing the runtimes of two test programs pointwise.
-
-The system can produce a number of performance results, including:
-
 * `_graphFP :: Maybe FilePath` : A PNG graph of runtime measurements with complexity estimates plotted as lines of best fit;
 * `_reportFP :: Maybe FilePath`: A TXT performance report;
 * `_coordsFP :: Maybe FilePath`: A CSV of (input size(s), runtime) coordinates for each test program.
 
-The default options are as follows:
+The system provides the following default `AnalOpts`:
 
 ``` 
 def :: AnalOpts
