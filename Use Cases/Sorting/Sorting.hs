@@ -57,7 +57,7 @@ instance Arbitrary NearlySortedIntList where
         s = n - r                                             -- Number of sorted elements
 
     -- Sorted elements
-    SortedIntList xs <- arbitrary :: Gen SortedIntList
+    SortedIntList xs <- resize n arbitrary
     let xs' = drop r xs
 
     -- Split them up
@@ -118,7 +118,7 @@ sampleSorted :: IO [SortedIntList]
 sampleSorted  = sample' $ resize 20 arbitrary
 
 sampleReverseSorted :: IO [ReverseSortedIntList]
-sampleReverseSorted  = sample' $ resize 20arbitrary
+sampleReverseSorted  = sample' $ resize 20 arbitrary
 
 sampleNearlySorted :: IO [NearlySortedIntList]
 sampleNearlySorted  = sample' $ resize 20 arbitrary
