@@ -44,6 +44,7 @@ import Language.Haskell.Interpreter
   , getLoadedModules
   , getModuleExports
   , loadModules
+  , setImportsQ
   , setTopLevelModules
   , typeOf
   )
@@ -87,13 +88,15 @@ loadFileSetTopLevelModuleWithHelpers
   -> m ()
 loadFileSetTopLevelModuleWithHelpers fp helpers = do
   let mn = filepathToModuleName fp
-  loadModules (fp : helpers)
+  loadModules [fp]
   mods <- getLoadedModules
   if | mn `notElem` mods ->                                             -- Firstly check the user input file is loaded.
          throwM (FileErr "Invalid module name.")
-     | length (mods `intersect` helpers) /= length helpers ->           -- Then check all the AutoBench helper modules are loaded.
-         throwM (InternalErr $ "loadFileSetTopLevelModuleWithHelpers: failed to load one or more helper modules: " ++ show helpers)
-     | otherwise -> setTopLevelModules (mn : helpers)
+ --    | length (mods `intersect` helpers) /= length helpers ->           -- Then check all the AutoBench helper modules are loaded.
+ --        throwM (InternalErr $ "loadFileSetTopLevelModuleWithHelpers: failed to load one or more helper modules: " ++ show helpers)
+     | otherwise -> do 
+         setTopLevelModules [mn] --(mn : helpers)
+         setImportsQ $ fmap (\fp -> (fp, Just fp)) helpers
 
 -- | From a previously loaded file, extract all the definitions and their
 -- corresponding types, if appropriate.

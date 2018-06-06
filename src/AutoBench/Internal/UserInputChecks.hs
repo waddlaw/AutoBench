@@ -160,16 +160,16 @@ import AutoBench.Internal.Types
 
 -- | Parse, validate and classify user inputs.
 userInputCheck :: MonadInterpreter m => FilePath -> m UserInputs
-userInputCheck fp  = do
+userInputCheck fp = do
 
   let mn = filepathToModuleName fp
   -- Load the user input file.
-  loadFileSetTopLevelModule fp
+  --loadFileSetTopLevelModule fp
+  loadFileSetTopLevelModuleWithHelpers fp ["AutoBench.Internal.DynamicChecks"]            -- Use AutoBench.Internal.DynamicChecks dynamically.
   -- Extract user inputs.
-  inps <- extractUserInputs fp
+  inps <- extractUserInputs mn
   -- First static checks/categorising.
   let fstStInps = firstStatic inps
-  loadFileSetTopLevelModuleWithHelpers fp ["AutoBench.Internal.DynamicChecks"]            -- Use AutoBench.Internal.DynamicChecks dynamically.
   -- First dynamic checks/categorising.
   fstDynInps <- firstDynamic mn fstStInps
   -- Second static checks.
@@ -820,9 +820,9 @@ validateTestReport tr =
 
 -- | Extract all the definitions in a user input file and initialise the
 -- 'UserInputs' data structure.
-extractUserInputs :: MonadInterpreter m => FilePath -> m UserInputs
-extractUserInputs fp =
-  initUserInputs <$> extractElemsAndTypes (filepathToModuleName fp)
+extractUserInputs :: MonadInterpreter m => ModuleName -> m UserInputs
+extractUserInputs mn =
+  initUserInputs <$> extractElemsAndTypes mn
 
 -- | Compiler needs the error's type information.
 catchIE :: MonadInterpreter m => m a -> (InterpreterError -> m a) -> m a

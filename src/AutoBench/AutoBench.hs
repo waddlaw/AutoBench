@@ -21,13 +21,20 @@
 
 -}
 
-
+{-
+   ----------------------------------------------------------------------------
+   <TO-DO>:
+   ----------------------------------------------------------------------------
+   - Sanitise runtimes?
+   - Use PP here;
+   -
+-}
 
 module Main (main) where
 
 import           Control.Exception.Base       ( SomeException, catch, finally 
                                               , fromException, throwIO )
-import           Control.Monad                (void)
+import           Control.Monad                (unless, void)
 import           Criterion.Types              (reportFile)
 import           Data.List                    ((\\), nub)
 import           Data.Maybe                   (fromMaybe)
@@ -35,6 +42,7 @@ import           Language.Haskell.Interpreter ( InterpreterError(..)
                                               , errMsg, runInterpreter )
 import qualified Options.Applicative          as OPTS
 import           System.Console.Haskeline     (defaultSettings, runInputT)
+import           System.Directory             (doesFileExist)
 import           System.FilePath.Posix        (dropExtension)
 import           System.IO                    (hFlush, stdout)
 import qualified Text.PrettyPrint.HughesPJ    as PP
@@ -60,20 +68,12 @@ import AutoBench.Internal.IO
 
 import AutoBench.Internal.Types          
   ( DataOpts(..)
+  , InputError(..)
   , TestSuite(..)
   , UserInputs
   , defBenchRepFilename
   )
-
-
-{-
-   ----------------------------------------------------------------------------
-   <TO-DO>:
-   ----------------------------------------------------------------------------
-   - Sanitise runtimes?
-   - Use PP here;
-   -
--}
+  
 
 -- | To AutoBench a file containing test inputs, use @./AutoBench <filename>@
 main :: IO () 
@@ -83,6 +83,9 @@ main  = flip catch catchSomeException $ do
 
   let fp = _userInputFile args
       mn = filepathToModuleName fp
+
+  exists <- doesFileExist fp
+  unless exists $ throwIO $ FilePathErr fp                                                 -- (0) Make sure test file exists.
   
   putStrLn ""
   putStr $ poorNest 2 $ "\9656 Processing \ESC[3m" ++ fp ++ "\ESC[0m"                     -- (1) Process user input file.

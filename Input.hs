@@ -5,6 +5,7 @@ import Data.Default (def)
 import AutoBench.QuickCheck ()
 --import AutoBench.QuickBench
 import AutoBench.Types
+import AutoBench.Internal.UserInputChecks
 
 slowRev :: [Int] -> [Int]
 slowRev []       = []

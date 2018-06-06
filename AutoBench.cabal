@@ -58,7 +58,10 @@ library
   -- Modules exported by the library.
   exposed-modules:     AutoBench.QuickBench,
                        AutoBench.QuickCheck,
-                       AutoBench.Types
+                       AutoBench.Types,
+                       AutoBench.Internal.DynamicChecks,
+                       AutoBench.Internal.StaticChecks
+                       AutoBench.Internal.UserInputChecks
 
   -- Modules included in this library but not exported.
   other-modules:       AutoBench.Internal.AbstractSyntax,
@@ -66,14 +69,11 @@ library
                        AutoBench.Internal.Benchmarking,
                        AutoBench.Internal.Chart,
                        AutoBench.Internal.DataGeneration,
-                       AutoBench.Internal.DynamicChecks,
                        AutoBench.Internal.Expr,
                        AutoBench.Internal.Hint,
                        AutoBench.Internal.IO,
                        AutoBench.Internal.Regression,
-                       AutoBench.Internal.StaticChecks,
                        AutoBench.Internal.Types,
-                       AutoBench.Internal.UserInputChecks,
                        AutoBench.Internal.UserIO,
                        AutoBench.Internal.Utils
 
