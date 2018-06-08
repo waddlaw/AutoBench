@@ -6,7 +6,7 @@ approximates the time complexity of each test program using regression analysis.
 
 # An AutoBench Primer
 
-Anyone who has read the system's introductory paper "AutoBench: comparing the time performance of Haskell programs" is advised to skip straight to the quick start guide. This primer should suffice for anyone else who wants a quick summary of the system.
+Anyone who has read the system's introductory paper "AutoBench: Comparing the Time Performance of Haskell Programs" is advised to skip straight to the quick start guide. This primer should suffice for anyone else who wants a quick summary of the system.
 
 Suppose we are given two Haskell programs that reverse lists of integers:
 
