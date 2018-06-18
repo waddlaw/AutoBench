@@ -49,7 +49,7 @@ import qualified AutoBench.Internal.PrettyPrinting  as PPLib
 import           AutoBench.Internal.UserInputChecks ( quickCheckTestPrograms
                                                     , userInputCheck )
 import           AutoBench.Internal.UserIO          ( selTestSuiteOption
-                                                    , printGoodbyeMessage)
+                                                    , printGoodbyeMessage )
 import           AutoBench.Internal.Utils           ( CLArgs(..), clArgsParser
                                                     , filepathToModuleName )
 
