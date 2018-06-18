@@ -23,15 +23,15 @@ module AutoBench.Internal.Configuration
   (
 
   -- * User inputs
-    minimumTestInputs            -- The minimum number of distinctly sized test inputs required by test suites.
+    minimumTestInputs                -- The minimum number of distinctly sized test inputs required by test suites.
   -- * Benchmarking
-  , defaultBenchmarkFilepath     -- The default filepath for saving benchmarking data produced by Criterion.
+  , defaultBenchmarkReportFilepath   -- The default filepath for saving benchmarking data produced by Criterion.
   -- * Statistical analysis 
-  , maximumCVIterations          -- The maximum number of cross-validation iterations.
-  , maximumCVTrainingData        -- The maximum percentage of data to use for training regression models during cross-validation.
-  , maximumModelPredictors       -- The maximum number of predictors for regression models.
-  , minimumCVIterations          -- The minimum number of cross-validation iterations.
-  , minimumCVTrainingData        -- The minimum percentage of data to use for training regression models during cross-validation.
+  , maximumCVIterations              -- The maximum number of cross-validation iterations.
+  , maximumCVTrainingData            -- The maximum percentage of data to use for training regression models during cross-validation.
+  , maximumModelPredictors           -- The maximum number of predictors for regression models.
+  , minimumCVIterations              -- The minimum number of cross-validation iterations.
+  , minimumCVTrainingData            -- The minimum percentage of data to use for training regression models during cross-validation.
 
   ) where 
 
@@ -49,9 +49,9 @@ minimumTestInputs  = 20
 -- | The default filepath for saving benchmarking data produced by Criterion. 
 -- Note: the report produced by Criterion is in a JSON format.
 --
--- > defaultBenchmarkFilepath  = "./autobench_tmp.json"
-defaultBenchmarkFilepath :: FilePath
-defaultBenchmarkFilepath  = "./autobench_tmp.json"
+-- > defaultBenchmarkReportFilepath  = "./autobench_tmp.json"
+defaultBenchmarkReportFilepath :: FilePath
+defaultBenchmarkReportFilepath  = "./autobench_tmp.json"
 
 -- * Statistical analysis
 
