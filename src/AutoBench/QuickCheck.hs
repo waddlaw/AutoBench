@@ -3,6 +3,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE IncoherentInstances  #-}
+{-# LANGUAGE OverlappingInstances #-}
 
 
 {-|
