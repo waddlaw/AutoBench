@@ -2,8 +2,8 @@
 {-# OPTIONS_GHC -Wall             #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE IncoherentInstances  #-}
-{-# LANGUAGE OverlappingInstances #-}
+{-# LANGUAGE TypeFamilies         #-}
+{-# LANGUAGE UndecidableInstances          #-}
 
 
 {-|
@@ -46,8 +46,8 @@ import Test.QuickCheck
 -- generates lists of random size, this is not compatible with AutoBench.
 
 -- I want to do this but can't?
--- instance {-# OVERLAPPING #-} Arbitrary a => Arbitrary [a] where
---   arbitrary = sized $ \n -> vectorOf n arbitrary
+--instance {-# OVERLAPPING #-} (Arbitrary a, b ~ [a]) => Arbitrary b where
+--  arbitrary = sized $ \n -> vectorOf n arbitrary
 
 sizedArbitraryVector :: Arbitrary a => Gen [a]
 sizedArbitraryVector  = sized $ \n -> vectorOf n arbitrary
@@ -69,7 +69,6 @@ instance {-# OVERLAPPING #-} Arbitrary [Int] where
 
 instance {-# OVERLAPPING #-} Arbitrary [Integer] where 
   arbitrary = sizedArbitraryVector
-
 
 {-
 
