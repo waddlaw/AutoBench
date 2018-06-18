@@ -25,7 +25,6 @@
      analyse right away;
    - 'UserInputs' PP doesn't wrap;
    - 'TestSuite's PP isn't alphabetical by test program name;
-   -
 -}
 
 module AutoBench.Internal.Types 
