@@ -44,9 +44,13 @@ module AutoBench.Internal.IO
   , deleteBenchmarkingFiles             -- Delete all files created for/during the benchmarking phase.
   , deleteTemporarySystemFiles          -- Delete temporary system files created for/during the benchmarking phase.
   -- * Helper functions
+  , anyKeyExit                          -- Press any key to exit.
   , discoverInputFiles                  -- Discover potential input files in the working directory.
   , execute                             -- Execute a file, capturing its output to STDOUT and printing it to the command line.
   , generateBenchmarkingFilename        -- Generate a valid filename for the benchmarking file from the filename of the user input file.
+  , nestPutStr                          -- Output documents at a specific level of nesting using 'putStr'.
+  , nestPutStrLn                        -- Output documents at a specific level of nesting using 'putStrLn'.
+  , spacer                              -- Output @n@ line spaces to the command line.
 
   ) where
 
@@ -70,7 +74,7 @@ import           System.Directory          ( doesFileExist, getDirectoryContents
                                            , removeFile )
 import           System.FilePath.Posix     ( dropExtension, takeBaseName
                                            , takeDirectory, takeExtension )
-import           System.IO                 (Handle)
+import           System.IO                 (Handle, hFlush, stdout)
 import           System.IO.Error           (isDoesNotExistError)
 import qualified Text.PrettyPrint.HughesPJ as PP
 import qualified Text.Megaparsec           as MP
@@ -100,9 +104,9 @@ import Criterion.Types
  , reportMeasured
  )
 
-import AutoBench.Internal.Utils          ( Parser, allEq
-                                         , integer, symbol )
 import AutoBench.Internal.AbstractSyntax (Id, ModuleName, prettyPrint, qualIdt)
+import AutoBench.Internal.UserIO         (printGoodbyeMessage)
+import AutoBench.Internal.Utils          (Parser, allEq, integer, symbol)
 import AutoBench.Internal.Types
   ( BenchReport(..)
   , DataOpts(..)
@@ -595,3 +599,25 @@ generateBenchmarkingFilename s = do
 -- | Discover potential input files in the working directory.
 discoverInputFiles :: IO [FilePath]
 discoverInputFiles  = filter ((== ".hs") . takeExtension) <$> getDirectoryContents "."
+
+-- | Press any key to exit.
+anyKeyExit :: IO ()
+anyKeyExit  = do 
+  putStr "Press any key to exit... "
+  hFlush stdout
+  -- Want to use Haskeline here but can't.
+  -- https://github.com/judah/haskeline/issues/74
+  void getChar
+  printGoodbyeMessage
+
+-- | Output @n@ line spaces to the command line.
+spacer :: Int -> IO ()
+spacer n = putStrLn (replicate (n - 1) '\n') >> hFlush stdout
+
+-- | Output documents at a specific level of nesting using 'putStr'.
+nestPutStr :: Int -> PP.Doc -> IO ()
+nestPutStr n doc = putStr (PP.render $ PP.nest n doc) >> hFlush stdout
+
+-- | Output documents at a specific level of nesting using 'putStrLn'.
+nestPutStrLn :: Int -> PP.Doc -> IO ()
+nestPutStrLn n doc = putStrLn (PP.render $ PP.nest n doc) >> hFlush stdout
