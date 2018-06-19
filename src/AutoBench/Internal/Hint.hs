@@ -38,7 +38,6 @@ module AutoBench.Internal.Hint
   ) where
 
 import Control.Monad.Catch (throwM)
-import Data.List           (intersect)
 import Language.Haskell.Interpreter
   ( MonadInterpreter
   , getLoadedModules
@@ -51,7 +50,7 @@ import Language.Haskell.Interpreter
 
 import AutoBench.Internal.AbstractSyntax ( Id, ModuleElem(..), ModuleName
                                          , TypeString, prettyPrint, qualIdt )
-import AutoBench.Internal.Types          (InputError(..), SystemError(..))
+import AutoBench.Internal.Types          (InputError(..))
 import AutoBench.Internal.Utils          (filepathToModuleName)
 
 -- | Load a file and set the top level module. The module name is calculated
@@ -96,7 +95,7 @@ loadFileSetTopLevelModuleWithHelpers fp helpers = do
  --        throwM (InternalErr $ "loadFileSetTopLevelModuleWithHelpers: failed to load one or more helper modules: " ++ show helpers)
      | otherwise -> do 
          setTopLevelModules [mn] --(mn : helpers)
-         setImportsQ $ fmap (\fp -> (fp, Just fp)) helpers
+         setImportsQ $ fmap (\hfp -> (hfp, Just hfp)) helpers
 
 -- | From a previously loaded file, extract all the definitions and their
 -- corresponding types, if appropriate.

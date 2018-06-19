@@ -85,8 +85,9 @@ import Criterion.Types
 
 import AutoBench.Internal.AbstractSyntax  (Id)
 import AutoBench.Internal.Analysis        (quickAnalyseWith)
+import AutoBench.Internal.Configuration   (minimumTestInputs)
 import AutoBench.Internal.Types           ( AnalOpts(..), InputError(..)
-                                          , QuickReport(..), minInputs )
+                                          , QuickReport(..) )
 import AutoBench.Internal.UserInputChecks (validateAnalOpts)
 import AutoBench.Internal.Utils           (allEq)
 
@@ -554,21 +555,21 @@ validateQuickOpts unary qOpts =
       | runs > 0  = []
       | otherwise = [qRunsErr]
 
-    -- Minimum of 'minInputs' test cases. 
+    -- Minimum of 'minimumTestInputs' test cases. 
     validQGen :: Bool -> QGen -> [InputError]
-    validQGen True (QGen l s u)                                          -- True for unary test programs.
-      | l < 0 || s <= 0 || u <= 0       = [qGenParErr]                   -- l >= 0, s > 0, u > 0.
-      | (u - l) `div` s + 1 < minInputs = [qGenSizeErr]                  -- Size range >= minInputs.
+    validQGen True (QGen l s u)                                                  -- True for unary test programs.
+      | l < 0 || s <= 0 || u <= 0       = [qGenParErr]                           -- l >= 0, s > 0, u > 0.
+      | (u - l) `div` s + 1 < minimumTestInputs = [qGenSizeErr]                  -- Size range >= minimumTestInputs.
       | otherwise = []
-    validQGen False (QGen l s u)                                         -- False for binary test programs.
-      | l < 0 || s <= 0 || u <= 0                      = [qGenParErr]    -- l >= 0, s > 0, u > 0.
-      | ((u - l) `div` s + 1) ^ (2 :: Int) < minInputs = [qGenSizeErr]   -- Size range >= minInputs.
+    validQGen False (QGen l s u)                                                 -- False for binary test programs.
+      | l < 0 || s <= 0 || u <= 0                      = [qGenParErr]            -- l >= 0, s > 0, u > 0.
+      | ((u - l) `div` s + 1) ^ (2 :: Int) < minimumTestInputs = [qGenSizeErr]   -- Size range >= minimumTestInputs.
       | otherwise = []
 
     -- Errors:
     qRunsErr    = QuickOptsErr "Number of test program runs must be strictly positive."
     qGenParErr  = QuickOptsErr "Invalid values for 'QGen' bounds and/or step." 
-    qGenSizeErr = QuickOptsErr $ "A minimum of " ++ show minInputs ++ " test inputs are required."
+    qGenSizeErr = QuickOptsErr $ "A minimum of " ++ show minimumTestInputs ++ " test inputs are required."
 
 -- | Output error for no test programs.
 noTestProgramsError :: IO ()

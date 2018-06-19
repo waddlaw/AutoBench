@@ -112,7 +112,7 @@ benchmarkAndAnalyse fp = flip catch catchSomeException $ do -- Catch and handle 
   -- Step 1: Process the user input file.
   -----------------------------------------------------------------------------
   spacer 1
-  nestPutStr 2 $ PPLib.arrowBullet "Processing" PP.<+> PPLib.toItalic fp                 
+  nestPutStr 2 $ PPLib.arrowBullet "Processing" PP.<+> PPLib.italic fp                 
   inps <- processUserInputFile fp
   nestPutStrLn 1 PPLib.tick
 
@@ -124,7 +124,7 @@ benchmarkAndAnalyse fp = flip catch catchSomeException $ do -- Catch and handle 
     [(idt, ts)] -> do
     -- Note: 'idt' is the identifier of the selected test suite and 'ts' is the
     -- test suite ('TestSuite') itself.
-      nestPutStrLn 2 $ PPLib.arrowBullet "Running" PP.<+> PPLib.toItalic idt
+      nestPutStrLn 2 $ PPLib.arrowBullet "Running" PP.<+> PPLib.italic idt
 
   -----------------------------------------------------------------------------
   -- Step 3: Check whether test programs are denotationally equal using 

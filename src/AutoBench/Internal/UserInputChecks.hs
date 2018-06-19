@@ -114,6 +114,15 @@ import AutoBench.Internal.AbstractSyntax
   , unqualTyToTy
   )
 
+import AutoBench.Internal.Configuration
+  ( maximumCVIterations           
+  , maximumCVTrainingData         
+  , maximumModelPredictors        
+  , minimumCVIterations           
+  , minimumCVTrainingData
+  , minimumTestInputs
+  )
+
 import AutoBench.Internal.StaticChecks
   ( isABGenTyFun
   , isABTyFun
@@ -130,7 +139,6 @@ import AutoBench.Internal.StaticChecks
 
 import AutoBench.Internal.Hint
   ( extractElemsAndTypes
-  , loadFileSetTopLevelModule
   , loadFileSetTopLevelModuleWithHelpers
   )
 
@@ -145,12 +153,6 @@ import AutoBench.Internal.Types
   , TestSuite(..)
   , UserInputs(..)
   , initUserInputs
-  , maxCVIters
-  , maxCVTrain
-  , maxPredictors
-  , minCVIters
-  , minCVTrain
-  , minInputs
   , numPredictors
   , simpleReportsToCoords
   )
@@ -299,8 +301,8 @@ catTestData inps = inps { _unaryData = uns, _binaryData = bins }
 --
 -- * Validate 'DataOpts': for 'Manual' data, check that it is present and has
 --   the correct type; for 'Gen', check the size range is valid and gives the
---   correct number of test inputs (>= 'minInputs');
--- * Validate 'AnalOpts': ensure linear models have <= maxParameters,
+--   correct number of test inputs (>= 'minimumTestInputs');
+-- * Validate 'AnalOpts': ensure linear models have <= maximumModelPredictors,
 --   check values of cross-validation parameters are in correct range,
 --   check number of top models is strictly positive;
 -- * Check Criterion's configuration;
@@ -457,12 +459,12 @@ checkTestSuites inps =
           -- then a different error will occur elsewhere.
               -- Given size range is for unary test programs.
               Just{}
-                | (u - l) `div` s + 1 < minInputs -> [dOptsSizeErr]   -- Size range >= minInputs.
+                | (u - l) `div` s + 1 < minimumTestInputs -> [dOptsSizeErr]   -- Size range >= minimumTestInputs.
                 | otherwise -> []
               Nothing -> case lookup (head ps) binaryFuns of
                 -- Given size range is for binary test programs.
                 Just{}
-                  | ((u - l) `div` s + 1) ^ (2 :: Int) < minInputs -> [dOptsSizeErr] -- (Size range)^2 >= minInputs.
+                  | ((u - l) `div` s + 1) ^ (2 :: Int) < minimumTestInputs -> [dOptsSizeErr] -- (Size range)^2 >= minimumTestInputs.
                   | otherwise -> []
                 Nothing -> [dOptsMissGenErr $ head ps]
           | otherwise = []
@@ -509,7 +511,7 @@ checkTestSuites inps =
     dOptsMissGenErr idt  = DataOptsErr $ "Cannot determine the size range of generated test data due to missing test programs specified in the '_progs' list: " ++ idt ++ "."
     dOptsWrongTyErr      = DataOptsErr "The type of the specified test data is incompatible with the types of testable programs."
     dOptsParErr          = DataOptsErr "Invalid values for 'Gen' bounds and/or step."
-    dOptsSizeErr         = DataOptsErr $ "A minimum of " ++ show minInputs ++ " distinctly sized test inputs are required."
+    dOptsSizeErr         = DataOptsErr $ "A minimum of " ++ show minimumTestInputs ++ " distinctly sized test inputs are required."
 
 -- * Dynamic checking
 
@@ -625,7 +627,7 @@ checkFullTestSuites mn inps = do
 -- to 6. /ValidUnaryData/ and 7. /ValidBinaryData/, respectively, i.e.,:
 --
 -- * Test data must have a minimum number of distinctly sized inputs: see
--- 'minInputs'.
+-- 'minimumTestInputs'.
 --
 -- Test data that fails validation is added to the '_invalidData' lists.
 -- The 'unaryData' and '_binaryData' lists are updated accordingly.
@@ -646,7 +648,7 @@ checkValidTestData mn inps = do
       -> m ([(Id, HsType, [a])], [(Id, HsType, [InputError])])
     check qualCheckFun (vs, ivs) (idt, ty, _) = catchIE
       (do sizes <- interpret (qualCheckFun ++ " " ++ (prettyPrint $ qualIdt mn idt)) as
-          if (length $ nub sizes) >= minInputs
+          if (length $ nub sizes) >= minimumTestInputs
             then return ((idt, ty, sort sizes) : vs, ivs)
             else return (vs, (idt, ty, [sizeErr]) : ivs)
       ) (\e -> return (vs, (idt, ty, [DataOptsErr $ show e]) : ivs))
@@ -654,7 +656,7 @@ checkValidTestData mn inps = do
     qualCheckFunUn  = "AutoBench.Internal.DynamicChecks.sizeUnaryTestData"
     qualCheckFunBin = "AutoBench.Internal.DynamicChecks.sizeBinaryTestData"
 
-    sizeErr = DataOptsErr $ "A minimum of " ++ show minInputs ++ " distinctly sized test inputs are required."
+    sizeErr = DataOptsErr $ "A minimum of " ++ show minimumTestInputs ++ " distinctly sized test inputs are required."
 
 -- * External validation checks
 
@@ -675,17 +677,17 @@ validateAnalOpts aOpts =
     -- Maximum number of predictors for linear models.
     checkModels :: [LinearType] -> [InputError]
     checkModels ls
-      | maxPredictors >= maximum (fmap numPredictors ls) = []
+      | maximumModelPredictors >= maximum (fmap numPredictors ls) = []
       | otherwise = [aOptsModelErr]
 
     -- 100 <= '_cvIters' 500.
     checkCVIters n
-      | n >= minCVIters && n <= maxCVIters = []
+      | n >= minimumCVIterations && n <= maximumCVIterations = []
       | otherwise = [aOptsCVItersErr]
 
     -- 0.5 <= '_cvTrain' 0.8.
     checkCVTrain n
-      | n >= minCVTrain && n <= maxCVTrain = []
+      | n >= minimumCVTrainingData && n <= maximumCVTrainingData = []
       | otherwise = [aOptsCVTrainErr]
 
     -- 'topModels' strictly positive.
@@ -716,9 +718,9 @@ validateAnalOpts aOpts =
 
 
     -- Error messages:
-    aOptsModelErr     = AnalOptsErr $ "Linear regression models can have a maximum of " ++ show maxPredictors ++ " predictors."
-    aOptsCVItersErr   = AnalOptsErr $ "The number of cross-validation iterators must be " ++ show minCVIters ++ " <= x <= " ++ show maxCVIters ++ "."
-    aOptsCVTrainErr   = AnalOptsErr $ "The percentage of cross-validation training data must be " ++ show minCVTrain ++ " <= x <= " ++ show maxCVTrain ++ "."
+    aOptsModelErr     = AnalOptsErr $ "Linear regression models can have a maximum of " ++ show maximumModelPredictors ++ " predictors."
+    aOptsCVItersErr   = AnalOptsErr $ "The number of cross-validation iterators must be " ++ show minimumCVIterations ++ " <= x <= " ++ show maximumCVIterations ++ "."
+    aOptsCVTrainErr   = AnalOptsErr $ "The percentage of cross-validation training data must be " ++ show minimumCVTrainingData ++ " <= x <= " ++ show maximumCVTrainingData ++ "."
     aOptsTopModelsErr = AnalOptsErr $ "The number of models to review must be strictly positive."
     aOptsExtErr fp    = AnalOptsErr $ "Incorrect extension for output file: " ++ fp
 
@@ -768,10 +770,10 @@ validateTestReport tr =
       | otherwise = [missingErr]
 
     -- Check sufficient results, i.e., each @[SimpleReport]@ has length @>=
-    -- maxPredictors + 1@.
+    -- maximumModelPredictors + 1@.
     checkSuff :: [SimpleReport] -> [InputError]
     checkSuff srs
-      | length srs > maxPredictors + 1 = []
+      | length srs > maximumModelPredictors + 1 = []
       | otherwise = [insufsErr]
 
     -- Check all reports relate to either unary or binary test programs.
@@ -908,10 +910,10 @@ expandTestSuites inps =
         matchWithGenSize :: DataOpts -> Bool -> [[(Id, HsType)]] -> [[Id]]
         matchWithGenSize Manual{} _ _ = []
         matchWithGenSize (Gen l s u) True validFuns  -- True for unary test programs.
-          | (u - l) `div` s + 1 < minInputs = []
+          | (u - l) `div` s + 1 < minimumTestInputs = []
           | otherwise = fmap (fmap fst) validFuns
         matchWithGenSize (Gen l s u) False validFuns -- False for binary test programs.
-          | ((u - l) `div` s + 1) ^ (2 :: Int) < minInputs = []
+          | ((u - l) `div` s + 1) ^ (2 :: Int) < minimumTestInputs = []
           | otherwise = fmap (fmap fst) validFuns
 
         -- Match the /input type/ of each function with the type of test data.
@@ -923,7 +925,7 @@ expandTestSuites inps =
           where match fTy dTy = tyFunInps fTy == testDataTyFunInps dTy
 
         -- Data options errors:
-        dOptsSizeErr    = DataOptsErr $ "A minimum of " ++ show minInputs ++ " distinctly sized test inputs are required."
+        dOptsSizeErr    = DataOptsErr $ "A minimum of " ++ show minimumTestInputs ++ " distinctly sized test inputs are required."
         dOptsWrongTyErr = DataOptsErr "The type of the specified test data is incompatible with the types of testable programs."
 
     -- Groupings by type: to match against the type of user-specified test data.

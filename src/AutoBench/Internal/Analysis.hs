@@ -55,7 +55,8 @@ import           Numeric.LinearAlgebra (Vector, norm_1, norm_2)
 import           System.IO.Unsafe      (unsafePerformIO)
 import           System.Random         (randomRIO)
 
-import AutoBench.Internal.AbstractSyntax  (Id)    
+import AutoBench.Internal.AbstractSyntax  (Id) 
+import AutoBench.Internal.Configuration   (maximumModelPredictors)   
 import AutoBench.Internal.UserIO          (outputAnalysisReport, outputQuickAnalysis)
 import AutoBench.Internal.Regression      (generateLinearCandidate, fitRidgeRegress)
 import AutoBench.Internal.UserInputChecks (validateAnalOpts, validateTestReport)
@@ -79,7 +80,6 @@ import AutoBench.Internal.Types
   , QuickAnalysis(..)
   , QuickReport(..)
   , QuickResults(..)
-  , maxPredictors
   , numPredictors
   , simpleReportsToCoords
   )   
@@ -266,8 +266,8 @@ candidateFit
   -> LinearCandidate                                -- Model to fit.
   -> Maybe LinearFit                  
 candidateFit ff split iters coords c
-  | length cleansedCoords < maxPredictors + 1 = Nothing     -- Need a minimum of (maxPredictors + 1) coordinates.
-  | V.null coeffs = Nothing                                 -- If coefficients are null, can't use model.
+  | length cleansedCoords < maximumModelPredictors + 1 = Nothing     -- Need a minimum of (maximumModelPredictors + 1) coordinates.
+  | V.null coeffs = Nothing                                          -- If coefficients are null, can't use model.
   | otherwise = Just
       LinearFit 
         {

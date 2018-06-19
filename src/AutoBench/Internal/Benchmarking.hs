@@ -84,12 +84,12 @@ import Criterion.Types
   )
 
 import AutoBench.Internal.AbstractSyntax (Id)
+import AutoBench.Internal.Configuration  (defaultBenchmarkReportFilepath)
 import AutoBench.Internal.DataGeneration (genDataUn, genDataBin)
 import AutoBench.Internal.Types
   ( UnaryTestData
   , BinaryTestData
   , TestSuite(..)
-  , defBenchRepFilename
   , toHRange
   )
 
@@ -386,4 +386,4 @@ runBenchmarks :: [Benchmark] -> TestSuite -> IO ()
 runBenchmarks bs ts = defaultMainWith cfg { jsonFile = Just repFile } bs
   where 
     cfg     = _critCfg ts
-    repFile = fromMaybe defBenchRepFilename (reportFile cfg)
+    repFile = fromMaybe defaultBenchmarkReportFilepath (reportFile cfg)
