@@ -68,6 +68,19 @@ import AutoBench.Internal.AbstractSyntax (Id, unqualIdt)
 import AutoBench.Internal.Chart          (plotAndSaveAnalGraph)
 import AutoBench.Internal.Expr           (wrapDocExpr)
 import AutoBench.Internal.Utils          ((<<+>>), deggar, strip, wrapPPList)
+
+import AutoBench.Internal.PrettyPrinting 
+  ( docCoords
+  , docDataOpts
+  , docQuickResultss
+  , docLinearType
+  , docSimpleResultss
+  , docStats
+  , docTestSuite_ProgsDataOpts
+  , docUserInputs
+  , showImprovements
+  )
+
 import AutoBench.Internal.Types
   ( AnalOpts(..)
   , AnalysisReport(..)
@@ -79,12 +92,6 @@ import AutoBench.Internal.Types
   , TestReport(..)
   , TestSuite(..)
   , UserInputs(..)
-  , docCoords
-  , docQuickResults
-  , docSimpleResults
-  , docTestSuite
-  , docUserInputs
-  , showImprovements
   )
 
 
@@ -181,7 +188,7 @@ selTestSuiteOption inps = case _testSuites inps of
 
         showTestSuite :: String -> Id -> TestSuite -> PP.Doc  -- Indexed.
         showTestSuite idx idt ts = (PP.text $ idx ++ idt)
-          <<+>> docTestSuite ts -- Note: test programs are wrapped to 60 width.
+          <<+>> docTestSuite_ProgsDataOpts ts -- Note: test programs are wrapped to 60 width.
 
     -- Use 'docUserInputs' to show the user inputs data structure
     -- but nest 2.
@@ -283,7 +290,7 @@ selFitOptions xss = catMaybes <$> mapM (uncurry selFitOption) xss
         [
           PP.nest 2 $ PP.text "y =" PP.<+> (wrapDocExpr 70 $ _ex lf)    -- Equation of each model.
           -- Show instance returns a String, lines and 'vcat' so can nest.
-        , PP.nest 4 $ PP.vcat $ fmap PP.text $ lines $ show (_sts lf)   -- All 'Stats', no wrapping.
+        , PP.nest 4 $ PP.vcat $ fmap PP.text $ lines $ PP.render $ docStats (_sts lf)   -- All 'Stats', no wrapping.
         ]) >> putStrLn "") lfs                                                                      -- <TO-DO>: Manual spacing.
       print $ PP.nest 1 $ PP.text $ replicate 78 '\x2015'
 
@@ -343,7 +350,7 @@ outputAnalysisReport aOpts tr ar = do
       , PP.nest 1 $ PP.text $ "\x2015\x2015 \ESC[3mAnalysis\ESC[0m " ++
           replicate 66 '\x2015' ++ "\n"                                                             -- <TO-DO>: So much hacked spacing here.
       -- Measurements for each individual test program.
-      , PP.nest 2 $ docSimpleResults $ _anlys ar ++ case _blAn ar of
+      , PP.nest 2 $ docSimpleResultss $ _anlys ar ++ case _blAn ar of
           Nothing -> []
           Just sr -> [sr] -- Display baseline measurements if there are any.
       -- Improvements report.
@@ -371,7 +378,7 @@ outputAnalysisReport aOpts tr ar = do
         -- Values for each heading.
         values =
           [ wrapPPList 64 ", " (fmap unqualIdt $ _tProgs tr)   -- Test programs.
-          , PP.text (show $ _tDataOpts tr)                     -- Data options.
+          , docDataOpts (_tDataOpts tr)                        -- Data options.
           , if _tNf tr                                         -- Normal form/weak head normal form.
                then PP.text "nf"
                else PP.text "whnf"
@@ -480,7 +487,7 @@ outputQuickAnalysis aOpts eql qa = do -- 'eql' is whether test programs give sam
         PP.nest 1 $ PP.text $ "\x2015\x2015 \ESC[3mAnalysis\ESC[0m " ++
           replicate 66 '\x2015' ++ "\n"                                                             -- <TO-DO>: More hacked space here.
       -- Measurements for each individual test program.
-      , PP.nest 2 $ docQuickResults $ _qAnlys qa
+      , PP.nest 2 $ docQuickResultss $ _qAnlys qa
       -- Improvements report.
       , improvementsReport
       -- Footer
@@ -559,9 +566,9 @@ makePlots
   -> (Id, [Coord], Maybe String, Maybe [Coord])
 makePlots (idt, coords, Nothing) = (idt, coords, Nothing, Nothing)   -- No model chosen/available.
 makePlots (idt, coords, Just lf) =
-  ( idt                        -- Name of test program.
-  , coords                     -- Raw measurements.
-  , Just $ show $ _lft lf      -- 'LinearType's pretty name.
+  ( idt                                             -- Name of test program.
+  , coords                                          -- Raw measurements.
+  , Just $ PP.render $ docLinearType $ _lft lf      -- 'LinearType's pretty name.
   -- Cleanse predicted runtimes.
   , Just $ cleanse $ zip xs ys -- Line of best fit coordinates calculated from model's equation.
   )

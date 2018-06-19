@@ -63,7 +63,6 @@ module AutoBench.Internal.PrettyPrinting
 
 
 
-
   -- * To Fix
   , showImprovements
   , docImprovement
