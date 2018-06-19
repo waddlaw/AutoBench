@@ -3,43 +3,41 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE DeriveGeneric        #-}
 
-{-|
+-- |
+--
+-- Module      : AutoBench.Types
+-- Description : User input datatypes and corresponding instances (Default/NFData)
+-- Copyright   : (c) 2018 Martin Handley
+-- License     : BSD-style
+-- Maintainer  : martin.handley@nottingham.ac.uk
+-- Stability   : Experimental
+-- Portability : GHC
+--
+-- This module defines user input datatypes:
+--
+-- * Test suites: 'TestSuite's;
+-- * Manual test data: 'UnaryTestData', 'BinaryTestData';
+-- * Test data options: 'DataOpts';
+-- * Statistical analysis options: 'AnalOpts'.
+--
+-- These are to be included in user input files to customise the functionality
+-- of the system.
+--
+-- This module also defines datatypes used for statistical analysis:
+--
+-- * Regression models: 'LinearTypes';
+-- * Fitting statistics: 'Stats'.
+--
+-- Users should be aware of these datatypes should they wish to provide
+-- custom 'AnalOpts'. 
+--
 
-  Module      : AutoBench.Types
-  Description : User input datatypes and associated helper functions and 
-                defaults.
-  Copyright   : (c) 2018 Martin Handley
-  License     : BSD-style
-  Maintainer  : martin.handley@nottingham.ac.uk
-  Stability   : Experimental
-  Portability : GHC
-
-  This module defines user input datatypes:
-
-  * Test suites: 'TestSuite's;
-  * Manual test data: 'UnaryTestData', 'BinaryTestData';
-  * Test data options: 'DataOpts';
-  * Statistical analysis options: 'AnalOpts'.
-
-  These are to be included in user input files to customise the functionality
-  of the system.
-
-  This module also defines datatypes used for statistical analysis:
-
-  * Regression models: 'LinearTypes';
-  * Fitting statistics: 'Stats'.
-
-  Users should be aware of these datatypes should they wish to provide
-  custom 'AnalOpts'. 
-
--}
-
-{-
-   ----------------------------------------------------------------------------
-   <TO-DO>:
-   ----------------------------------------------------------------------------
-   - 
--}
+-------------------------------------------------------------------------------
+-- <TO-DO>:
+-------------------------------------------------------------------------------
+-- * Move the default functions to AutoBench.Internal.Configuration? I'm 
+--   reluctant because if they are left here then users can find all the info. 
+--   they need in one place.
 
 module AutoBench.Types 
   (
@@ -63,14 +61,11 @@ import           Control.DeepSeq                  (NFData)
 import qualified Criterion.Types                  as Criterion
 import qualified Criterion.Main                   as Criterion
 import           Data.Default                     (Default(..))
-import           Data.List                        (genericLength, transpose)
+import           Data.List                        (genericLength)
 import           GHC.Generics                     (Generic)
 import           Numeric.MathFunctions.Comparison (relativeError)
-import qualified Text.PrettyPrint.HughesPJ        as PP
-import           Text.Printf                      (printf)
 
 import AutoBench.Internal.AbstractSyntax (Id)
-import AutoBench.Internal.Utils          (bySide, subNum, superNum)
 
 
 -- To be able to 'rnf' 'TestSuite's.
@@ -290,10 +285,6 @@ data DataOpts =
 
 instance NFData DataOpts 
 
-instance Show DataOpts where 
-  show (Manual idt) = "Manual " ++ "\"" ++ idt ++ "\""
-  show (Gen l s u)  = "Random, size range [" ++ show l ++ "," ++ show s  ++ ".." ++ show u ++ "]"
-
 instance Default DataOpts where 
   def = Gen 0 5 100
 
@@ -400,7 +391,7 @@ instance Default AnalOpts where
 -- Of course, users may disagree with this in which case they can set their 
 -- own predicate in their 'TestOpts', e.g., maybe change it to @const True@.
 defaultStatsFilt :: Stats -> Bool                                                  
-defaultStatsFilt = const True -- s = _r2 s >= 0 && _r2 s <= 1 && _a_r2 s >= 0 && _a_r2 s <= 1
+defaultStatsFilt  = const True -- s = _r2 s >= 0 && _r2 s <= 1 && _a_r2 s >= 0 && _a_r2 s <= 1
 
 -- In general we want the model with the /lowest/ predicted mean squared error 
 -- '_p_mse'. However, through testing we have found that in the case where two 
@@ -453,7 +444,7 @@ defaultImprov ds
     f GT (lt, gt) = (lt    , gt + 1)
 
     -- Percentages for EQ, LT, GT.
-    eqsPct = genericLength eqs / genericLength ds
+    eqsPct = genericLength eqs / genericLength ds  :: Double
     ltsPct = (fromIntegral lts / genericLength ds) :: Double 
     gtsPct = (fromIntegral gts / genericLength ds) :: Double
 
@@ -486,22 +477,6 @@ data LinearType =
 
 instance NFData LinearType
 
-instance Show LinearType where 
-  show (Poly      0) = "constant"
-  show (Poly      1) = "linear"
-  show (Poly      2) = "quadratic"
-  show (Poly      3) = "cubic"
-  show (Poly      4) = "quartic"
-  show (Poly      5) = "quintic"
-  show (Poly      6) = "sextic"
-  show (Poly      7) = "septic"
-  show (Poly      8) = "octic"
-  show (Poly      9) = "nonic"
-  show (Poly      n) = "n" ++ superNum n
-  show (Log     b n) = "log" ++ subNum b ++ superNum n ++ "n"
-  show (PolyLog b n) = "n" ++ superNum n ++ "log" ++ subNum b ++ superNum n ++ "n"
-  show (Exp       n) = show n ++ "\x207F"
-
 -- | The system provides a number of fitting statistics that can be used to 
 -- compare models when deciding which model best fits a given data set.
 -- Users can provide their own functions in their 'AnalOpts' to filter and 
@@ -522,17 +497,3 @@ data Stats =
    , _aic      :: Double   -- ^ Akaike’s Information Criterion.
    , _cp       :: Double   -- ^ Mallows' Cp Statistic.
    } deriving Eq
-
-instance Show Stats where 
-  show sts = flip bySide " " $ fmap PP.vcat $ transpose  
-    [ [ PP.text "PMSE",          PP.char '=', PP.text $ printf "%.4g" (_p_mse    sts) ] 
-    , [ PP.text "PMAE",          PP.char '=', PP.text $ printf "%.4g" (_p_mae    sts) ]
-    , [ PP.text "SST",           PP.char '=', PP.text $ printf "%.4g" (_ss_tot   sts) ]
-    , [ PP.text "PRESS",         PP.char '=', PP.text $ printf "%.4g" (_p_ss_res sts) ]
-    , [ PP.text "R\x00B2",       PP.char '=', PP.text $ printf "%.4g" (_r2       sts) ]
-    , [ PP.text "Adj. R\x00B2",  PP.char '=', PP.text $ printf "%.4g" (_a_r2     sts) ]
-    , [ PP.text "Pred. R\x00B2", PP.char '=', PP.text $ printf "%.4g" (_p_r2     sts) ]
-    , [ PP.text "BIC",           PP.char '=', PP.text $ printf "%.4g" (_bic      sts) ]
-    , [ PP.text "AIC",           PP.char '=', PP.text $ printf "%.4g" (_aic      sts) ]
-    , [ PP.text "CP",            PP.char '=', PP.text $ printf "%.4g" (_cp       sts) ]
-    ]
