@@ -37,7 +37,8 @@
 -------------------------------------------------------------------------------
 -- * Move the default functions to AutoBench.Internal.Configuration? I'm 
 --   reluctant because if they are left here then users can find all the info. 
---   they need in one place.
+--   they need in one place;
+-- * Discover option for DataOpts;
 
 module AutoBench.Types 
   (
@@ -52,14 +53,14 @@ module AutoBench.Types
   -- ** Statistical analysis options
   , AnalOpts(..)                        -- Statistical analysis options.
   -- * Statistical analysis
-  , LinearType(..)                      -- Functions used as models for regression analysis.
+  , LinearType(..)                      -- Regression models used to approximate time complexity.
   , Stats(..)                           -- Fitting statistics used to compare regression models.
 
   ) where
 
 import           Control.DeepSeq                  (NFData)
-import qualified Criterion.Types                  as Criterion
 import qualified Criterion.Main                   as Criterion
+import qualified Criterion.Types                  as Criterion
 import           Data.Default                     (Default(..))
 import           Data.List                        (genericLength)
 import           GHC.Generics                     (Generic)
@@ -67,8 +68,7 @@ import           Numeric.MathFunctions.Comparison (relativeError)
 
 import AutoBench.Internal.AbstractSyntax (Id)
 
-
--- To be able to 'rnf' 'TestSuite's.
+-- Needed to 'rnf' 'TestSuite's.
 instance NFData Criterion.Verbosity
 instance NFData Criterion.Config
 
@@ -288,7 +288,7 @@ instance NFData DataOpts
 instance Default DataOpts where 
   def = Gen 0 5 100
 
--- ** Statistical analysis options                                                  -- ** NEEDS COMMENTS ** 
+-- ** Statistical analysis options                                                 
 
 -- | The system provides a number of user options for statistical analysis, 
 -- including:
@@ -331,11 +331,11 @@ instance Default DataOpts where
 --       ]
 --   , _cvIters   = 200
 --   , _cvTrain   = 0.7
---   , _topModels = 1
+--   , _topModels = 3
 --   , _statsFilt = defaultStatsFilt           -- See 'defaultStatsFilt'.                                                            
 --   , _statsSort = defaultStatsSort           -- See 'defaultStatsSort'.                                 
 --   , _improv    = defaultImprov              -- See 'defaultImprov'.                                                    
---   , _graphFP   = Just "./AutoBenched.png"   -- This is always a .png.
+--   , _graphFP   = Just "./AutoBenched.png"   -- This is a .png.
 --   , _reportFP  = Nothing                    -- This is a .txt.            
 --   , _coordsFP  = Nothing                    -- This is a .csv.
 --   }
@@ -372,7 +372,7 @@ instance Default AnalOpts where
             _linearModels = fmap Poly [0..4] ++ [Log 2 1, Log 2 2, PolyLog 2 1, Exp 2]
           , _cvIters      = 200
           , _cvTrain      = 0.7
-          , _topModels    = 5
+          , _topModels    = 3
           , _statsFilt    = defaultStatsFilt                                                                   
           , _statsSort    = defaultStatsSort                                                                    
           , _improv       = defaultImprov                                                              
@@ -382,40 +382,27 @@ instance Default AnalOpts where
           }
 
 -- | The default method for discarding models that \"do not\" fit a given
--- data set. This is achieved by filtering associated fitting 'Stats'. 
+-- data set. This is achieved by filtering according to a each model's 
+-- corresponding fitting statistics ('Stats'). 
 --
--- For the default option we discard any model whose R^2/adjusted R^2 value 
--- is outside of the range [0..1], as this is a strong indicator that the 
--- model is a \"bad fit\" for the data.
+-- By default, no models are discarded.
 --
--- Of course, users may disagree with this in which case they can set their 
--- own predicate in their 'TestOpts', e.g., maybe change it to @const True@.
+-- > defaultStatsFilt = const True 
 defaultStatsFilt :: Stats -> Bool                                                  
-defaultStatsFilt  = const True -- s = _r2 s >= 0 && _r2 s <= 1 && _a_r2 s >= 0 && _a_r2 s <= 1
+defaultStatsFilt  = const True 
 
--- In general we want the model with the /lowest/ predicted mean squared error 
--- '_p_mse'. However, through testing we have found that in the case where two 
--- models have '_p_mse' with relative error <= 0.15, it seems appropriate to 
--- pick the one with the /highest predicted/ R^2 value '_p_r2'.
---
--- Of course, users may disagree with this in which case they can set their 
--- own ordering in their 'TestOpts'. In order to be facilitate different 
--- methods for ordering 'Stats', we have included a range of best-fit 
--- indicators, see 'Stats' for more information.
+-- | The default method for ranking models according to how they fit a given 
+-- data set. This is achieved by comparing their predicted mean squared error 
+-- fitting statistic ('_p_mse').
 defaultStatsSort :: Stats -> Stats -> Ordering 
-defaultStatsSort s1 s2                      -- Note: we want the highest predicted R^2.
-  -- | relativeError p_mse_1 p_mse_2 <= 0.15 = compare (_p_r2 s2) (_p_r2 s1)
-  = compare p_mse_1 p_mse_2        
-  where 
-    p_mse_1 = _p_mse s1 
-    p_mse_2 = _p_mse s2
+defaultStatsSort s1 s2 = compare (_p_mse s1) (_p_mse s2)
 
 -- | The default way to generate improvement results by comparing the runtimes
 -- of two test programs /pointwise/.
 -- 
 -- It works as follows:
 --
--- * First the relative error of each pair of runtimes is calculated,
+-- * First, the relative error of each pair of runtimes is calculated,
 --   if 95% or more pairs have relative error <= 0.15, then the system 
 --   concludes the test programs are cost-equivalent (i.e., have roughly the 
 --   same runtime efficiency).
@@ -444,9 +431,9 @@ defaultImprov ds
     f GT (lt, gt) = (lt    , gt + 1)
 
     -- Percentages for EQ, LT, GT.
-    eqsPct = genericLength eqs / genericLength ds  :: Double
-    ltsPct = (fromIntegral lts / genericLength ds) :: Double 
-    gtsPct = (fromIntegral gts / genericLength ds) :: Double
+    eqsPct = (genericLength eqs / genericLength ds) :: Double
+    ltsPct = (fromIntegral lts  / genericLength ds) :: Double 
+    gtsPct = (fromIntegral gts  / genericLength ds) :: Double
 
 -- * Statistical analysis
 
