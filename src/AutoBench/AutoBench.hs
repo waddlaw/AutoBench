@@ -227,8 +227,7 @@ benchmarkAndAnalyse fp = flip catch catchSomeException $ do -- Catch and handle 
     printInvalidCompilerFlags xs =
       putStrLn $ PP.renderStyle (PPLib.lineStyle 80) $ PP.nest 9 $ PP.sep 
         [ PP.text "Warning, invalid compiler flags:"
-        , PP.nest 1 $ PP.fcat $ PP.punctuate (PP.text ", ") $ 
-            fmap PPLib.toItalic xs ]
+        , PP.nest 1 $ PPLib.wrappedList $ fmap PPLib.italic xs ]
 
     -- Temporary system files to delete after benchmarking.
     tempSystemFiles :: TestSuite -> [FilePath]
