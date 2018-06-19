@@ -21,6 +21,8 @@
 -- of Haskell programs", is also available: 
 -- http://www.cs.nott.ac.uk/~psxmah/autobench.pdf
 --
+-- To AutoBench a file containing test inputs, use @AutoBench <filename>@.
+--
 
 -------------------------------------------------------------------------------
 -- <TO-DO>:
@@ -209,12 +211,13 @@ benchmarkAndAnalyse fp = flip catch catchSomeException $ do -- Catch and handle 
   where 
 
     -- Runner for the 'hint' monad. 'throwIO' any errors.
-    processUserInputFile  = 
+    processUserInputFile :: FilePath -> IO UserInputs
+    processUserInputFile = 
       (either throwIO return =<<) . runInterpreter . userInputCheck
 
     -- If '_critCfg' in 'TestSuite' doesn't contain a JSON benchmarking report 
     -- file, then use AutoBench's default to interface with Criterion.
-    benchRepFilename :: TestSuite -> String
+    benchRepFilename :: TestSuite -> FilePath
     benchRepFilename  = 
       fromMaybe defaultBenchmarkReportFilepath . reportFile . _critCfg
 
@@ -228,6 +231,7 @@ benchmarkAndAnalyse fp = flip catch catchSomeException $ do -- Catch and handle 
             fmap PPLib.toItalic xs ]
 
     -- Temporary system files to delete after benchmarking.
+    tempSystemFiles :: TestSuite -> [FilePath]
     tempSystemFiles ts
      | isNothing (reportFile $ _critCfg ts) = [defaultBenchmarkReportFilepath]
      | otherwise = []
@@ -243,8 +247,8 @@ benchmarkAndAnalyse fp = flip catch catchSomeException $ do -- Catch and handle 
 
 -- * Helper functions
 
--- | Catch any exception and try and match it against a specific exception 
--- handler. If not then just 'print' the error.
+-- | Catch all exceptions: try to match against a specific exception handler. 
+-- If not then just 'print' the exception.
 catchSomeException :: SomeException -> IO ()
 catchSomeException e = do 
   spacer 1
@@ -260,7 +264,7 @@ catchSomeException e = do
   where 
     -- Exception handling for hint 'InterpreterError's.
     catchInterpreterError :: Maybe (IO ())
-    catchInterpreterError = case fromException e of 
+    catchInterpreterError  = case fromException e of 
       Just (UnknownError  s) -> Just $ putStrLn s 
       Just (WontCompile  es) -> 
         Just . putStrLn . unlines . nub . map errMsg $ es
