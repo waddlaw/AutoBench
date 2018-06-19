@@ -35,14 +35,6 @@ module AutoBench.Internal.Types
   -- * User inputs
   -- ** Test data options
   , toHRange               -- Convert @Gen l s u :: DataOpts@ to a Haskell range.
-  , minInputs              -- Minimum number of distinctly sized test inputs.
-  , defBenchRepFilename    -- Default benchmarking JSON report filename.
-  -- ** Statistical analysis options
-  , maxPredictors          -- Maximum number of predictors for models to be used for regression analysis.         
-  , minCVTrain             -- Minimum percentage of data set to use for cross-validation.
-  , maxCVTrain             -- Maximum percentage of data set to use for cross-validation.
-  , minCVIters             -- Minimum number of cross-validation iterations.
-  , maxCVIters             -- Maximum number of cross-validation iterations.
   -- ** Internal representation of user inputs
   , UserInputs(..)         -- A data structure maintained by the system to classify user inputs.
   , initUserInputs         -- Initialise a 'UserInputs' data structure.
@@ -76,35 +68,15 @@ module AutoBench.Internal.Types
   , SystemError(..)        -- System errors.
   -- ** Input errors
   , InputError(..)         -- User input errors.
-  -- * Helpers 
-  -- ** Pretty printing
-  , docCoords              -- Generate a 'PP.Doc' for list of 'Coord's or 'Coord3's.
-  , docImprovement         -- Generate a 'PP.Doc' for an 'Improvement'.
-  , docQuickResults        -- Generate a 'PP.Doc' for list of 'QuickResults'.
-  , docSimpleReport        -- Generate a 'PP.Doc' for a 'SimpleReport'.
-  , docSimpleResults       -- Generate a 'PP.Doc' for list of 'SimpleResults'.
-  , docTestReport          -- Generate a 'PP.Doc' for a 'TestReport'.
-  , docTestSuite           -- Generate a 'PP.Doc' for a 'TestSuite'.
-  , docUserInputs          -- Generate a 'PP.Doc' for a 'UserInputs'.
-  , showImprovements       -- Pretty printing for a list of 'Improvement's.
 
   ) where
 
-import           Control.Arrow             ((&&&))
-import           Control.Exception.Base    (Exception)
-import           Criterion.Types           (OutlierEffect(..))
-import           Data.Either               (partitionEithers)
-import           Data.List                 (sort, sortBy, transpose)
-import           Data.List.Split           (chunksOf)
-import           Data.Ord                  (comparing)
-import           Data.Tuple.Select         (sel1, sel2, sel3)
-import           Numeric.LinearAlgebra     (Vector)
-import           Text.Printf               (printf)
-import qualified Text.PrettyPrint.HughesPJ as PP
+import           Control.Exception.Base (Exception)
+import           Criterion.Types        (OutlierEffect(..))
+import           Data.Either            (partitionEithers)
+import           Numeric.LinearAlgebra  (Vector)
 
-import qualified AutoBench.Internal.Expr  as E
-import           AutoBench.Internal.Utils ( bySide, deggar, forceSecs, secs 
-                                          , wrapPPList )
+import qualified AutoBench.Internal.Expr as E
 import           AutoBench.Types  -- Re-export.
 
 import AutoBench.Internal.AbstractSyntax 
@@ -112,8 +84,6 @@ import AutoBench.Internal.AbstractSyntax
   , Id
   , ModuleElem(..)
   , TypeString
-  , prettyPrint
-  , unqualIdt
   )
 
 -- * User inputs
@@ -124,48 +94,6 @@ import AutoBench.Internal.AbstractSyntax
 toHRange :: DataOpts -> [Int]
 toHRange Manual{}    = []
 toHRange (Gen l s u) = [l, (l + s) .. u]
-
--- | Each test suite requires a minimum number of distinctly sized test inputs.
--- 
--- > minInputs = 20
-minInputs :: Int 
-minInputs  = 20
-
--- | Default benchmarking JSON report filename.
-defBenchRepFilename :: String
-defBenchRepFilename  = "autobench_tmp.json"
-
--- ** Statistical analysis options
-
--- | Maximum number of predictors for models to be used for regression analysis.
---
--- > maxPredictors = 10
-maxPredictors :: Int 
-maxPredictors  = 10
-
--- | Minimum percentage of data set to use for cross-validation.
---
--- > minCVTrain = 0.5
-minCVTrain :: Double 
-minCVTrain  = 0.5
-
--- | Maximum percentage of data set to use for cross-validation.
---
--- > maxCVTrain = 0.8
-maxCVTrain :: Double 
-maxCVTrain  = 0.8
-
--- | Minimum number of cross-validation iterations.
---
--- > minCVIters = 100
-minCVIters :: Int 
-minCVIters  = 100
-
--- | Maximum number of cross-validation iterations.
---
--- > maxCVIters = 500
-maxCVIters :: Int 
-maxCVIters  = 500
 
 -- ** Internal representation of user inputs
 
@@ -246,10 +174,6 @@ data DataSize =
     SizeUn Int       -- ^ The size of unary test data.
   | SizeBin Int Int  -- ^ The size of binary test data.
     deriving (Ord, Eq)
-
-instance Show DataSize where 
-  show (SizeUn n)      = show n 
-  show (SizeBin n1 n2) = show (n1, n2)
 
 -- | A report to summarise the benchmarking phase of testing.
 data BenchReport =
@@ -336,14 +260,6 @@ data CVStats =
    , _cv_ss_tot :: Double   -- ^ Total sum of squares.
    , _cv_ss_res :: Double   -- ^ Residual sum of squares.
    } deriving Eq
-
-instance Show CVStats where 
-  show cvSts = flip bySide " " $ fmap PP.vcat $ transpose  
-    [ [ PP.text "MSE", PP.char '=', PP.text $ printf ".4g" (_cv_mse    cvSts) ] 
-    , [ PP.text "MAE", PP.char '=', PP.text $ printf ".4g" (_cv_mae    cvSts) ]
-    , [ PP.text "SST", PP.char '=', PP.text $ printf ".4g" (_cv_ss_tot cvSts) ]
-    , [ PP.text "SSR", PP.char '=', PP.text $ printf ".4g" (_cv_ss_res cvSts) ]
-    ]
 
 -- | Expressions with 'Double' literals.
 type Exp = E.Expr Double
@@ -446,8 +362,9 @@ data QuickResults =
 -- where the system didn't expect errors to result.
 data SystemError = InternalErr String
 
+-- Note: needed for the 'Exception' instance.
 instance Show SystemError where 
-  show (InternalErr s) = "Internal error: " ++ s ++ "\nplease report on GitHub."
+  show (InternalErr s) = "Internal error: " ++ s ++ "\n** Please report on GitHub **"
 
 instance Exception SystemError
 
@@ -474,6 +391,7 @@ data InputError =
   | QuickOptsErr  String    -- ^ Invalid quick options. See AutoBench.QuickBench.
   | QuickBenchErr String    -- ^ QuickBench error. See AutoBench.QuickBench.
 
+-- Note: needed for the 'Exception' instance.
 instance Show InputError where 
   show (FilePathErr   s) = "File path error: "        ++ s
   show (FileErr       s) = "File error: "             ++ s
@@ -486,407 +404,4 @@ instance Show InputError where
   show (QuickOptsErr  s) = "Quick options error: "    ++ s
   show (QuickBenchErr s) = "QuickBench test error: "  ++ s
 
-
 instance Exception InputError
-
--- * Helpers 
-
--- ** Pretty printing 
-
--- | Pretty printing for 'Improvement's.
-docImprovement :: Bool -> Improvement -> PP.Doc 
-docImprovement b (idt1, ord, idt2, d) = 
-  PP.hsep $ docImprovement' b (unqualIdt idt1, ord, unqualIdt idt2, d)
-
--- | Pretty printing helper for 'Improvement's.
-docImprovement' :: Bool -> Improvement -> [PP.Doc] 
-docImprovement' b (idt1, LT, idt2, d) = docImprovement' b (idt2, GT, idt1, d)
-docImprovement' True  (idt1, EQ, idt2, d) = 
-  [ PP.text idt1, PP.text "\8804\8805", PP.text idt2
-  , PP.char '(' PP.<> (PP.text $ printf "%.2f" d) PP.<> PP.char ')' ]
-docImprovement' False (idt1, EQ, idt2, d) =  
-  [ PP.text idt1, PP.text "\8818\8819", PP.text idt2
-  , PP.char '(' PP.<> (PP.text $ printf "%.2f" d) PP.<> PP.char ')' ]
-docImprovement' True  (idt1, GT, idt2, d) = 
-  [ PP.text idt1, PP.text "\8805", PP.text idt2
-  , PP.char '(' PP.<> (PP.text $ printf "%.2f" d) PP.<> PP.char ')' ]
-docImprovement' False (idt1, GT, idt2, d) = 
-  [ PP.text idt1, PP.text "\8819", PP.text idt2
-  , PP.char '(' PP.<> (PP.text $ printf "%.2f" d) PP.<> PP.char ')' ]
-
--- | Pretty printing for a list of 'Improvement's.
-showImprovements :: Bool -> [Improvement] -> String 
-showImprovements b imps = bySide (fmap PP.vcat $ transpose docImps) " "
-  where 
-    imps' = fmap (\(idt1, ord, idt2, d) -> 
-      (unqualIdt idt1, ord, unqualIdt idt2, d)) imps
-    docImps = fmap (docImprovement' b) imps'
-
--- | Simplified pretty printing for the 'TestSuite' data structure.
--- Note: prints test programs and 'DataOpts' only.
-docTestSuite :: TestSuite -> PP.Doc                                                                        
-docTestSuite ts = PP.vcat 
-  [ 
-    wrapPPList 60 ", " (_progs ts)   -- Names of test programs.
-  , PP.text $ show $ _dataOpts ts    -- Data options.
-  ]
-
--- | Pretty printing for the 'UserInputs' data structure. 
--- Prints all fields; invalids are printed last.                                               
-docUserInputs :: UserInputs -> PP.Doc 
-docUserInputs inps = PP.vcat $ PP.punctuate (PP.text "\n")
-  [ PP.text "All module elements"     PP.$$ (PP.nest 2 $ showElems             $ _allElems          inps)
-  , PP.text "Valid module elements"   PP.$$ (PP.nest 2 $ showTypeableElems     $ _validElems        inps)
-  , PP.text "Nullary functions"       PP.$$ (PP.nest 2 $ showTypeableElems     $ _nullaryFuns       inps)
-  , PP.text "Unary functions"         PP.$$ (PP.nest 2 $ showTypeableElems     $ _unaryFuns         inps)
-  , PP.text "Binary functions"        PP.$$ (PP.nest 2 $ showTypeableElems     $ _binaryFuns        inps)
-  , PP.text "Benchmarkable functions" PP.$$ (PP.nest 2 $ showTypeableElems     $ _benchFuns         inps)
-  , PP.text "Arbitrary functions"     PP.$$ (PP.nest 2 $ showTypeableElems     $ _arbFuns           inps)
-  , PP.text "NFData functions"        PP.$$ (PP.nest 2 $ showTypeableElems     $ _nfFuns            inps)
-  , PP.text "Unary test data"         PP.$$ (PP.nest 2 $ showTypeableElems     $ fmap (sel1 &&& sel2) $ _unaryData  inps) -- Don't print sizing information.
-  , PP.text "Binary test data"        PP.$$ (PP.nest 2 $ showTypeableElems     $ fmap (sel1 &&& sel2) $ _binaryData inps) -- Don't print sizing information.
-  , PP.text "Test suites"             PP.$$ (PP.nest 2 $ showTestSuites        $ _testSuites        inps)
-  -- Invalids come last because they have 'InputError's.
-  , PP.text "Invalid module elements" PP.$$ (PP.nest 2 $ showElems             $ _invalidElems      inps) 
-  , PP.text "Invalid test data"       PP.$$ (PP.nest 2 $ showInvalidData       $ _invalidData       inps)
-  , PP.text "Invalid test suites"     PP.$$ (PP.nest 2 $ showInvalidTestSuites $ _invalidTestSuites inps)
-  ]
-  
-  where 
-    -- Pretty printing for @[(ModuleElem, Maybe TypeString)]@.
-    showElems :: [(ModuleElem, Maybe TypeString)] -> PP.Doc 
-    showElems [] = PP.text "N/A"
-    showElems xs = PP.vcat [showDs, showCs, showFs]
-      where 
-        -- Split into (Fun, Class, Data).
-        ((fs, tys), cs, ds) = foldr splitShowModuleElems (([], []), [], []) xs
-
-        -- Data.
-        showDs | null ds   = PP.empty 
-               | otherwise = PP.vcat 
-                   [ PP.text "Data"
-                   , PP.nest 2 $ PP.vcat $ fmap PP.text $ sort ds
-                   ]
-        -- Class.
-        showCs | null cs   = PP.empty 
-               | otherwise = PP.vcat 
-                   [ PP.text "Class"
-                   , PP.nest 2 $ PP.vcat $ fmap PP.text $ sort cs
-                   ]
-        -- Fun.
-        showFs | null fs   = PP.empty 
-               | otherwise = PP.vcat 
-                   [ PP.text "Fun"
-                   , PP.nest 2 $ PP.vcat $ fmap PP.text $ sort $ 
-                       zipWith (\idt ty -> idt ++ " :: " ++ ty) (deggar fs) tys
-                   ]
-
-    -- Pretty printing for @[(Id, HsType)]@.
-    showTypeableElems :: [(Id, HsType)] -> PP.Doc
-    showTypeableElems [] = PP.text "N/A"
-    showTypeableElems xs = PP.vcat $ fmap PP.text $ sort $ 
-      zipWith (\idt ty -> idt ++ " :: " ++ prettyPrint ty) (deggar idts) tys
-      where (idts, tys) = unzip xs
-
-    -- Pretty printing for 'TestSuite's.
-    showTestSuites :: [(Id, TestSuite)] -> PP.Doc 
-    showTestSuites [] = PP.text "N/A"
-    showTestSuites xs = PP.vcat $ fmap (uncurry showTestSuite) $ 
-      sortBy (comparing fst) xs
-      where 
-        showTestSuite :: Id -> TestSuite -> PP.Doc 
-        showTestSuite idt ts = PP.vcat 
-          [ PP.text idt PP.<+> PP.text ":: TestSuite"
-          , PP.nest 2 $ docTestSuite ts
-          ]
-
-    -- Invalids, need additional nesting for input errors: --------------------
-    -- Note: don't forget to sort alphabetically. 
-
-    showInvalidData :: [(Id, HsType, [InputError])] -> PP.Doc
-    showInvalidData [] = PP.text "N/A"
-    showInvalidData xs = PP.vcat $ fmap showInvalidDat $ 
-      sortBy (comparing sel1) xs
-      where 
-        showInvalidDat :: (Id, HsType, [InputError]) -> PP.Doc
-        showInvalidDat (idt, ty, errs) = PP.vcat 
-          [ PP.text $ idt ++ " :: " ++ prettyPrint ty
-          , PP.nest 2 $ PP.vcat $ fmap (PP.text . show) $ 
-              sortBy (comparing show) errs 
-          ]
-
-    showInvalidTestSuites :: [(Id, [InputError])]  -> PP.Doc 
-    showInvalidTestSuites [] = PP.text "N/A"
-    showInvalidTestSuites xs = PP.vcat $ fmap showInvalidTestSuite $ 
-      sortBy (comparing fst) xs
-      where 
-        showInvalidTestSuite :: (Id, [InputError]) -> PP.Doc 
-        showInvalidTestSuite (idt, errs) = PP.vcat 
-          [ PP.text idt PP.<+> PP.text ":: TestSuite"
-          , PP.nest 2 $ PP.vcat $ fmap (PP.text . show) $ 
-              sortBy (comparing show) errs 
-          ]
-
-    -- Helpers:
-
-    -- Split the 'ModuleElem's to display 'Fun' types by the side of 'Fun' 
-    -- identifiers. (The 'Class' and 'Data' 'ModuleElem's don't have typing 
-    -- information.)
-    splitShowModuleElems 
-      :: (ModuleElem, Maybe TypeString)
-      -> (([String], [String]), [String], [String]) 
-      -> (([String], [String]), [String], [String])
-    -- Types.
-    splitShowModuleElems (Fun idt, Just ty) ((fs, tys), cs, ds) = 
-      ((idt : fs, ty : tys), cs, ds)
-    -- No types.
-    splitShowModuleElems (Fun idt, Nothing) ((fs, tys), cs, ds) = 
-      ((idt : fs, "" : tys), cs, ds) -- Shouldn't happen.
-    splitShowModuleElems (Class idt _, _) (fs, cs, ds) = (fs, idt : cs, ds)
-    splitShowModuleElems (Data idt _, _)  (fs, cs, ds) = (fs, cs, idt : ds)
-
--- | Pretty printing for the 'SimpleReport' data structure. 
-docSimpleReport :: SimpleReport -> PP.Doc 
-docSimpleReport sr = PP.vcat $
-  [ PP.text (_name sr)
-  , PP.nest 2 $ ppSizeRuntime (_size sr) (_runtime sr)
-  ]
-  where 
-    ppSizeRuntime (SizeUn n) d = PP.char '(' PP.<> PP.int n PP.<> PP.text ", " 
-      PP.<> PP.double d PP.<> PP.char ')'
-    ppSizeRuntime (SizeBin n1 n2) d = PP.char '(' PP.<> PP.int n1 PP.<> 
-      PP.text ", " PP.<> PP.int n2 PP.<> PP.text ", " PP.<> 
-      PP.double d PP.<> PP.char ')'
-
--- | Full pretty printing for 'TestReport' data structure.
-docTestReport :: TestReport -> PP.Doc
-docTestReport tr = PP.vcat 
-  [ PP.hcat $ (PP.text "Test programs: ") : (PP.punctuate (PP.text ", ") $
-      fmap PP.text $ _tProgs tr)
-  , PP.text "Data options:" PP.<+> PP.text (show $ _tDataOpts tr)
-  , PP.text "Normal form:" PP.<+> PP.text (show $ _tNf tr)
-  , PP.text "Semantically equal" PP.<+> PP.text (show $ _eql tr)
-  , ppGhcFlags (_tGhcFlags tr)
-  , PP.text ""
-  , docBenchReport (_br tr)
-  ]
-
-  where 
-    -- Pretty print list of GHC flags.
-    ppGhcFlags :: [String] -> PP.Doc 
-    ppGhcFlags [] = PP.empty
-    ppGhcFlags flags = PP.vcat $ (PP.text "GHC flags: ") : 
-      (PP.punctuate (PP.text ", ") $ fmap PP.text $ flags)
-
--- | Pretty printing for 'BenchReport' data structure.
-docBenchReport :: BenchReport -> PP.Doc 
-docBenchReport br = PP.vcat
-  [ PP.text "Reports:" PP.$$ PP.nest 2 (PP.vcat $ fmap ppTestResults $ _reports br)
-  , ppBaselines (_baselines br)
-  ]
-  
-  where 
-    -- Pretty print 'SimpleReport's belonging to same test program.
-    ppTestResults :: [SimpleReport] -> PP.Doc 
-    ppTestResults [] = PP.empty
-    ppTestResults srs = PP.vcat $ 
-      [ PP.text (_name $ head srs)
-      , PP.nest 2 $ PP.vcat $ 
-          fmap (\sr -> ppSizeRuntime (_size sr) (_runtime sr)) srs
-      ]
-
-    -- Pretty print baseline measurements.
-    ppBaselines :: [SimpleReport] -> PP.Doc
-    ppBaselines []  = PP.empty
-    ppBaselines bls = PP.text "Baseline measurements:" PP.$$ (PP.nest 2 $ 
-      PP.vcat $ fmap (\bl -> ppSizeRuntime (_size bl) (_runtime bl)) bls)
-
-    -- PrettyPrint (input size(s), runtime) 2- or 3-tuples.
-    ppSizeRuntime :: DataSize -> Double -> PP.Doc
-    ppSizeRuntime (SizeUn n) d = PP.char '(' PP.<> PP.int n PP.<> PP.text ", " 
-      PP.<> PP.double d PP.<> PP.char ')'
-    ppSizeRuntime (SizeBin n1 n2) d = PP.char '(' PP.<> PP.int n1 PP.<> 
-      PP.text ", " PP.<> PP.int n2 PP.<> PP.text ", " PP.<> 
-      PP.double d PP.<> PP.char ')'
-
--- | Pretty printing for a list of 'SimpleResults'. The maximum runtime among 
--- all test cases is formatted into seconds/milliseconds/nanoseconds etc. and 
--- the rest of the results are forced into the same units for consistency. 
--- This makes it easier to compare runtimes at a glance of the raw results on 
--- the command line.
-docSimpleResults :: [SimpleResults] -> PP.Doc 
-docSimpleResults srs = (PP.vcat $ PP.punctuate (PP.text "\n") $ 
-  fmap (docSimpleResult units) srs) PP.<> PP.text "\n" 
-  where 
-    maxRuntime = maximum $ fmap (maxFromCoords . _srRaws) srs  -- Maximum runtime of all test cases.
-    (_, units) = secs maxRuntime                               -- Display all runtimes in the same /units/.
-
-    -- Maximum runtime from a set of coordinates.
-    maxFromCoords :: Either [Coord] [Coord3] -> Double 
-    maxFromCoords (Left cs)  = maximum (fmap snd cs)
-    maxFromCoords (Right cs) = maximum (fmap sel3 cs)
-
--- | Pretty printing for 'SimpleResults' data structure. The runtimes of test
--- programs are formatted according the /units/ parameter. See 'forceSecs'.
--- (This makes it easier to compare runtimes as they are all in the same units.)
-docSimpleResult :: String -> SimpleResults -> PP.Doc 
-docSimpleResult units sr = title PP.$$ (PP.nest 2 $ PP.vcat 
-  [ PP.text size   PP.<+> sizes    -- Input sizes.
-  , PP.text time   PP.<+> runtimes -- Runtimes.
-   -- Simple cumulative statistics for all test cases.
-  , PP.text stdDev PP.<+> PP.text (forceSecs maxWidth units $ _srStdDev sr)    
-  , (PP.text $ "Average variance introduced by outliers: " ++ 
-      printf "%d%% (%s)" (round (_srAvgPutVarFrac sr * 100) :: Int) wibble) PP.<> PP.text "\n" 
-  , fits -- 'LinearFits'.
-  ])
-
-  where 
-    -- Side headings with some manual spacing so everything aligns properly.
-    title = PP.text (unqualIdt $ _srIdt sr)                       -- Name of program.
-    size   = "Size    " ++ replicate (length sUnits) ' ' ++ " "   -- Input sizes.
-    time   = "Time    " ++ sUnits ++ " "                          -- Runtime measurements.
-    stdDev = "Std dev " ++ sUnits ++ " "                          -- Standard deviation.
-    sUnits  = "(" ++ units ++ ")"                                 -- Forced units.
-    
-    -- Output input sizes and runtime measurements in a tabular format with
-    -- maximum width of ~80.
-    (sizes, runtimes) = docCoordsTabular 60 maxWidth units (_srRaws sr)
-    
-    -- Pretty print the equations of 'LinearFits'.
-    fits :: PP.Doc 
-    fits = case _srFits sr of 
-      []   -> PP.text ("Fits" ++ replicate (length units + 7) ' ') 
-        PP.<+> PP.text "N/A"
-      [lf] -> PP.text ("Fit" ++ replicate (length units + 8) ' ') 
-        PP.<+> docLinearFitsTabular 60 [lf]
-      lfs  -> PP.text ("Fits" ++ replicate (length units + 7) ' ') 
-        PP.<+> docLinearFitsTabular 60 lfs
-
-    -- Helpers:
-
-    -- Maximum width of input sizes: to align table columns.
-    maxWidth :: Int 
-    maxWidth  = case (_srRaws sr) of
-      Left  cs -> max (length . show . round' . maximum $ fmap fst cs) 7
-      Right cs -> max (maximum $ fmap (\(x1, x2, _) -> 
-        length (show $ round' x1) + length (show $ round' x2) + 5) cs) 7
-
-    -- Note: taken from Criterion source code.. wibble??
-    wibble = case _srAvgOutVarEff sr of
-      Unaffected -> "unaffected"
-      Slight     -> "slightly inflated"
-      Moderate   -> "moderately inflated"
-      Severe     -> "severely inflated"
- 
-
--- | Pretty printing for a list of 'QuickResults'. The maximum runtime among 
--- all test cases is formatted into seconds/milliseconds/nanoseconds etc. and 
--- the rest of the results are forced into the same units for consistency. 
--- This makes it easier to compare runtimes at a glance of the raw results on 
--- the command line.
-docQuickResults :: [QuickResults] -> PP.Doc 
-docQuickResults qrs = (PP.vcat $ PP.punctuate (PP.text "\n") $ 
-  fmap (docQuickResult units) qrs) PP.<> PP.text "\n"
-  where 
-    maxRuntime = maximum $ fmap (maxFromCoords . _qrRaws) qrs  -- Maximum runtime of all test cases.
-    (_, units) = secs maxRuntime                               -- Display all runtimes in the same /units/.
-
-    -- Maximum runtime from a set of coordinates.
-    maxFromCoords :: Either [Coord] [Coord3] -> Double 
-    maxFromCoords (Left cs)  = maximum (fmap snd cs)
-    maxFromCoords (Right cs) = maximum (fmap sel3 cs)
-
-
--- | Pretty printing for 'QuickResults' data structure. The runtimes of test
--- programs are formatted according the /units/ parameter. See 'forceSecs'.
--- (This makes it easier to compare runtimes as they are all in the same units.)
-docQuickResult :: String -> QuickResults -> PP.Doc 
-docQuickResult units qr = title PP.$$ (PP.nest 2 $ PP.vcat 
-  [ 
-    PP.text size PP.<+> sizes                        -- Input sizes.
-  , PP.text time PP.<+> runtimes PP.<> PP.text "\n"  -- Runtimes.
-  , fits                                             -- 'LinearFits'.
-  ])
-
-  where 
-    -- Side headings with some manual spacing so everything aligns properly.
-    title = PP.text (unqualIdt $ _qrIdt qr)                       -- Name of program.
-    size   = "Size    " ++ replicate (length sUnits) ' ' ++ " "   -- Input sizes.
-    time   = "Time    " ++ sUnits ++ " "                          -- Runtime measurements.
-    sUnits  = "(" ++ units ++ ")"                                 -- Forced units.
-    
-    -- Output input sizes and runtime measurements in a tabular format with
-    -- maximum width of ~80.
-    (sizes, runtimes) = docCoordsTabular 60 maxWidth units (_qrRaws qr)
-    
-    -- Pretty print the equations of 'LinearFits'.
-    fits :: PP.Doc 
-    fits = case _qrFits qr of 
-      []   -> PP.text ("Fits" ++ replicate (length units + 7) ' ') 
-        PP.<+> PP.text "N/A"
-      [lf] -> PP.text ("Fit" ++ replicate (length units + 8) ' ') 
-        PP.<+> docLinearFitsTabular 60 [lf]
-      lfs  -> PP.text ("Fits" ++ replicate (length units + 7) ' ') 
-        PP.<+> docLinearFitsTabular 60 lfs
-
-    -- Helpers:
-
-    -- Maximum width of input sizes: to align table columns.
-    maxWidth :: Int 
-    maxWidth  = case _qrRaws qr of
-      Left  cs -> max (length . show . round' . maximum $ fmap fst cs) 7
-      Right cs -> max (maximum $ fmap (\(x1, x2, _) -> 
-        length (show $ round' x1) + length (show $ round' x2) + 5) cs) 7
-
--- | Pretty print the equations of linear fits in a tabular layout of a given 
--- width.
-docLinearFitsTabular :: Int -> [LinearFit] -> PP.Doc 
-docLinearFitsTabular _ [] = PP.empty 
-docLinearFitsTabular width lfs = 
-  PP.vcat $ fmap ((PP.text "y =" PP.<+>) . E.wrapDocExpr (width - 5) . _ex) lfs -- Subtract 5 width for "y = ".
-
--- | Layout coordinates in tabular format of a given width. It is 
--- slightly involved because multiple rows are required for both input sizes 
--- and runtimes, so stack them. Force runtimes to be the given units.
-docCoordsTabular 
-  :: Int                        -- Table width.
-  -> Int                        -- Width of each column.
-  -> String                     -- Runtime units.
-  -> Either [Coord] [Coord3]    -- Measurements.
-  -> (PP.Doc, PP.Doc)
-docCoordsTabular maxWidth width units (Left cs) = 
-  (PP.vcat $ hsepChunks' xs, PP.vcat $ hsepChunks' ys)
-  where 
-    xs = fmap (PP.text . printf ("%-" ++ show width ++ "s") . show . 
-      round' . fst) cs' 
-    ys = fmap (PP.text . forceSecs width units . snd) cs'
-    cs' = sort cs
-    hsepChunks' = hsepChunks maxWidth width
--- Input sizes for 'Coord3's are printed as tuples.
-docCoordsTabular maxWidth width units (Right cs) = 
-  (PP.vcat $ hsepChunks' xs, PP.vcat $ hsepChunks' ys')
-  where 
-    (xs1, xs2, ys) = unzip3 cs'
-    xs = zipWith (\x1 x2 -> PP.text $ printf ("%-" ++ show width ++ "s") $ 
-      show $ PP.char '(' PP.<> PP.int (round' x1) PP.<> PP.char ',' PP.<+> 
-      PP.int (round x2) PP.<> PP.char ')') xs1 xs2
-    ys' = fmap (PP.text . forceSecs width units) ys
-    cs' = sort cs
-    hsepChunks' = hsepChunks maxWidth width
-
--- | Chunk off rows into maxWidth/width columns and then display chunks 
--- horizontally. 
-hsepChunks :: Int -> Int -> [PP.Doc] -> [PP.Doc]
-hsepChunks maxWidth width = fmap PP.hsep . chunksOf (maxWidth `div` width)
-
--- | Just for typing information.
-round' :: Double -> Int 
-round'  = round
-
--- | Pretty printing for coordinates, non-tabular format.
-docCoords :: Either [Coord] [Coord3] -> PP.Doc 
-docCoords (Left  cs) = PP.vcat $ fmap (\(s, t) -> PP.int (round s) PP.<> 
-  PP.char ',' PP.<> PP.double t) cs
-docCoords (Right cs) = PP.vcat $ fmap (\(s1, s2, t) -> PP.int (round s1) 
-  PP.<> PP.char ',' PP.<> PP.int (round s2) PP.<> PP.char ',' PP.<>
-  PP.double t) cs
