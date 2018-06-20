@@ -27,7 +27,8 @@
 -------------------------------------------------------------------------------
 -- <TO-DO>:
 -------------------------------------------------------------------------------
--- * Sanitise runtimes
+-- * Sanitise runtimes;
+-- * QuickCheck testing for test suites that use manual test data;
 
 module Main (main) where
 
@@ -48,6 +49,9 @@ import qualified Text.PrettyPrint.HughesPJ    as PP
 import           AutoBench.Internal.Analysis        (analyseWith)
 import           AutoBench.Internal.Configuration   (defaultBenchmarkReportFilepath)
 import qualified AutoBench.Internal.PrettyPrinting  as PPLib
+import           AutoBench.Internal.Types           ( DataOpts(..)
+                                                    , InputError(..)
+                                                    , TestSuite(..), UserInputs )
 import           AutoBench.Internal.UserInputChecks ( quickCheckTestPrograms
                                                     , userInputCheck )
 import           AutoBench.Internal.UserIO          ( printGoodbyeMessage
@@ -70,13 +74,6 @@ import AutoBench.Internal.IO
   , spacer
   )
 
-import AutoBench.Internal.Types          
-  ( DataOpts(..)
-  , InputError(..)
-  , TestSuite(..)
-  , UserInputs
-  )
-
 -- * Top-level 
 
 -- | Top-level function for the AutoBench executable. To AutoBench a file
@@ -90,7 +87,8 @@ main  = flip catch catchSomeException $ do -- Catch and handle all exceptions.
   -- User input file, e.g., "./Input.hs".
   let fp = _userInputFile args  
 
-  -- Check whether user input file exists: if not throw a filepath error.
+  -- Check whether user input file exists.
+  -- If not throw a filepath error.
   exists <- doesFileExist fp
   unless exists $ throwIO $ FilePathErr fp
 
@@ -118,7 +116,7 @@ benchmarkAndAnalyse fp = flip catch catchSomeException $ do -- Catch and handle 
 
   -----------------------------------------------------------------------------
   -- Step 2: Have the user select which test suite to run. If there's only
-  --         one valid test suite, then it will be automatically selected.
+  --         one valid test suite it will be automatically selected.
   -----------------------------------------------------------------------------
   runInputT defaultSettings (selTestSuiteOption inps) >>= \case                       
     [(idt, ts)] -> do
@@ -129,12 +127,14 @@ benchmarkAndAnalyse fp = flip catch catchSomeException $ do -- Catch and handle 
   -----------------------------------------------------------------------------
   -- Step 3: Check whether test programs are denotationally equal using 
   --         QuickCheck.
+  -- Note: this currently only works for test suites that use randomly generated 
+  -- test data.
   -----------------------------------------------------------------------------
       nestPutStr 5 $ PPLib.circleBullet "QuickChecking test programs"
       eql <- quickCheck ts inps                                                       
       if eql                                                                           
-        then nestPutStrLn 1 PPLib.tick
-        else nestPutStrLn 1 PPLib.cross           
+        then nestPutStrLn 1 PPLib.tick    -- Denotationally equal.
+        else nestPutStrLn 1 PPLib.cross   -- Not denotationally equal.         
   
   -----------------------------------------------------------------------------
   -- Step 4: Generate benchmarking file.
@@ -146,15 +146,15 @@ benchmarkAndAnalyse fp = flip catch catchSomeException $ do -- Catch and handle 
 
   -----------------------------------------------------------------------------
   -- Step 5: Compile benchmarking file. Print any invalid compiler flags 
-  --         given by the user.
+  --         specified by the user.
   -----------------------------------------------------------------------------
                   nestPutStrLn 5 $ PPLib.circleBullet "Compiling benchmarking file..."    
                   invalidFlags <- compileBenchmarkingFile benchFP fp (_ghcFlags ts) 
                   spacer 1
                   nestPutStr 5 $ PPLib.circleBullet "Compiled benchmarking file" 
                   if null invalidFlags
-                    then nestPutStrLn 1 PPLib.tick
-                    else do nestPutStrLn 1 PPLib.questionMark
+                    then nestPutStrLn 1 PPLib.tick                  -- No invalid flags.
+                    else do nestPutStrLn 1 PPLib.questionMark       -- One ore more invalid flags.
                             printInvalidCompilerFlags invalidFlags
 
   -----------------------------------------------------------------------------
@@ -163,11 +163,13 @@ benchmarkAndAnalyse fp = flip catch catchSomeException $ do -- Catch and handle 
                   nestPutStrLn 5 $ PPLib.circleBullet "Executing benchmarking file..."            
                   spacer 1
                   execute (dropExtension benchFP)
+                  spacer 1                                                                          -- <TO-DO>: need a spacer here?
                   nestPutStrLn 5 $ PPLib.circleBullet "Executed benchmarking file" 
                     PP.<+> PPLib.tick
 
   -----------------------------------------------------------------------------
-  -- Step 7: Delete benchmarking files created by the system.
+  -- Step 7: Delete benchmarking files created by the system (including .o/.hi 
+  --         files associated with user input file).
   -----------------------------------------------------------------------------
                   deleteBenchmarkingFiles benchFP fp                                      
 
@@ -176,32 +178,33 @@ benchmarkAndAnalyse fp = flip catch catchSomeException $ do -- Catch and handle 
   -----------------------------------------------------------------------------
                   nestPutStr 5 $ PPLib.circleBullet "Generating test report" 
                   -- Note: update compiler flags to remove any invalid ones.            
-                  let newFlags = _ghcFlags ts \\ invalidFlags                            
-                  testRep <- generateTestReport mn ts { _ghcFlags = newFlags } 
-                    (benchRepFilename ts) eql
+                  let validFlags = nub (_ghcFlags ts \\ invalidFlags)                            
+                  testRep <- generateTestReport mn ts { _ghcFlags = validFlags } 
+                    (benchReportFilepath ts) eql
                   nestPutStrLn 1 PPLib.tick
 
   -----------------------------------------------------------------------------
   -- Step 9: Analyse test report.
   -----------------------------------------------------------------------------
-                  nestPutStrLn 5 $ PPLib.circleBullet "Analysing performance results..."          
+                  nestPutStrLn 5 $ PPLib.circleBullet "Analysing performance results..."  
+                  spacer 1        
                   analyseWith (_analOpts ts) testRep 
-                  spacer 1
 
   -----------------------------------------------------------------------------
   -- Step 10: Delete the remaining temporary files created by the system.
   -----------------------------------------------------------------------------
-                  deleteTemporarySystemFiles (tempSystemFiles ts)                     
+                  deleteTemporarySystemFiles (temporarySystemFiles ts)                     
 
   -----------------------------------------------------------------------------
   -- Step 11: Exit the system.
   ----------------------------------------------------------------------------- 
+                  spacer 1
                   anyKeyExit 
 
   -----------------------------------------------------------------------------
   -- Finally: Delete all files created by the system.
   -----------------------------------------------------------------------------                                                                
-              ) (deleteAllFiles benchFP fp $ tempSystemFiles ts)  
+              ) (deleteAllFiles benchFP fp $ temporarySystemFiles ts)  
 
   -----------------------------------------------------------------------------
   --  In no test suite selected, print goodbye message.
@@ -210,18 +213,22 @@ benchmarkAndAnalyse fp = flip catch catchSomeException $ do -- Catch and handle 
 
   where 
 
-    -- Runner for the 'hint' monad. 'throwIO' any errors.
+    -- Process the user input file and parse/categorise test inputs into the
+    -- 'UserInputs' data structure. This process requires considerable 
+    -- validation. (See 'AutoBench.Internal.UserInputChecks').
+    -- Uses the runner for the 'hint' monad and 'throwIO's any errors.
     processUserInputFile :: FilePath -> IO UserInputs
     processUserInputFile  = 
       (either throwIO return =<<) . runInterpreter . userInputCheck
 
     -- If '_critCfg' in 'TestSuite' doesn't contain a JSON benchmarking report 
     -- file, then use AutoBench's default to interface with Criterion.
-    benchRepFilename :: TestSuite -> FilePath
-    benchRepFilename  = 
+    benchReportFilepath :: TestSuite -> FilePath
+    benchReportFilepath  = 
       fromMaybe defaultBenchmarkReportFilepath . reportFile . _critCfg
 
-    -- Print invalid compiler flags to warn users.    
+    -- Print invalid user-specified compiler flags (in '_ghcFlags') to warn                         -- <TO-DO>: should we pause on invalid flags?
+    -- users.    
     printInvalidCompilerFlags :: [String] -> IO () 
     printInvalidCompilerFlags [] = return ()
     printInvalidCompilerFlags xs =
@@ -230,18 +237,18 @@ benchmarkAndAnalyse fp = flip catch catchSomeException $ do -- Catch and handle 
         , PP.nest 1 $ PPLib.wrappedList $ fmap PPLib.italic xs ]
 
     -- Temporary system files to delete after benchmarking.
-    tempSystemFiles :: TestSuite -> [FilePath]
-    tempSystemFiles ts
+    temporarySystemFiles :: TestSuite -> [FilePath]
+    temporarySystemFiles ts
      | isNothing (reportFile $ _critCfg ts) = [defaultBenchmarkReportFilepath]
      | otherwise = []
 
     -- Use QuickCheck to check if test programs are denotationally equal. 
-    -- Note: doesn't work for manual test data currently.
+    -- Note: currently only supports test suites that use random test data.
     quickCheck :: TestSuite -> UserInputs -> IO Bool 
     quickCheck ts inps = case _dataOpts ts of 
       Gen{} -> (either throwIO return =<<) . runInterpreter $ 
         quickCheckTestPrograms fp (_progs ts) inps
-      -- Can't check test programs using manual test data.                                          -- <TO-DO>: Allow manual data testing here.
+      -- Can't check test suites using manual test data.                                            -- <TO-DO>: Allow manual data testing here.
       Manual{} -> return False
 
 -- * Helper functions
@@ -251,22 +258,18 @@ benchmarkAndAnalyse fp = flip catch catchSomeException $ do -- Catch and handle 
 catchSomeException :: SomeException -> IO ()
 catchSomeException e = do 
   spacer 1
-  case catchInterpreterError of 
-    Nothing -> do 
-      print e
-      putStr "Testing cancelled. "
-      anyKeyExit
-    Just m -> do 
-      m
-      putStr "Testing cancelled. "
-      anyKeyExit
+  maybe (do print e 
+            putStr "Testing cancelled. "
+            anyKeyExit) 
+        (\m -> do m 
+                  putStr "Testing cancelled. "
+                  anyKeyExit)
+        catchInterpreterError
   where 
     -- Exception handling for hint 'InterpreterError's.
     catchInterpreterError :: Maybe (IO ())
-    catchInterpreterError  = case fromException e of 
-      Just (UnknownError  s) -> Just $ putStrLn s 
-      Just (WontCompile  es) -> 
-        Just . putStrLn . unlines . nub . map errMsg $ es
-      Just (NotAllowed    s) -> Just $ putStrLn s  
-      Just (GhcException  s) -> Just $ putStrLn s  
-      _ -> Nothing
+    catchInterpreterError  = fromException e >>= \case
+      (UnknownError s) -> Just $ putStrLn s 
+      (WontCompile es) -> Just . putStrLn . unlines . nub . map errMsg $ es
+      (NotAllowed   s) -> Just $ putStrLn s  
+      (GhcException s) -> Just $ putStrLn s  
