@@ -50,8 +50,8 @@ import           AutoBench.Internal.Configuration   (defaultBenchmarkReportFilep
 import qualified AutoBench.Internal.PrettyPrinting  as PPLib
 import           AutoBench.Internal.UserInputChecks ( quickCheckTestPrograms
                                                     , userInputCheck )
-import           AutoBench.Internal.UserIO          ( selTestSuiteOption
-                                                    , printGoodbyeMessage )
+import           AutoBench.Internal.UserIO          ( printGoodbyeMessage
+                                                    , selTestSuiteOption )
 import           AutoBench.Internal.Utils           ( CLArgs(..), clArgsParser
                                                     , filepathToModuleName )
 
@@ -212,7 +212,7 @@ benchmarkAndAnalyse fp = flip catch catchSomeException $ do -- Catch and handle 
 
     -- Runner for the 'hint' monad. 'throwIO' any errors.
     processUserInputFile :: FilePath -> IO UserInputs
-    processUserInputFile = 
+    processUserInputFile  = 
       (either throwIO return =<<) . runInterpreter . userInputCheck
 
     -- If '_critCfg' in 'TestSuite' doesn't contain a JSON benchmarking report 
