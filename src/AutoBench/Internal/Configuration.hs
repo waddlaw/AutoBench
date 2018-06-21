@@ -21,9 +21,11 @@
 
 module AutoBench.Internal.Configuration 
   (
-
   -- * User inputs
     minimumTestInputs                -- The minimum number of distinctly sized test inputs required by test suites.
+  , unaryTestDataConstructor         -- The data constructor for user-specified test data for unary test programs.
+  , binaryTestDataConstructor        -- The data constructor for user-specified test data for binary test programs.
+  , testSuiteDataConstructor         -- The data constructor for test suites.
   -- * Benchmarking
   , defaultBenchmarkReportFilepath   -- The default filepath for saving benchmarking data produced by Criterion.
   -- * Statistical analysis 
@@ -43,6 +45,24 @@ module AutoBench.Internal.Configuration
 -- > minimumTestInputs = 20
 minimumTestInputs :: Int
 minimumTestInputs  = 20
+
+-- | The data constructor for user-specified test data for unary test programs.
+--
+-- > unaryTestDataConstructor  = "UnaryTestData"
+unaryTestDataConstructor :: String 
+unaryTestDataConstructor  = "UnaryTestData"
+
+-- | The data constructor for user-specified test data for binary test programs.
+--
+-- > binaryTestDataConstructor  = "BinaryTestData"
+binaryTestDataConstructor :: String 
+binaryTestDataConstructor  = "BinaryTestData"
+
+-- | The data constructor for test suites.
+--
+-- > testSuiteDataConstructor  = "TestSuite"
+testSuiteDataConstructor :: String 
+testSuiteDataConstructor  = "TestSuite"
 
 -- * Benchmarking
 
