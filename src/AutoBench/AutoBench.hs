@@ -27,8 +27,8 @@
 -------------------------------------------------------------------------------
 -- <TO-DO>:
 -------------------------------------------------------------------------------
--- * Sanitise runtimes;
--- * QuickCheck testing for test suites that use manual test data;
+-- + Sanitise runtimes;
+-- + QuickCheck testing for test suites that use manual test data;
 
 module Main (main) where
 

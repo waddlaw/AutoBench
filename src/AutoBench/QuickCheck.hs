@@ -27,8 +27,8 @@
 -------------------------------------------------------------------------------
 -- <TO-DO>:
 -------------------------------------------------------------------------------
--- * Overlapping instances for @Arbitrary a => Arbitrary [a]@
--- * Add more instances
+-- + Overlapping instances for @Arbitrary a => Arbitrary [a]@
+-- + Add more instances
 
 module AutoBench.QuickCheck where 
 

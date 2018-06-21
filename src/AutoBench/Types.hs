@@ -35,10 +35,10 @@
 -------------------------------------------------------------------------------
 -- <TO-DO>:
 -------------------------------------------------------------------------------
--- * Move the default functions to AutoBench.Internal.Configuration? I'm 
+-- + Move the default functions to AutoBench.Internal.Configuration? I'm 
 --   reluctant because if they are left here then users can find all the info. 
 --   they need in one place;
--- * Discover option for DataOpts;
+-- + Discover option for DataOpts;
 
 module AutoBench.Types 
   (
