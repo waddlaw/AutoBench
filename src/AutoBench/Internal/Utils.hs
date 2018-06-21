@@ -2,62 +2,60 @@
 {-# OPTIONS_GHC -Wall            #-} 
 {-# LANGUAGE ScopedTypeVariables #-}
 
-{-|
+-- |
+--
+-- Module      : AutoBench.Internal.Utils
+-- Description : General-purpose helper functions
+-- Copyright   : (c) 2018 Martin Handley
+-- License     : BSD-style
+-- Maintainer  : martin.handley@nottingham.ac.uk
+-- Stability   : Experimental
+-- Portability : GHC
+--
+-- General-purpose, system-wide helper functions.
+--
 
-  Module      : AutoBench.Internal.Utils
-  Description : General-purpose helper functions.
-  Copyright   : (c) 2018 Martin Handley
-  License     : BSD-style
-  Maintainer  : martin.handley@nottingham.ac.uk
-  Stability   : Experimental
-  Portability : GHC
-
-  General-purpose helper functions used throughout AutoBench's implementation.
-
--}
-
-{-
-   ----------------------------------------------------------------------------
-   <TO-DO>:
-   ----------------------------------------------------------------------------
-   - 
--}
+-------------------------------------------------------------------------------
+-- <TO-DO>:
+-------------------------------------------------------------------------------
+-- + 'wrapPPList' and 'bySide' should be removed;
+-- + In the future will need a module for parsing (e.g., when parsing 
+--   'TestReports' from file);
 
 module AutoBench.Internal.Utils
   (
 
-  -- * AutoBench specific
-    filepathToModuleName -- Convert a filepath to a module name.
   -- * Lists 
-  , notNull              -- not . null.
-  , allEq                -- Check whether all elements in a list are equal.
-  , uniqPairs            -- Unique pairs from a list.
+    notNull                  -- not . null.
+  , allEq                    -- Check whether all elements in a list are equal.
+  , uniqPairs                -- Unique pairs from a list.
   -- * Tuples
-  , (**>)                -- Convert a list of 2-tuples to a list of 3-tuples by applying a function to the values in each 2-tuple.
-  , (==>)                -- Convert a list of 2-tuples to a list of 3-tuples by placing a constant element at the end of each 2-tuple.
+  , (**>)                    -- Convert a list of 2-tuples to a list of 3-tuples by applying a function to the values in each 2-tuple.
+  , (==>)                    -- Convert a list of 2-tuples to a list of 3-tuples by placing a constant element at the end of each 2-tuple.
   -- * Formatting
-  , subNum               -- Subscripts for 0-9, then "_n". 
-  , superNum             -- Superscripts for 0-9, then "^n".
-  , strip                -- Strip surrounding whitespace from a string.
+  , subNum                   -- Subscripts for 0-9, then "_n". 
+  , superNum                 -- Superscripts for 0-9, then "^n".
+  , strip                    -- Strip surrounding whitespace from a string.
   -- * Parsing primitives 
-  , Parser               -- Basic Megaparsec parsing type.
-  , integer              -- Basic 'Int' parser.
-  , lexeme               -- Basic lexeme parser.
-  , sc                   -- Basic space consumer.
-  , symbol               -- Basic symbol parser.
+  , Parser                   -- Basic Megaparsec parsing type.
+  , integer                  -- Basic 'Int' parser.
+  , lexeme                   -- Basic lexeme parser.
+  , sc                       -- Basic space consumer.
+  , symbol                   -- Basic symbol parser.
   -- ** Command line parsing
-  , CLArgs(..)           -- Command line arguments.
-  , clArgsParser         -- Options parser for command line arguments.
+  , CLArgs(..)               -- Command line arguments.
+  , clArgsParser             -- Options parser for command line arguments.
   -- * Pretty printing
-  , (<<+>>)              -- Put two spaces between two 'PP.Doc's.
-  , forceSecs            -- Force a positive number of seconds to be displayed in the given spacing and in the given units.
-  , bySide               -- Put a list of multi-line 'PP.Doc's side by side and output as a 'String'.
-  , secs                 -- Convert a number of seconds to a string.
-  , wrapPPList           -- Pretty print a list of strings by wrapping it to a maximum width.
+  , (<<+>>)                  -- Put two spaces between two 'PP.Doc's.
+  , forceSecs                -- Force a positive number of seconds to be displayed in the given spacing and in the given units.
+  , bySide                   -- Put a list of multi-line 'PP.Doc's side by side and output as a 'String'.
+  , secs                     -- Convert a number of seconds to a string.
+  , wrapPPList               -- Pretty print a list of strings by wrapping it to a maximum width.
   -- * Misc.
-  , Padme(..)            -- Padded lists.
-  , (.*)                 -- Generalised function composition.
-  , deggar               -- Pad strings with whitespace so they are the same length.
+  , Padme(..)                -- Padded lists.
+  , (.*)                     -- Generalised function composition.
+  , deggar                   -- Pad strings with whitespace so they are the same length.
+  , filepathToModuleName     -- Convert a filepath to a module name.
 
   ) where 
 
@@ -76,18 +74,11 @@ import qualified Text.Megaparsec.Char.Lexer   as L
 import           Text.Printf                  (printf)
 import qualified Text.PrettyPrint.HughesPJ    as PP
 
-
--- * AutoBench specific
-
--- | Convert a filepath to a module name.
---
--- > fpTfilePathToModuleNameoModuleName "some/filepath/Input.hs" = "Input"
-filepathToModuleName :: FilePath -> ModuleName
-filepathToModuleName fp = let (c : cs) = takeBaseName fp in toUpper c : cs
+import qualified AutoBench.Internal.Configuration as Config
 
 -- * Lists 
 
--- | Noone has time for @not . null@.
+-- | Nobody has time for @not . null@.
 --
 -- > notNull = not . null
 notNull :: [a] -> Bool 
@@ -152,7 +143,7 @@ superNum n = "^" ++ show n
 
 -- * Parsing
 
--- | Basic Megaparsec parsing type.
+-- | Basic Megaparser.
 type Parser = MP.Parsec Void String
 
 -- | Basic space consumer.
@@ -179,15 +170,14 @@ integer  = lexeme L.decimal
 -- | AutoBench's command line arguments.
 data CLArgs = 
   CLArgs
-    {
-      _userInputFile :: FilePath  -- ^ User input file.
+    { _userInputFile :: FilePath  -- ^ User input filepath.
     }
 
 -- | Options parser for AutoBench's command line arguments.
 clArgsParser :: OPTS.ParserInfo CLArgs
 clArgsParser  = CLArgs <$> OPTS.info 
   userInputFile
-  (OPTS.header "AutoBench (Version 0.1)") 
+  (OPTS.header Config.version) 
   where 
     -- Only argument so far is the user input file.
     userInputFile :: OPTS.Parser FilePath
@@ -215,9 +205,11 @@ bySide xs sep =
     padLeft  s p = (:) <$> s :- p
     padRight s p = (:) <$> s :- p <*> pure []
 
--- | Convert a number of seconds to a string. The string will consist
--- of four decimal places, followed by a short description of the time
--- units. Note: taken from Criterion source code.
+-- | Convert a number of seconds to a (string, units)-tuple. The string will 
+-- consist of four decimal places.
+-- 
+-- Adapted from Criterion source code:
+-- http://hackage.haskell.org/package/criterion-1.4.1.0/docs/src/Criterion.Measurement.html#secs
 secs :: Double -> (String, String)
 secs k
   | k < 0      = let (s, u) = secs (-k) in ('-' : s, u)
@@ -236,8 +228,11 @@ secs k
              | t >= 1e1  = (printf "%.2f" t, u)
              | otherwise = (printf "%.3f" t, u)
 
--- | Force a positive number of seconds to be displayed in the given spacing 
--- and in the given units. Note: adapted from Criterion source code.
+-- | Force a /positive/ number of seconds to be displayed in the given spacing 
+-- and in the given units. 
+--
+-- Contains code adapted from Criterion source code:
+-- http://hackage.haskell.org/package/criterion-1.4.1.0/docs/src/Criterion.Measurement.html#secs
 forceSecs :: Int -> String -> Double -> String 
 forceSecs i s k = case s of 
   "s"  -> fmt k 
@@ -295,16 +290,16 @@ x <<+>> y = x PP.<> PP.text "  " PP.<> y
 
 -- * Misc.
 
--- Generalised function composition.
-infixr 8 .*
+-- | Two argument function composition.
 (.*) :: (Functor f, Functor g) => (a -> b) -> f (g a) -> f (g b)
 (.*)  = fmap . fmap 
 
--- Padding lists. interesting solution by 
--- McBride: https://stackoverflow.com/questions/
--- 21349408/zip-with-default-value-instead-of-dropping-values
+infixr 8 .*
 
-data Padme m = (:-) { padded :: [m], padder :: m } deriving (Show, Eq)
+-- Padding lists. Interesting solution by McBride:
+-- https://stackoverflow.com/questions/21349408/zip-with-default-value-instead-of-dropping-values
+
+data Padme m = (:-) { padded :: [m], padder :: m }
 
 instance Functor Padme where 
   fmap = (<*>) . pure
@@ -318,5 +313,15 @@ instance Applicative Padme where
       zapp  (f' : fs') (s' : ss') = f' s' : zapp fs' ss'
 
 -- | Pad strings with whitespace so they are the same length.
+-- Solution by McBridge on Stack Overflow:
+-- https://stackoverflow.com/questions/21349408/zip-with-default-value-instead-of-dropping-values
+--
+-- > deggar ["bacon", "eggs"] = ["bacon", "eggs "]
 deggar :: [String] -> [String]
 deggar  = transpose . padded . traverse (:- ' ')
+
+-- | Convert a filepath to a module name.
+--
+-- > filepathToModuleName "foo/bar/foobar/Foo.hs" = "Foo"
+filepathToModuleName :: FilePath -> ModuleName
+filepathToModuleName fp = let (c : cs) = takeBaseName fp in toUpper c : cs
