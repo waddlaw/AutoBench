@@ -47,7 +47,7 @@ import           System.FilePath.Posix        (dropExtension)
 import qualified Text.PrettyPrint.HughesPJ    as PP
 
 import           AutoBench.Internal.Analysis        (analyseWith)
-import           AutoBench.Internal.Configuration   (defaultBenchmarkReportFilepath)
+import qualified AutoBench.Internal.Configuration   as Config
 import qualified AutoBench.Internal.PrettyPrinting  as PPLib
 import           AutoBench.Internal.Types           ( DataOpts(..)
                                                     , InputError(..)
@@ -225,7 +225,7 @@ benchmarkAndAnalyse fp = flip catch catchSomeException $ do -- Catch and handle 
     -- file, then use AutoBench's default to interface with Criterion.
     benchReportFilepath :: TestSuite -> FilePath
     benchReportFilepath  = 
-      fromMaybe defaultBenchmarkReportFilepath . reportFile . _critCfg
+      fromMaybe Config.defaultBenchmarkReportFilepath . reportFile . _critCfg
 
     -- Print invalid user-specified compiler flags (in '_ghcFlags') to warn                         -- <TO-DO>: should we pause on invalid flags?
     -- users.    
@@ -239,7 +239,7 @@ benchmarkAndAnalyse fp = flip catch catchSomeException $ do -- Catch and handle 
     -- Temporary system files to delete after benchmarking.
     temporarySystemFiles :: TestSuite -> [FilePath]
     temporarySystemFiles ts
-     | isNothing (reportFile $ _critCfg ts) = [defaultBenchmarkReportFilepath]
+     | isNothing (reportFile $ _critCfg ts) = [Config.defaultBenchmarkReportFilepath]
      | otherwise = []
 
     -- Use QuickCheck to check if test programs are denotationally equal. 
