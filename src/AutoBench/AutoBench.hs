@@ -154,7 +154,7 @@ benchmarkAndAnalyse fp = flip catch catchSomeException $ do -- Catch and handle 
                   nestPutStr 5 $ PPLib.circleBullet "Compiled benchmarking file" 
                   if null invalidFlags
                     then nestPutStrLn 1 PPLib.tick                  -- No invalid flags.
-                    else do nestPutStrLn 1 PPLib.questionMark       -- One ore more invalid flags.
+                    else do nestPutStrLn 1 PPLib.questionMark       -- One or more invalid flags.
                             printInvalidCompilerFlags invalidFlags
 
   -----------------------------------------------------------------------------
