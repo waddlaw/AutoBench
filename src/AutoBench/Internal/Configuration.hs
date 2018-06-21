@@ -34,6 +34,8 @@ module AutoBench.Internal.Configuration
   , maximumModelPredictors           -- The maximum number of predictors for regression models.
   , minimumCVIterations              -- The minimum number of cross-validation iterations.
   , minimumCVTrainingData            -- The minimum percentage of data to use for training regression models during cross-validation.
+  -- * Misc 
+  , version                          -- The system's version.
 
   ) where 
 
@@ -106,3 +108,11 @@ minimumCVIterations  = 100
 -- > maximumCVIterations = 500
 maximumCVIterations :: Int 
 maximumCVIterations  = 500
+
+-- * Misc 
+
+-- | The system's version.
+--
+-- > version  = "AutoBench (Version 0.1.0.0)"
+version :: String 
+version  = "AutoBench (Version 0.1.0.0)"
