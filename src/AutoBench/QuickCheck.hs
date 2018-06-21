@@ -3,31 +3,32 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TypeFamilies         #-}
-{-# LANGUAGE UndecidableInstances          #-}
+{-# LANGUAGE UndecidableInstances #-}
 
+-- |
+--
+-- Module      : AutoBench.QuickCheck
+-- Description : Default 'Arbitrary' instances to be used with the system
+-- Copyright   : (c) 2018 Martin Handley
+-- License     : BSD-style
+-- Maintainer  : martin.handley@nottingham.ac.uk
+-- Stability   : Experimental
+-- Portability : GHC
+--
+-- This module defines a number of default 'Arbitrary' instances to be used with 
+-- the system. These purposefully override 'Arbitrary' instances in 
+-- 'Test.QuickCheck.Arbitrary' because those are incompatible with generating
+-- data for the purposes of analysing time performance. the reasons behind this 
+-- are discussed in the system's introductory paper, "AutoBench: comparing the 
+-- time performance of Haskell programs", which can be found at the following
+-- link: http://www.cs.nott.ac.uk/~psxmah/autobench.pdf
+--
 
-{-|
-
-  Module      : AutoBench.QuickCheck
-  Description : Default 'Arbitrary' instances for AutoBench.
-  Copyright   : (c) 2018 Martin Handley
-  License     : BSD-style
-  Maintainer  : martin.handley@nottingham.ac.uk
-  Stability   : Experimental
-  Portability : GHC
-
-  This module defines a number of default 'Arbitrary' instances to be used with 
-  AutoBench. These purposefully override 'Arbitrary' instances in 
-  'Test.QuickCheck.Arbitrary' because those are incompatible with this system.
-
--}
-
-{-
-   ----------------------------------------------------------------------------
-   <TO-DO>:
-   ----------------------------------------------------------------------------
-   - 
--}
+-------------------------------------------------------------------------------
+-- <TO-DO>:
+-------------------------------------------------------------------------------
+-- * Overlapping instances for @Arbitrary a => Arbitrary [a]@
+-- * Add more instances
 
 module AutoBench.QuickCheck where 
 
@@ -38,7 +39,6 @@ import Test.QuickCheck
   , sized
   , vectorOf
   )
-
 
 -- Fixed size lists -----------------------------------------------------------
 
@@ -70,7 +70,8 @@ instance {-# OVERLAPPING #-} Arbitrary [Int] where
 instance {-# OVERLAPPING #-} Arbitrary [Integer] where 
   arbitrary = sizedArbitraryVector
 
-{-
+
+{- To add:
 
 instance {-# OVERLAPPING #-} Arbitrary [Int8] where 
   arbitrary = sizedArbitraryVector
