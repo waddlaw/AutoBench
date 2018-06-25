@@ -66,11 +66,13 @@ module AutoBench.Internal.PrettyPrinting
   -- * To Fix
   , showImprovements
   , docImprovement
+  , wrapDocExpr
 
   ) where 
 
 import           Control.Arrow             ((&&&))
 import           Criterion.Types           (OutlierEffect(..))
+import           Data.Bits                 (xor)
 import           Data.List                 (sort, sortBy, transpose)
 import           Data.List.Split           (chunksOf)
 import           Data.Ord                  (comparing)
@@ -78,11 +80,13 @@ import           Data.Tuple.Select         (sel1, sel2, sel3)
 import qualified Text.PrettyPrint.HughesPJ as PP
 import           Text.Printf               (printf)
 
-import AutoBench.Internal.AbstractSyntax ( HsType(..), Id, ModuleElem(..)
-                                         , TypeString, prettyPrint, unqualIdt )
-import AutoBench.Internal.Expr           (wrapDocExpr)
-import AutoBench.Internal.Utils          ( bySide, deggar, forceSecs, secs
-                                         , subNum, superNum )
+import           AutoBench.Internal.AbstractSyntax ( HsType(..), Id
+                                                   , ModuleElem(..), TypeString
+                                                   , prettyPrint, unqualIdt )
+import qualified AutoBench.Internal.Expr           as E
+import           AutoBench.Internal.Utils          ( bySide, deggar, forceSecs
+                                                   , secs, subNum, superNum
+                                                   , wrapPPList )
 
 import AutoBench.Internal.Types 
   ( BenchReport(..)
@@ -620,3 +624,63 @@ showImprovements b imps = bySide (fmap PP.vcat $ transpose docImps) " "
     imps' = fmap (\(idt1, ord, idt2, d) -> 
       (unqualIdt idt1, ord, unqualIdt idt2, d)) imps
     docImps = fmap (docImprovement' b) imps'
+
+-- | Pretty printing function for the 'Expr' datatype. Note: this is specialised
+-- to handle the kind of 'Expr's used by the system. It is /not/ a generic
+-- pretty printing function for all possible 'Expr's. Note: wraps equations to 
+-- a given width.
+wrapDocExpr :: Int -> E.Expr Double -> PP.Doc 
+wrapDocExpr width expr = 
+  wrapPPList (max width $ maximum $ fmap length docs) " " docs
+  where 
+    (p : ps) = listDocExpr expr
+    docs = fmap PP.render $ uncurry signDoc' p : fmap (uncurry signDoc) ps
+
+    -- Add signs in front of each term: True := '+', False := '-'.
+    
+    -- Special case for first term as no spacing between '-' and term and no
+    -- '+' sign.
+    signDoc' :: Bool -> PP.Doc -> PP.Doc 
+    signDoc' False  doc = doc
+    signDoc' True doc = PP.char '-' PP.<> doc
+    
+    -- Normal spacing for rest of terms.
+    signDoc :: Bool -> PP.Doc -> PP.Doc 
+    signDoc False  doc = PP.char '+' PP.<+> doc
+    signDoc True doc = PP.char '-' PP.<+> doc
+
+    -- List all expression terms and whether they contain a negation.
+    listDocExpr :: E.Expr Double -> [(Bool, PP.Doc)]             
+    listDocExpr (E.Num n) = [(False, PP.text (printf "%.2g" n))]
+    listDocExpr (E.Add ex1 ex2) = reverse $ fmap docExpr' $ 
+      collectAdds ex2 [] ++ [ex1]
+      where 
+        collectAdds (E.Add e1 e2) es = collectAdds e2 (e1 : es)
+        collectAdds e             es = e : es 
+    listDocExpr x = [(False, PP.text $ show x)]
+
+  -- * Helpers 
+
+-- | Pretty printing 'Expr' datatype, returns the 'PP.Doc' for a term and
+-- whether it contains a negation.
+docExpr' :: E.Expr Double -> (Bool, PP.Doc)
+docExpr' (E.Var x) = (False, PP.text x)
+docExpr' (E.Num d)
+  | d < 0     = (True, PP.text $ printf "%.2g" (-d)) -- Record the negation.
+  | otherwise = (False, PP.text$ printf "%.2g" d)
+docExpr' (E.Mul e1 e2) = (b1 `xor` b2, s1 PP.<> s2) -- Shouldn't be the case that both are negations, but just in case.
+  where 
+    (b1, s1) = docExpr' e1 
+    (b2, s2) = docExpr' e2
+docExpr' (E.Log (E.Num b) e) = (b1, PP.text "log" PP.<> PP.text (subNum b) PP.<> 
+  PP.char '(' PP.<> s PP.<> PP.char ')')
+  where (b1, s) = docExpr' e
+docExpr' (E.Pow (E.Log (E.Num b) e) (E.Num p)) = (b1, PP.text "log" PP.<> 
+  PP.text (subNum b) PP.<> PP.text (superNum p) PP.<> PP.char '(' PP.<> s 
+  PP.<> PP.char ')')
+  where (b1, s) = docExpr' e
+docExpr' (E.Pow e (E.Num p)) = (b, s PP.<> PP.text (superNum p))
+  where (b, s) = docExpr' e
+docExpr' (E.Pow (E.Num b) (E.Var _)) = (False, PP.text " *" PP.<+> PP.int (round b) 
+  PP.<> PP.text "\x02E3")
+docExpr' x = (False, PP.text $ show x)

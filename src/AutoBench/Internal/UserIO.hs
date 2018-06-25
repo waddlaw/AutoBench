@@ -66,7 +66,6 @@ import           Text.Printf               (printf)
 
 import AutoBench.Internal.AbstractSyntax (Id, unqualIdt)
 import AutoBench.Internal.Chart          (plotAndSaveAnalGraph)
-import AutoBench.Internal.Expr           (wrapDocExpr)
 import AutoBench.Internal.Utils          ((<<+>>), deggar, strip, wrapPPList)
 
 import AutoBench.Internal.PrettyPrinting 
@@ -79,6 +78,7 @@ import AutoBench.Internal.PrettyPrinting
   , docTestSuite_ProgsDataOpts
   , docUserInputs
   , showImprovements
+  , wrapDocExpr
   )
 
 import AutoBench.Internal.Types
@@ -324,8 +324,7 @@ selFitOptions xss = catMaybes <$> mapM (uncurry selFitOption) xss
 outputAnalysisReport :: AnalOpts -> TestReport -> AnalysisReport -> IO ()
 outputAnalysisReport aOpts tr ar = do
 
-  -- Console output:
-  putStrLn ""                                                                                       -- <TO-DO>: Manual spacing.
+  -- Console output:                                                                                       
   print fullReport
   putStrLn ""
 
