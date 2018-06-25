@@ -17,28 +17,31 @@
 -------------------------------------------------------------------------------
 -- <TO-DO>:
 -------------------------------------------------------------------------------
--- 
 
 module AutoBench.Internal.Configuration 
   (
+
   -- * User inputs
-    minimumTestInputs                -- The minimum number of distinctly sized test inputs required by test suites.
-  , unaryTestDataConstructor         -- The data constructor for user-specified test data for unary test programs.
-  , binaryTestDataConstructor        -- The data constructor for user-specified test data for binary test programs.
-  , testSuiteDataConstructor         -- The data constructor for test suites.
+    binaryTestDataConstructor               -- The data constructor for user-specified test data for binary test programs.
+  , minimumTestInputs                       -- The minimum number of distinctly sized test inputs required by test suites.
+  , testSuiteDataConstructor                -- The data constructor for test suites.
+  , unaryTestDataConstructor                -- The data constructor for user-specified test data for unary test programs.
+
   -- * Benchmarking
-  , defaultBenchmarkReportFilepath   -- The default filepath for saving benchmarking data produced by Criterion.
+  , baselineBenchmarkIdentifier             -- Generate benchmark identifiers for baseline measurements based on input size.
+  , defaultBenchmarkReportFilepath          -- The default filepath for saving benchmarking data produced by Criterion.
+  , inputSizesBenchmarkGroupIdentifier      -- Generate benchmark group identifiers for test cases.
+  , withBaselineBenchmarkGroupIdentifier    -- The benchmark group identifier for test cases where baseline measurements are to be taken.
   -- * Statistical analysis 
-  , maximumCVIterations              -- The maximum number of cross-validation iterations.
-  , maximumCVTrainingData            -- The maximum percentage of data to use for training regression models during cross-validation.
-  , maximumModelPredictors           -- The maximum number of predictors for regression models.
-  , minimumCVIterations              -- The minimum number of cross-validation iterations.
-  , minimumCVTrainingData            -- The minimum percentage of data to use for training regression models during cross-validation.
+  , maximumCVIterations                     -- The maximum number of cross-validation iterations.
+  , maximumCVTrainingData                   -- The maximum percentage of data to use for training regression models during cross-validation.
+  , maximumModelPredictors                  -- The maximum number of predictors for regression models.
+  , minimumCVIterations                     -- The minimum number of cross-validation iterations.
+  , minimumCVTrainingData                   -- The minimum percentage of data to use for training regression models during cross-validation.
   -- * Misc 
-  , version                          -- The system's version.
+  , version                                 -- The system's version.
 
   ) where 
-
 
 -- * User inputs 
 
@@ -74,6 +77,29 @@ testSuiteDataConstructor  = "TestSuite"
 -- > defaultBenchmarkReportFilepath  = "./autobench_tmp.json"
 defaultBenchmarkReportFilepath :: FilePath
 defaultBenchmarkReportFilepath  = "./autobench_tmp.json"
+
+-- | The benchmark group identifier for test cases where baseline measurements 
+-- are to be taken.
+-- 
+-- > withBaselineBenchmarkGroupIdentifier  = "With Baseline"
+withBaselineBenchmarkGroupIdentifier :: String 
+withBaselineBenchmarkGroupIdentifier  = "With Baseline"
+
+-- | Generate benchmark group identifiers for test cases. Note that test cases 
+-- are grouped by the size of the test inputs.
+inputSizesBenchmarkGroupIdentifier :: [Int] -> String
+inputSizesBenchmarkGroupIdentifier [x] = "Input Size " ++ show x
+inputSizesBenchmarkGroupIdentifier [x1, x2] = 
+  "Input Sizes (" ++ show x1 ++ ", " ++ show x2 ++ ")"
+inputSizesBenchmarkGroupIdentifier _ = error "AutoBench.Internal.Configuration.inputSizesBenchmarkGroupIdentifier: invalid input sizes." 
+
+-- | Generate benchmark identifiers for baseline measurements based on input 
+-- size.
+baselineBenchmarkIdentifier :: [Int] -> String 
+baselineBenchmarkIdentifier [x] = "Baseline for Input Size " ++ show x
+baselineBenchmarkIdentifier [x1, x2] = 
+  "Baseline for Input Sizes (" ++ show x1 ++ ", " ++ show x2 ++ ")"
+baselineBenchmarkIdentifier _ = error "AutoBench.Internal.Configuration.baselineBenchmarkIdentifier: invalid input sizes." 
 
 -- * Statistical analysis
 

@@ -1,51 +1,45 @@
 
 {-# OPTIONS_GHC -Wall #-}
 
-{-|
+-- |
+--
+-- Module      : AutoBench.Internal.Benchmarking
+-- Description : Generating and running Criterion 'Benchmarks'
+-- Copyright   : (c) 2018 Martin Handley
+-- License     : BSD-style
+-- Maintainer  : martin.handley@nottingham.ac.uk
+-- Stability   : Experimental
+-- Portability : GHC
+--
+-- This module is responsible for generating benchmarks for test programs
+-- to be executed by Criterion. In some cases (i.e., when users require the
+-- system to automatically generate test data), this processes involves 
+-- generating appropriate benchmark inputs using 
+-- 'AutoBench.Internal.DataGeneration'.
 
-  Module      : AutoBench.Internal.Benchmarking
-  Description : Functions used to generate Criterion benchmarks.
-  Copyright   : (c) 2018 Martin Handley
-  License     : BSD-style
-  Maintainer  : martin.handley@nottingham.ac.uk
-  Stability   : Experimental
-  Portability : GHC
+-- Also included is AutoBench's top-level function for running benchmarks,
+-- see 'runBenchmarks'. Note this function passes a user-specified 
+-- configuration to Criterion, see '_critCfg' in 'TestSuite'.
 
-  This module is responsible for generating benchmarks for test programs
-  to be executed by Criterion. In some cases (i.e., when users require the
-  system to automatically generate test data), this processes involves 
-  generating appropriate benchmark inputs using 
-  'AutoBench.Internal.DataGeneration'.
+-- Due to 'Arbitrary'\/'NFData' type constraints, one generation function is 
+-- required for each possible configuration of:
 
-  Also included is AutoBench's top-level function for running benchmarks,
-  see 'runBenchmarks'. Note this function passes a user-specified 
-  configuration to Criterion, see '_critCfg' in 'TestSuite'.
+-- * Generated or user-specified test data ('Gen' or 'Man' suffix);
+-- * Results of test programs evaluated to normal form or weak head normal form
+--   ('Nf' or 'Whnf' suffix);
+-- * Unary or binary test programs ('Un' or 'Bin' suffix).
 
-  Due to Arbitrary/NFData typing constraints, one generation function is 
-  required for each possible configuration of:
+-- Therefore eight generation functions are required in total. 
+--
+-- For example, 'genBenchmarksGenNfUn' means:
+-- "Generate benchmarks for /Un/ary test programs, that require /Gen/erated test 
+-- data whereby test cases (i.e., the results of test programs) are evaluated
+-- to /N/ormal /f/orm".
+--
 
-  * Generated or user-specified test data ('Gen' or 'Man' suffix);
-  * Results of test programs evaluated to weak head normal form or normal form 
-    ('Nf' or 'Whnf' suffix);
-  * Unary or binary test programs ('Un' or 'Bin' suffix).
-
-  Therefore eight generation functions are required in total. 
-
-  For example, 'genBenchmarksGenNfUn' means:
-
-  "Generate benchmarks for 'Un'ary test programs, that require 'Gen'erated test 
-  data whereby test cases (i.e., the results of test programs) are evaluated
-  to 'N'ormal 'f'orm".
-
--}
-
-{-
-   ----------------------------------------------------------------------------
-   <TO-DO>:
-   ----------------------------------------------------------------------------
-   - I'm all for aligning syntax, but there's too much white space here;
-   - 
--}
+-------------------------------------------------------------------------------
+-- <TO-DO>:
+-------------------------------------------------------------------------------
 
 module AutoBench.Internal.Benchmarking 
   (
@@ -62,7 +56,7 @@ module AutoBench.Internal.Benchmarking
   , genBenchmarksManNfBin     -- Cfg: user-specified test data, results to nf, binary test programs.
   , genBenchmarksManWhnfBin   -- Cfg: user-specified test data, results to whnf, binary test programs.
   -- * Running Criterion benchmarks
-  , runBenchmarks             -- AutoBench's top-level function for running benchmarks using Criterion.
+  , runBenchmarks             -- AutoBench's top-level function for running benchmarks with Criterion.
 
   ) where 
 
@@ -83,16 +77,12 @@ import Criterion.Types
   , whnf
   )
 
-import AutoBench.Internal.AbstractSyntax (Id)
-import AutoBench.Internal.Configuration  (defaultBenchmarkReportFilepath)
-import AutoBench.Internal.DataGeneration (genDataUn, genDataBin)
-import AutoBench.Internal.Types
-  ( UnaryTestData
-  , BinaryTestData
-  , TestSuite(..)
-  , toHRange
-  )
-
+import           AutoBench.Internal.AbstractSyntax (Id)
+import qualified AutoBench.Internal.Configuration  as Config
+import           AutoBench.Internal.DataGeneration (genDataBin, genDataUn)
+import           AutoBench.Internal.Types          ( BinaryTestData
+                                                   , TestSuite(..)
+                                                   , UnaryTestData, toHRange )
 
 -- * Generate Criterion benchmarks
 
@@ -116,20 +106,20 @@ genBenchmarksGenNfUn ps ts = gen ps <$>
 
     -- Generate the benchmarks.
     gen progs (size, d) 
-      | baseline = bgroup ("With Baseline")
+      | baseline = bgroup Config.withBaselineBenchmarkGroupIdentifier
           [ env d 
              ( \xs -> 
-                 bgroup ("Input Size " ++ show (size :: Int))
+                 bgroup (Config.inputSizesBenchmarkGroupIdentifier [size])
                    [ bench idt $ nf prog xs
                    | (idt, prog) <- progs
                    ]
              )
           , env (snd (head progs) <$> d) 
-              (bench ("Baseline for Input Size " ++ show (size :: Int)) . nf id)
+              (bench (Config.baselineBenchmarkIdentifier [size]) . nf id)
           ]
       | otherwise = env d 
           ( \xs -> 
-              bgroup ("Input Size " ++ show (size :: Int))
+              bgroup (Config.inputSizesBenchmarkGroupIdentifier [size])
                 [ bench idt $ nf prog xs
                 | (idt, prog) <- progs
                 ]
@@ -151,7 +141,7 @@ genBenchmarksGenWhnfUn ps ts = gen ps <$>
     -- Generate the benchmarks.
     gen progs (size, d) = env d 
       ( \xs -> 
-          bgroup ("Input Size " ++ show (size :: Int))
+          bgroup (Config.inputSizesBenchmarkGroupIdentifier [size])
             [ bench idt $ whnf prog xs
             | (idt, prog) <- progs
             ]
@@ -174,30 +164,19 @@ genBenchmarksGenNfBin ps ts = fmap (gen ps) testData
 
     -- Generate the benchmarks.
     gen progs ((s1, s2), d) 
-      | baseline = bgroup ("With Baseline")
+      | baseline = bgroup Config.withBaselineBenchmarkGroupIdentifier
           [ env d 
-              ( \xs -> bgroup ("Input Sizes (" ++ show (s1 :: Int)
-                                               ++ ", " 
-                                               ++ show (s2 :: Int)
-                                               ++ ")")
+              ( \xs -> bgroup (Config.inputSizesBenchmarkGroupIdentifier [s1, s2])
                   [ bench idt $ nf (uncurry prog) xs
                   | (idt, prog) <- progs 
                   ]
               )
           , env ((uncurry $ snd $ head progs) <$> d) 
-              ( bench ("Baseline for Input Sizes (" ++ show (s1 :: Int)
-                                                    ++ ", " 
-                                                    ++ show (s2 :: Int)
-                                                    ++ ")"
-                      ) . nf id
-              )
+              (bench (Config.baselineBenchmarkIdentifier [s1, s2]) . nf id)
           ] 
 
       | otherwise = env d 
-          ( \xs -> bgroup ("Input Sizes (" ++ show (s1 :: Int)
-                                           ++ ", " 
-                                           ++ show (s2 :: Int)
-                                           ++ ")")
+          ( \xs -> bgroup (Config.inputSizesBenchmarkGroupIdentifier [s1, s2])
               [ bench idt $ nf (uncurry prog) xs
               | (idt, prog) <- progs 
               ]
@@ -220,10 +199,7 @@ genBenchmarksGenWhnfBin ps ts = fmap (gen ps) testData
   where
     -- Generate the benchmarks. 
     gen progs ((s1, s2), d) = env d  
-      ( \xs -> bgroup ("Input Sizes (" ++ show (s1 :: Int)
-                                       ++ ", " 
-                                       ++ show (s2 :: Int)
-                                       ++ ")")
+      ( \xs -> bgroup (Config.inputSizesBenchmarkGroupIdentifier [s1, s2])
           [ bench idt $ whnf (uncurry prog) xs
           | (idt, prog) <- progs 
           ]
@@ -254,20 +230,20 @@ genBenchmarksManNfUn ps ts = fmap (gen ps) . sortBy (comparing fst)
 
     -- Generate the benchmarks.
     gen progs (size, d) 
-      | baseline = bgroup ("With Baseline")
+      | baseline = bgroup Config.withBaselineBenchmarkGroupIdentifier
           [ env d 
              ( \xs -> 
-                 bgroup ("Input Size " ++ show (size :: Int))
+                 bgroup (Config.inputSizesBenchmarkGroupIdentifier [size])
                    [ bench idt $ nf prog xs
                    | (idt, prog) <- progs
                    ]
              )
           , env (snd (head progs) <$> d) 
-              (bench ("Baseline for Input Size " ++ show (size :: Int)) . nf id)
+              (bench (Config.baselineBenchmarkIdentifier [size]) . nf id)
           ]
       | otherwise = env d 
           ( \xs -> 
-              bgroup ("Input Size " ++ show (size :: Int))
+              bgroup (Config.inputSizesBenchmarkGroupIdentifier [size])
                 [ bench idt $ nf prog xs
                 | (idt, prog) <- progs
                 ]
@@ -291,7 +267,7 @@ genBenchmarksManWhnfUn ps _ = fmap (gen ps) . sortBy (comparing fst)
     -- Generate the benchmarks.
     gen progs (size, d) = env d 
       ( \xs -> 
-          bgroup ("Input Size " ++ show (size :: Int))
+          bgroup (Config.inputSizesBenchmarkGroupIdentifier [size])
             [ bench idt $ whnf prog xs
             | (idt, prog) <- progs
             ]
@@ -318,30 +294,19 @@ genBenchmarksManNfBin ps ts =
 
     -- Generate the benchmarks.
     gen progs (s1, s2, d1, d2) 
-      | baseline = bgroup ("With Baseline")
+      | baseline = bgroup Config.withBaselineBenchmarkGroupIdentifier
           [ env ((,) <$> d1 <*> d2)
-              ( \xs -> bgroup ("Input Sizes (" ++ show (s1 :: Int)
-                                               ++ ", " 
-                                               ++ show (s2 :: Int)
-                                               ++ ")")
+              ( \xs -> bgroup (Config.inputSizesBenchmarkGroupIdentifier [s1, s2])
                   [ bench idt $ nf (uncurry prog) xs
                   | (idt, prog) <- progs 
                   ]
               )
           , env ((snd $ head progs) <$> d1 <*> d2) 
-              ( bench ("Baseline for Input Sizes (" ++ show (s1 :: Int)
-                                                    ++ ", " 
-                                                    ++ show (s2 :: Int)
-                                                    ++ ")"
-                      ) . nf id
-              )
+              (bench (Config.baselineBenchmarkIdentifier [s1, s2]) . nf id)
           ] 
 
       | otherwise = env ((,) <$> d1 <*> d2) 
-          ( \xs -> bgroup ("Input Sizes (" ++ show (s1 :: Int)
-                                           ++ ", " 
-                                           ++ show (s2 :: Int)
-                                           ++ ")")
+          ( \xs -> bgroup (Config.inputSizesBenchmarkGroupIdentifier [s1, s2])
               [ bench idt $ nf (uncurry prog) xs
               | (idt, prog) <- progs 
               ]
@@ -365,10 +330,7 @@ genBenchmarksManWhnfBin ps _ =
   where 
     -- Generate the benchmarks.
     gen progs (s1, s2, d1, d2) = env ((,) <$> d1 <*> d2) 
-      ( \xs -> bgroup ("Input Sizes (" ++ show (s1 :: Int)
-                                       ++ ", " 
-                                       ++ show (s2 :: Int)
-                                       ++ ")")
+      ( \xs -> bgroup (Config.inputSizesBenchmarkGroupIdentifier [s1, s2])
           [ bench idt $ whnf (uncurry prog) xs
           | (idt, prog) <- progs 
           ]
@@ -381,9 +343,10 @@ genBenchmarksManWhnfBin ps _ =
 -- Note: Criterion /must/ output a JSON report file for benchmark results so 
 -- runtimes can be analysed by AutoBench. If the user-specified Criterion 
 -- configuration doesn't include a JSON file (the default configuration 
--- doesn't), AutoBench uses its own default: 'defBenchRepFilename'.
+-- doesn't), AutoBench uses its own default: 
+-- 'Config.defaultBenchmarkReportFilepath'.
 runBenchmarks :: [Benchmark] -> TestSuite -> IO () 
 runBenchmarks bs ts = defaultMainWith cfg { jsonFile = Just repFile } bs
   where 
     cfg     = _critCfg ts
-    repFile = fromMaybe defaultBenchmarkReportFilepath (reportFile cfg)
+    repFile = fromMaybe Config.defaultBenchmarkReportFilepath (reportFile cfg)
