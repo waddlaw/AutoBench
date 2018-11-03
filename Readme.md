@@ -150,6 +150,16 @@ It is important to note that there are a number of issues to address when benchm
 
 ## Installing and Invoking AutoBench
 
+reqwire some libraries:
+
+```shell
+# dependent libraries of cairo
+$ sudo apt-get install libgirepository1.0-dev libwebkit2gtk-4.0-dev libgtksourceview-3.0-dev
+
+# dependent libraries of matrix
+$ sudo apt-get install libgsl0-dev liblapack-dev libatlas-base-dev
+```
+
 Get AutoBench up and running in five steps:
 
 1. Download the source files from this GitHub repository;
