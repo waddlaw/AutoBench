@@ -42,6 +42,8 @@ module AutoBench.Internal.Regression
 
   ) where 
 
+import Prelude hiding ((<>))
+
 import           Data.List            (minimumBy, nub)
 import           Data.Ord             (comparing)
 import qualified Data.Vector.Storable as V
